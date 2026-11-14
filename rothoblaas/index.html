@@ -133,6 +133,8 @@ body.drop::after{content:"Projektdatei (.html / .json) hier ablegen";position:fi
 .rep .figs figure{margin:0;min-width:0}
 .rep .figs figcaption{font-size:7.5pt;text-align:center;margin-top:1mm}
 .rep .blk{break-inside:avoid}
+.rep .nwk{border:.8pt solid #000;padding:1mm 2mm;margin:.8mm 0 1.4mm 4mm;font-weight:bold;font-size:9.5pt;display:flex;justify-content:space-between;gap:5mm;break-inside:avoid}
+.rep .nwk.nok{border-width:1.8pt}
 .rep .res{border:1pt solid #000;padding:1.5mm 2.5mm;margin:2mm 0;font-weight:bold;display:flex;justify-content:space-between;gap:6mm;break-inside:avoid}
 .rep ul{margin:0 0 1mm;padding-left:5mm}
 .rep li{margin-bottom:.6mm}
@@ -217,7 +219,7 @@ body.drop::after{content:"Projektdatei (.html / .json) hier ablegen";position:fi
     <div class="viz" id="viz"></div>
   </div>
   <div class="sheetwrap">
-    <div class="sheetbar"><span>Druckvorschau – Seiten mit je 250 mm Inhaltshöhe für den Import in VCmaster</span><button class="btn" id="bPrint2">Drucken</button></div>
+    <div class="sheetbar"><span>Druckvorschau – Seiten mit je 250 mm Inhaltshöhe für den Import in VCmaster</span><span style="display:flex;align-items:center;gap:8px">Umfang <span class="seg" id="protSeg"><button type="button" data-prot="kurz">Kurz</button><button type="button" data-prot="standard">Standard</button><button type="button" data-prot="detailliert">Detailliert</button></span></span><button class="btn" id="bPrint2">Drucken</button></div>
     <div id="report" class="rep"></div>
   </div>
 </div>
@@ -668,13 +670,14 @@ const STORE = "rothoblaas-nachweis-v3";
 function defState(){
   const m={}; MOD_ORDER.forEach(id=>{ m[id]=JSON.parse(JSON.stringify(MOD[id].def)); if(MOD[id].auto) m[id].modus="auto"; });
   MOD_ORDER.forEach(id=>{ m[id].lc=JSON.parse(JSON.stringify(MOD[id].lcDef||[{name:"LK 1",kled:3,v:{}}])); });
-  return {pos:"",bez:"",mod:"nino",gM:GAMMA.M,gM2:GAMMA.M2,gM0:GAMMA.M0,gM1:GAMMA.M1,nkl:1,m};
+  return {pos:"",bez:"",prot:"standard",mod:"nino",gM:GAMMA.M,gM2:GAMMA.M2,gM0:GAMMA.M0,gM1:GAMMA.M1,nkl:1,m};
 }
 // Stand übernehmen (Browser-Speicher, Datei-Import, Zwischenstand). Unbekannte oder fehlende Werte fallen auf die Vorgaben zurück.
 function applyState(o){
   S=defState();
   if(!o||typeof o!=="object") return;
   ["pos","bez"].forEach(k=>{ if(o[k]!=null) S[k]=String(o[k]); });
+  if(["kurz","standard","detailliert"].indexOf(o.prot)>=0) S.prot=o.prot;   // Protokollumfang
   if(typeof o.mod==="string"&&MOD[o.mod]) S.mod=o.mod;
   if(o.nkl!=null&&[1,2,3].indexOf(+o.nkl)>=0) S.nkl=+o.nkl;
   if(o.m&&typeof o.m==="object") MOD_ORDER.forEach(id=>{ const src=o.m[id]; if(!src||typeof src!=="object") return;
@@ -2347,6 +2350,7 @@ function render(){
   const D=M.draw(R);
   $("viz").innerHTML=D.map(d=>'<figure><div>'+d.svg+'</div><figcaption>'+d.cap+'</figcaption></figure>').join("");
   $("report").innerHTML=paginate(report(R,D));
+  document.querySelectorAll("#protSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.prot===stufe())));
   // Hinweise an den Feldern: Eingabebereich und Anwendungsgrenzen
   M.fields(s).forEach(f=>{ const el=$("h_"+f.id); if(!el) return;
     const ls=C.limits.filter(L=>L.f===f.id), parts=[]; let bad=false;
@@ -2373,12 +2377,43 @@ function eqPart(p,d,kmod,Rd){
          L=syms.concat([rk]).join(" · "); N=vals.concat([rv]).join(" · "); }
   return '<div class="eq"><span class="pl">'+p.lab+':</span> '+L+' = '+N+' = <b>'+fmt(Rd)+' kN</b></div>';
 }
+/* ---------- Protokollumfang: kurz | standard | detailliert ----------
+   Kurz: Eingaben, Ergebnistabelle, Ergebnis. Standard: je Kraftrichtung ein Block aus Einwirkung, Widerständen je Versagensart
+   und Nachweiskasten für die maßgebende Kombination. Detailliert: Blöcke für jede Kombination. Gerechnet wird immer dasselbe. */
+const STUFEN={kurz:"Kurz",standard:"Standard",detailliert:"Detailliert"};
+const stufe = () => STUFEN[S.prot] ? S.prot : "standard";
+const okz = e => e<=1+1e-9;
+const kasten = (f,eta,zus) => '<div class="nwk'+(okz(eta)?"":" nok")+'"><span>'+f+"</span><span>η = "+etaTxt(eta)+" "+(okz(eta)?"≤ 1 – erfüllt":"&gt; 1 – NICHT erfüllt")+(zus?" "+zus:"")+"</span></div>";
+// Nachweisblöcke einer Kombination r
+function nwBloecke(r,C){
+  let h="";
+  r.g.forEach(o=>{ if(!o.key||!(o.F>0)) return;
+    const d=o.dir, Fs=sub("F",d.ix+",d"), Rs=sub("R",d.ix+",d");
+    h+='<div class="blk"><h3>'+sub("F",d.ix)+" – "+d.name+"</h3>";
+    h+='<div class="eq"><span class="pl">Einwirkung:</span> '+Fs+" = <b>"+fmt(o.F)+" kN</b></div>";
+    if(d.na||!(d.parts||[]).length){ h+='<div class="eq"><span class="pl">kein Tragfähigkeitswert: '+sub("F",d.ix)+" "+(d.na||"liegt für diese Konfiguration nicht vor")+"</span></div></div>"; return; }
+    d.parts.forEach(p=>{ h+=eqPart(p,d,r.kmod,partRd(p,r.kmod)); });
+    if(o.R==null||!(o.R>0)){ h+='<div class="eq"><span class="pl">kein Tragfähigkeitswert für diese Konfiguration</span></div></div>'; return; }
+    const inn=o.parts.filter(e=>e.Rd!=null).map(e=>e.Rd);
+    if(inn.length>1) h+='<div class="eq"><span class="pl">Widerstand:</span> '+Rs+" = min("+inn.map(v=>fmt(v)).join(" ; ")+") = <b>"+fmt(o.R)+" kN</b>"+(o.gov?' <span class="pl">(maßgebend: '+o.gov.lab+")</span>":"")+"</div>";
+    else if(d.parts.length>1) h+='<div class="eq"><span class="pl">Widerstand:</span> '+Rs+" = <b>"+fmt(o.R)+" kN</b></div>";
+    h+=kasten(Fs+" / "+Rs+" = "+fmt(o.F)+" / "+fmt(o.R),o.eta);
+    o.outs.forEach(e=>{ if(e.eta!=null) h+=kasten(e.p.lab+": "+Fs+" / "+symK(e.p,d)+" = "+fmt(o.F)+" / "+fmt(e.Rd),e.eta,"(getrennt nachgewiesen)"); });
+    h+="</div>"; });
+  if(r.interOn){ const tm=r.g.filter(o=>o.key&&o.F>0&&o.eta!==Infinity);
+    h+='<div class="blk"><h3>Kombinierte Beanspruchung</h3><div class="eq"><span class="pl">Nachweis nach '+C.interSrc+"</span></div>";
+    if(r.inter===Infinity||!tm.length) h+='<div class="eq"><span class="pl">nicht nachweisbar: für eine Kraftrichtung liegt kein Tragfähigkeitswert vor</span></div>';
+    else h+=kasten(tm.map(o=>"("+sub("F",o.dir.ix+",d")+" / "+sub("R",o.dir.ix+",d")+")²").join(" + ")+" = "+tm.map(o=>fmt(o.eta)+"²").join(" + "),r.inter);
+    h+="</div>"; }
+  return h;
+}
 function report(R,D){
   const C=R.C, M=R.M, g=R.g, rows=R.rows, dl=dirList(C);
   RKDEC = C.rkDec!=null ? C.rkDec : 1;
   const svgR = t => t.replace(/id="([A-Za-z])/g,'id="r_$1').replace(/url\(#/g,"url(#r_").replace(/href="#/g,'href="#r_');   // eindeutige IDs für die zweite Kopie der Zeichnung
   const hasS=dl.some(k=>(C.dirs[k].parts||[]).some(p=>p.type==="s")), hasS0=dl.some(k=>(C.dirs[k].parts||[]).some(p=>p.type==="s0")), hasA1=dl.some(k=>(C.dirs[k].parts||[]).some(p=>p.type==="a1")), hasD=dl.some(k=>(C.dirs[k].parts||[]).some(p=>p.type==="d"));
   let n=0; const H=t=>"<h2>"+(++n)+" "+t+"</h2>";
+  const ku=stufe()==="kurz", de=stufe()==="detailliert";
   let h="";
   h+='<div class="u"><h1>'+(S.pos?("Pos. "+esc(S.pos)+" – "):"")+(S.bez?esc(S.bez)+": ":"")+C.head+"</h1><p>"+C.intro+"</p></div>";
   // 1 System
@@ -2399,9 +2434,12 @@ function report(R,D){
   h+="</table>";
   // 4 Anwendungsgrenzen
   h+=H("Anwendungsgrenzen und konstruktive Bedingungen");
-  h+='<table class="g lim"><tr><th>Bedingung</th><th>vorhanden</th><th>Bewertung</th></tr>';
-  C.limits.forEach(L=>{ const st=limState(L); h+="<tr><td>"+L.t+"</td><td>"+(L.v||"")+'</td><td class="'+(L.ok===false?"nok":"")+'">'+st[1]+"</td></tr>"; });
-  h+="</table>";
+  const LIM=ku?C.limits.filter(L=>L.ok!==true):C.limits;
+  if(ku) h+="<p>"+C.limits.length+" Bedingungen geprüft: "+C.limits.filter(L=>L.ok===true).length+" eingehalten, <b>"+C.limits.filter(L=>L.ok===false).length+" nicht eingehalten</b>"+(LIM.length?"; nicht eingehaltene und bauseits einzuhaltende Bedingungen:":".")+"</p>";
+  if(LIM.length) h+='<table class="g lim"><tr><th>Bedingung</th><th>vorhanden</th><th>Bewertung</th></tr>';
+  LIM.forEach(L=>{ const st=limState(L); h+="<tr><td>"+L.t+"</td><td>"+(L.v||"")+'</td><td class="'+(L.ok===false?"nok":"")+'">'+st[1]+"</td></tr>"; });
+  if(LIM.length) h+="</table>";
+  if(!ku){
   // 5 Charakteristische Tragfähigkeiten
   h+=H("Charakteristische Tragfähigkeiten");
   h+='<table class="g"><tr><th>Kraftrichtung</th><th>Versagensart</th><th>Symbol</th><th class="r">Wert [kN]</th><th>Quelle</th></tr>';
@@ -2412,18 +2450,32 @@ function report(R,D){
   h+="</table>";
   pres.forEach(t=>{ h+='<div class="eq">'+t+"</div>"; });
   h+="<p>"+C.rkNote+(hasD?" Werte mit Index d sind Bemessungswerte.":"")+"</p>";
-  // 6 Bemessungswerte
-  h+=H("Bemessungswerte der Tragfähigkeit");
-  h+='<p class="kwn">Maßgebende Kombination: '+esc(g.l.name)+", KLED "+KLED[g.l.kled][0]+", "+sub("k","mod")+" = "+fmt(g.kmod)+". Holzseite "+sub("R","d")+" = "+sub("k","mod")+" · "+sub("R","k")+" / "+sub("γ","M")+(hasS?"; Stahl und Aluminium "+sub("R","d")+" = "+sub("R","k")+" / "+sub("γ","M2"):"")+(hasS0?"; Stahl "+sub("R","d")+" = "+sub("R","k")+" / "+sub("γ","M0"):"")+(hasA1?"; Knicken Aluminium "+sub("R","d")+" = "+sub("R","k")+" / "+sub("γ","M1"):"")+(hasD?"; Betonseite als Bemessungswert aus dem Katalog":"")+".</p>";
-  dl.forEach(k=>{ const d=C.dirs[k]; if(d.na||!(d.parts||[]).length) return;
-    h+='<div class="blk"><h3>'+sub("F",d.ix)+" – "+d.name+"</h3>";
-    const inn=[]; d.parts.forEach(p=>{ const Rd=partRd(p,g.kmod); h+=eqPart(p,d,g.kmod,Rd); if(!p.out&&Rd!=null) inn.push(Rd); });
-    if(inn.length>1) h+='<div class="eq">'+sub("R",d.ix+",d")+" = min("+inn.map(v=>fmt(v)).join(" ; ")+") = <b>"+fmt(Math.min.apply(null,inn))+" kN</b></div>";
-    else if(inn.length===1&&d.parts.length>1) h+='<div class="eq">'+sub("R",d.ix+",d")+" = <b>"+fmt(inn[0])+" kN</b></div>";
-    h+="</div>"; });
-  // 7 Nachweise
-  h+=H("Nachweise");
+  }
   const G=C.groups, single=G.length===1, interAny=rows.some(r=>r.interOn);
+  if(!ku){
+  // 6 Nachweise je Kraftrichtung: Einwirkung → Widerstände je Versagensart → Nachweiskasten
+  const formeln="Holzseite "+sub("R","d")+" = "+sub("k","mod")+" · "+sub("R","k")+" / "+sub("γ","M")+(hasS?"; Stahl und Aluminium "+sub("R","d")+" = "+sub("R","k")+" / "+sub("γ","M2"):"")+(hasS0?"; Stahl "+sub("R","d")+" = "+sub("R","k")+" / "+sub("γ","M0"):"")+(hasA1?"; Knicken Aluminium "+sub("R","d")+" = "+sub("R","k")+" / "+sub("γ","M1"):"")+(hasD?"; Betonseite als Bemessungswert aus dem Katalog":"");
+  const used={};
+  (de?[g].concat(rows.filter(r=>r!==g)):[g]).forEach(r=>{
+    h+=H("Nachweise – Kombination "+esc(r.l.name)+(r===g&&rows.length>1?" (maßgebend)":""));
+    h+='<p class="kwn">KLED '+KLED[r.l.kled][0]+", NKL "+S.nkl+": "+sub("k","mod")+" = "+fmt(r.kmod)+" (DIN EN 1995-1-1, Tab. 3.1, mit NA). "+formeln+".</p>";
+    const b=nwBloecke(r,C); r.g.forEach(o=>{ if(o.key&&o.F>0) used[o.key]=1; });
+    h+=b||'<p>In dieser Kombination wirkt keine Kraft.</p>'; });
+  // nicht beanspruchte Kraftrichtungen: Bemessungswerte zur Information
+  const rest=dl.filter(k=>!used[k]&&!C.dirs[k].na&&(C.dirs[k].parts||[]).length);
+  if(rest.length){
+    h+=H("Bemessungswerte der übrigen Kraftrichtungen");
+    h+='<p class="kwn">'+(de?"In keiner Kombination":"In der maßgebenden Kombination nicht")+" beansprucht; Werte für "+sub("k","mod")+" = "+fmt(g.kmod)+" ("+esc(g.l.name)+").</p>";
+    rest.forEach(k=>{ const d=C.dirs[k];
+      h+='<div class="blk"><h3>'+sub("F",d.ix)+" – "+d.name+"</h3>";
+      const inn=[]; d.parts.forEach(p=>{ const Rd=partRd(p,g.kmod); h+=eqPart(p,d,g.kmod,Rd); if(!p.out&&Rd!=null) inn.push(Rd); });
+      if(inn.length>1) h+='<div class="eq">'+sub("R",d.ix+",d")+" = min("+inn.map(v=>fmt(v)).join(" ; ")+") = <b>"+fmt(Math.min.apply(null,inn))+" kN</b></div>";
+      h+="</div>"; });
+  }
+  }
+
+  // Übersicht aller Kombinationen (Kurz: einzige Nachweisdarstellung)
+  h+=H(ku?"Nachweise":"Übersicht aller Kombinationen");
   if(!C.noInter&&!interAny) h+='<div class="blk kwn"><p>Einzelnachweise '+sub("η","i")+" = "+sub("F","i,d")+" / "+sub("R","i,d")+" ≤ 1. In jeder Kombination wirkt nur eine Kraftrichtung; ein Nachweis für kombinierte Beanspruchung ("+C.interSrc+") ist nicht erforderlich.</p></div>";
   else if(C.noInter) h+='<div class="blk kwn"><p>Nachweis '+sub("η","")+" = "+sub("F","d")+" / "+sub("R","d")+" ≤ 1 mit "+sub("R","d")+" als kleinstem Bemessungswert aller Versagensarten.</p></div>";
   else h+='<div class="blk kwn"><p>Einzelnachweise '+sub("η","i")+" = "+sub("F","i,d")+" / "+sub("R","i,d")+" ≤ 1 und Nachweis für kombinierte Beanspruchung ("+C.interSrc+"):</p><div class=\"eq\">"+G.map(gr=>"("+sub("F",gr.lab+",d")+" / "+sub("R",gr.lab+",d")+")²").join(" + ")+" ≤ 1</div></div>";
@@ -2435,7 +2487,7 @@ function report(R,D){
     h+='<td class="'+(tok?"":"nok")+'">'+(tok?"≤ 1":"&gt; 1")+"</td></tr>"; });
   h+='</table><div class="blk"><p>Kräfte und Tragfähigkeiten in kN je Anschluss.</p>';
   const tm=g.g.filter(o=>o.key&&o.eta!==Infinity&&o.F>0);
-  if(tm.length&&(!g.interOn||g.inter!==Infinity)){
+  if(ku&&tm.length&&(!g.interOn||g.inter!==Infinity)){
     if(!g.interOn) h+='<div class="eq">'+esc(g.l.name)+": η = "+fmt(tm[0].F)+" / "+fmt(tm[0].R)+" = <b>"+fmt(tm[0].eta)+"</b> "+(tm[0].eta<=1+1e-9?"≤":"&gt;")+" 1"+(tm[0].gov?" (maßgebend: "+tm[0].gov.lab+")":"")+"</div>";
     else h+='<div class="eq">'+esc(g.l.name)+": "+tm.map(o=>"("+fmt(o.F)+" / "+fmt(o.R)+")²").join(" + ")+" = "+(tm.length>1?tm.map(o=>fmt(o.eta*o.eta)).join(" + ")+" = ":"")+"<b>"+fmt(g.inter)+"</b> "+(g.inter<=1+1e-9?"≤":"&gt;")+" 1</div>";
     const gv=tm.filter(o=>o.gov&&o.parts.length>1).map(o=>sub("F",o.dir.ix)+": "+o.gov.lab);
@@ -2449,7 +2501,7 @@ function report(R,D){
   h+='<div class="res"><span>'+C.resLine+"</span><span>max η = "+etaTxt(g.max)+" "+(R.ok?"≤ 1 – Nachweis erfüllt":"– Nachweis NICHT erfüllt")+"</span></div>";
   if(R.errs.length||R.msgs.length) h+="<ul>"+R.errs.map(t=>"<li><b>"+t+"</b></li>").join("")+R.msgs.map(t=>"<li>"+t+"</li>").join("")+"</ul>";
   h+="<h3>Nicht geführte Nachweise</h3><ul>"+C.notes.map(t=>"<li>"+t+"</li>").join("")+"</ul>";
-  h+='<div class="foot">Rothoblaas-Nachweistool V '+TOOL.ver+" · Datenstand "+TOOL.stand+" · Quellen: "+TOOL.kat+"; "+C.eta+(FILE?" · Eingabestand: "+esc(FILE.name)+(DIRTY?" (danach geändert)":""):"")+"</div>";
+  h+='<div class="foot">Rothoblaas-Nachweistool V '+TOOL.ver+" · Datenstand "+TOOL.stand+" · Quellen: "+TOOL.kat+"; "+C.eta+" · Protokollumfang: "+STUFEN[stufe()]+(FILE?" · Eingabestand: "+esc(FILE.name)+(DIRTY?" (danach geändert)":""):"")+"</div>";
   return h;
 }
 
@@ -2609,6 +2661,7 @@ function printReport(){
 
 /* ---------- Ereignisse ---------- */
 const touch = () => { DIRTY=true; };
+$("protSeg").addEventListener("click",ev=>{ const b=ev.target.closest("button[data-prot]"); if(!b||b.dataset.prot===stufe()) return; touch(); S.prot=b.dataset.prot; save(); render(); });
 document.addEventListener("click",ev=>{
   const b=ev.target.closest("button"); if(!b) return;
   const s=S.m[S.mod], d=b.dataset;
