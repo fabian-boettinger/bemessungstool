@@ -682,3 +682,14 @@ test("ETA-16/0043 W-BS: Stichproben, k₇ = 0,8 nur in der Gruppe", () => {
   const R2 = A.nachweis(Z.kernEingabe(s)); assert.deepEqual([...R2.fehler], []); nah(R2.Rd.Vs.Rd, 0.8 * 42 / 1.25, "Gruppe k₇ = 0,8");
   assert.equal(R2.lf[0].ber.Np.entfaellt, true);
 });
+
+test("ETA-20/0867 HUS4: Stichproben, l_f = h_nom, γ_inst = 1,2", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-20/0867").length, 18);
+  const e = etaEintrag("eta200867-hus4-10-h-55");
+  assert.equal(e.gInst, 1.2); assert.equal(e.hef, 42.5); assert.equal(e.lf, 55); assert.equal(e.NRkpUcr, 13); assert.equal(e.NRkpCr, "nm"); assert.equal(e.sp1c, 1.65);
+  const t = etaEintrag("eta200867-hus4-10-t-85"); assert.equal(t.NRkpUcr, 32); assert.equal(t.NRkpCr, 19); assert.equal(t.VRks, 34); assert.equal(t.M0Rks, 92); assert.equal(t.hmin, 140);
+  assert.equal(etaEintrag("eta200867-hus4-14-h-115").hef, 91.8);
+  const s = zustandAusEintrag(etaEintrag("eta200867-hus4-12-h-100"), 79.9); s.geo.h = 200; s.geo.rand = { "+x": "", "-x": "", "+y": 120, "-y": "" };
+  const R = A.nachweis(Z.kernEingabe(s)); assert.deepEqual([...R.fehler], []);
+  nah(R.beton.lf, 100, "l_f = h_nom (≤ 12·d_nom = 144)");
+});

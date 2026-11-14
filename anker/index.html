@@ -1412,6 +1412,31 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       quelle: "ETA-16/0043: Anh. B3 (S. 11), B4 (S. 12), " + (d <= 10 ? "C1 (S. 16)" : "C2 (S. 17)"),
       notiz: `Betonschraube ${d} mm (kein metrisches Gewinde), h_nom = ${hn} mm, d₀ = ${d} mm; N_Rk,p „nm“ = laut ETA ≥ N⁰_Rk,c; k₇ = 0,8 für Gruppen` }));
   })(),
+
+  // ---- Hilti Betonschraube HUS4 (Kohlenstoffstahl), ETA-20/0867 vom 22.12.2025, Größen 8–14 je h_nom
+  // Anhang B9/B10 (PDF-S. 18, 19): h_min, s_min, c_min, d_f; C1/C2 (S. 25, 26) Größe 8 und 10 H/C/A, C3/C4 (S. 27, 28) 10 T, 12, 14:
+  // N_Rk,s, γ_Ms, N_Rk,p („≥ N⁰_Rk,c“ = nm), ψ_c = (f_ck/20)^0,5, h_ef, k_cr/ucr,N, c_cr,N, N⁰_Rk,sp = min(N_Rk,p; N⁰_Rk,c), c_cr,sp = Faktor·h_ef,
+  // γ_inst, V⁰_Rk,s, γ_Ms,V, k₇ = 0,8, M⁰_Rk,s, k₈, l_f = h_nom, d_nom. Größe 16 (Anh. B11) nicht übernommen.
+  ...(() => {
+    const T = [ // [Größe, Typ, gMs, gMsV, M⁰, c_cr,sp/h_ef, d_f, [h_nom], [h_ef], N_Rk,s, [N_Rk,p ucr], [N_Rk,p cr], [V⁰], [k₈], [γ_inst], [h_min], s_min, c_min]
+      [8, "H(F), C", 1.5, 1.25, 32, 1.5, 12, [40, 60, 70], [30.6, 47.6, 56.1], 36.0, ["nm", "nm", "nm"], [5.5, "nm", "nm"], [18.8, 18.8, 21.9], [1, 2, 2], [1, 1, 1], [80, 100, 120], 35, 35],
+      [8, "T-H(F), T-C", 1.4, 1.5, 46, 1.5, 12, [50, 60, 70], [40, 46.4, 54.9], 39.2, [9, 12, 16], [6, 9, 12], [19.0, 19.0, 22.0], [1, 2, 2], [1, 1, 1], [100, 100, 120], 50, 40],
+      [10, "H(F), C, A(F)", 1.5, 1.25, 64, 1.65, 14, [55, 75, 85], [42.5, 59.5, 68.0], 55.0, [13, 22, "nm"], ["nm", "nm", "nm"], [28.8, 28.8, 32.0], [1, 2, 2], [1.2, 1, 1], [100, 130, 140], 40, 40],
+      [10, "T-H(F), T-C", 1.4, 1.5, 92, 1.6, 14, [55, 75, 85], [41.6, 58.6, 67.1], 62.2, [12, 20, 32], [9, 15, 19], [30, 30, 34], [1, 2, 2], [1, 1, 1], [100, 130, 140], 50, 50],
+      [12, "H(F)", 1.5, 1.25, 120, 1.65, 16, [60, 80, 100], [45.9, 62.9, 79.9], 79.0, ["nm", "nm", "nm"], [10, "nm", "nm"], [38.9, 38.9, 44.9], [2, 2, 2], [1, 1, 1], [110, 130, 150], 50, 50],
+      [14, "H(F), A(F)", 1.5, 1.25, 186, 1.6, 18, [65, 85, 115], [49.3, 66.3, 91.8], 101.5, ["nm", "nm", "nm"], ["nm", "nm", "nm"], [55, 55, 62], [2, 2, 2], [1, 1, 1], [120, 160, 200], 60, 60]];
+    const out = [];
+    T.forEach(([d, typ, gN, gV, M, sp, df, hn, hef, N, Pu, Pc, V, k8, gi, hmin, smin, cmin]) => hn.forEach((h, j) => out.push({
+      id: `eta200867-hus4-${d}-${typ.startsWith("T") ? "t" : "h"}-${h}`, hersteller: "Hilti", produkt: `HUS4-${typ} ${d}, h_nom = ${h} mm`,
+      eta: "ETA-20/0867", etaDatum: "22.12.2025", typ: "mechanisch", d, dnom: d, hef: hef[j], hefMin: "", hefMax: "", fuk: "", schraube: true,
+      smin, cmin, hmin: hmin[j], dfETA: df, NRks: N, gMs: gN, VRks: V[j], gMsV: gV, M0Rks: M, k7: 0.8,
+      gInst: gi[j], kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: Pc[j], NRkpUcr: Pu[j], psic: "exp:0,5", psicU: "", tauCr: "", tauUcr: "", psi0sus: "",
+      spArt: "faktor", sp1h: "", sp1c: sp, sp2h: "", sp2c: "", N0Rksp: "", k8: k8[j], lf: h, betonMin: "C20/25", betonMax: "C50/60",
+      quelle: "ETA-20/0867: Anh. " + (d <= 8 || typ.startsWith("H(F), C, A") ? "B9 (S. 18), C1/C2 (S. 25, 26)" : "B10 (S. 19), C3/C4 (S. 27, 28)"),
+      notiz: `Betonschraube ${d} mm, Typ ${typ}, h_nom = ${h} mm, h_ef = ${String(hef[j]).replace(".", ",")} mm, l_f = h_nom; d_f ≤ ${df} mm (Durchsteckmontage); N_Rk,p „nm“ = laut ETA ≥ N⁰_Rk,c` +
+        (d === 8 && typ.startsWith("T") ? "; s_min = 40 mm bei c_min ≥ 50 mm" : "") + (hef[j] < 40 ? "; h_ef < 40 mm außerhalb 1.3 (2)" : "") }))); 
+    return out;
+  })(),
   /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
 const clone = o => JSON.parse(JSON.stringify(o));
 const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); return true; } catch (er) { return null; } };
