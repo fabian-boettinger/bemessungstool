@@ -1837,9 +1837,10 @@ function skizze(E, R, L) {
   return s + "</svg>";
 }
 
-// ------------------------------------------------------------------ Isometrie (schiefe Parallelprojektion, Kabinett 30°)
+// ------------------------------------------------------------------ Isometrie (Axonometrie: um z gedreht ISO_DREH, Blick von oben ISO_NEIG)
 // Betonbauteil mit Rändern (fehlender Rand: Bauteil abgeschnitten, gestrichelt), Ankerplatte, Anker bis h_ef, Bemaßung c, s, h, h_ef,
 // Schnittgrößen der maßgebenden Kombination am Gruppenschwerpunkt, höchstbelasteter Anker rot. Bei Rothoblaas-Kopplung: Winkel mit Wand.
+const ISO_DREH = 30 * Math.PI / 180, ISO_NEIG = 35 * Math.PI / 180;
 function isometrie(E, R, L) {
   const A = E.anker.filter(p => isFinite(p.x) && isFinite(p.y)), g = E.geo;
   if (!A.length || !(g.h > 0) || !(g.hef > 0)) return "";
@@ -1850,10 +1851,11 @@ function isometrie(E, R, L) {
   const B = { xa: rc("-x") != null ? x0 - zeigC(rc("-x")) : x0 - frei, xb: rc("+x") != null ? x1 + zeigC(rc("+x")) : x1 + frei,
               ya: rc("-y") != null ? y0 - zeigC(rc("-y")) : y0 - frei, yb: rc("+y") != null ? y1 + zeigC(rc("+y")) : y1 + frei };
   const real = { "-x": rc("-x") != null, "+x": rc("+x") != null, "-y": rc("-y") != null, "+y": rc("+y") != null };
-  const H = g.h, k = 0.9, ca = Math.cos(Math.PI / 6), sa = Math.sin(Math.PI / 6);
+  const H = g.h, ca = Math.cos(ISO_DREH), sa = Math.sin(ISO_DREH), se = Math.sin(ISO_NEIG), ce = Math.cos(ISO_NEIG);
   const rbH = S.herkunft && S.herkunft.von === "rb" && isFinite(S.herkunft.wy);
   const fy = rbH ? -1 : 1;   // Rothoblaas: Blick von der Seite gegenüber der Wand (Wand hinten)
-  const P = (x, y, z) => [x + k * fy * y * ca, -z - k * fy * y * sa];
+  // sichtbar: Vorderseite (y = yF) und rechte Seite (+x); Tiefe t = −x·sin + y·cos wird mit sin(Neigung) nach oben abgebildet
+  const P = (x, y, z) => [x * ca + fy * y * sa, -(-x * sa + fy * y * ca) * se - z * ce];
   const yF = fy > 0 ? B.ya : B.yb, yR = fy > 0 ? B.yb : B.ya, rF = fy > 0 ? "-y" : "+y", rR = fy > 0 ? "+y" : "-y";
   // Ankerplatte bzw. Winkel
   const ue = isFinite(g.ueberstand) && g.ueberstand > 0 ? g.ueberstand : Math.max(0.25 * span, 2 * (g.dnom || g.d) + 10);
@@ -1863,11 +1865,12 @@ function isometrie(E, R, L) {
   const hw = rb ? Math.max(1.4 * span, 2.5 * g.hef) : 0;
   // Bildausschnitt
   const pts = [];
-  for (const x of [B.xa, B.xb]) for (const y of [B.ya, B.yb]) for (const z of [0, -H, rb ? hw : pl.t + 0.8 * span]) pts.push(P(x, y, z));
+  for (const x of [B.xa, B.xb]) for (const y of [B.ya, B.yb]) for (const z of [0, -H, rb ? hw : pl.t + 0.5 * span]) pts.push(P(x, y, z));
   const us = pts.map(p => p[0]), vs = pts.map(p => p[1]);
-  const W = 520, Hh = 400, pad = 46;
+  const W = 540, Hh = 420, pad = 40;
   const sc = Math.min((W - 2 * pad) / (Math.max(...us) - Math.min(...us)), (Hh - 2 * pad) / (Math.max(...vs) - Math.min(...vs)));
-  const ou = pad - Math.min(...us) * sc + ((W - 2 * pad) - (Math.max(...us) - Math.min(...us)) * sc) / 2, ov = pad - Math.min(...vs) * sc;
+  const ou = pad - Math.min(...us) * sc + ((W - 2 * pad) - (Math.max(...us) - Math.min(...us)) * sc) / 2;
+  const ov = pad + 10 - Math.min(...vs) * sc + Math.max(0, ((Hh - 2 * pad) - (Math.max(...vs) - Math.min(...vs)) * sc) / 2);
   const Q = (x, y, z) => { const p = P(x, y, z); return [ou + p[0] * sc, ov + p[1] * sc]; };
   const pt = q => q[0].toFixed(1) + "," + q[1].toFixed(1);
   const poly = (ps, a) => `<polygon points="${ps.map(pt).join(" ")}" ${a}/>`;
@@ -1893,7 +1896,7 @@ function isometrie(E, R, L) {
     s += poly([Q(B.xa, wy - wd, hw), Q(B.xb, wy - wd, hw), Q(B.xb, wy, hw), Q(B.xa, wy, hw)], `fill="#ead7b7" stroke="#8a6a3a" stroke-width=".8"`);
     s += poly([Q(B.xb, wy - wd, 0), Q(B.xb, wy, 0), Q(B.xb, wy, hw), Q(B.xb, wy - wd, hw)], `fill="#d9bf94" stroke="#8a6a3a" stroke-width=".8"`);
     s += poly([Q(B.xa, wy, 0), Q(B.xb, wy, 0), Q(B.xb, wy, hw), Q(B.xa, wy, hw)], `fill="#f1e3c8" stroke="#8a6a3a" stroke-width=".8"`);
-    s += txt(Q(B.xb - 0.05 * span, wy, hw * 0.85), "Holzwand", `fill="#6b4f22" font-size="10" text-anchor="end"`);
+    s += txt(Q(B.xa + 0.05 * span, wy - wd, hw * 0.92), "Holzwand", `fill="#6b4f22" font-size="10"`);
   }
   // Bauteildicke h
   s += masz(Q(B.xa, yF, 0), Q(B.xa, yF, -H), `h = ${fmtA(H)}`, [-24, 0]);
@@ -1933,7 +1936,7 @@ function isometrie(E, R, L) {
       if (Math.abs(l.N) > 1e-9) { const a = Q(S0.x, S0.y, z0 + (l.N > 0 ? 0 : lenF)), b = Q(S0.x, S0.y, z0 + (l.N > 0 ? lenF : 0)); s += pfeil(a, b, "#b3261e", 2.2) + txt([b[0] - 6, b[1] + 4], `N = ${fmt(l.N, 1)} kN`, `fill="#b3261e" font-size="10" text-anchor="end"`); }
       const Vm = Math.hypot(l.Vx, l.Vy);
       if (Vm > 1e-9) { const b = Q(S0.x + lenF * l.Vx / Vm, S0.y + lenF * l.Vy / Vm, z0); s += pfeil(c0, b, "#0b5a7a", 2.2) + txt([b[0] + 5, b[1] + 12], `V = ${fmt(Vm, 1)} kN`, `fill="#0b5a7a" font-size="10"`); }
-      const mom = [];
+      const mom = [];   // Momente als Text oben rechts
       if (Math.abs(l.My) > 1e-9) mom.push(`M<tspan font-size="8" dy="2">y</tspan><tspan dy="-2"> = ${fmt(l.My, 2)} kNm</tspan>`);
       if (Math.abs(l.Mx) > 1e-9) mom.push(`M<tspan font-size="8" dy="2">x</tspan><tspan dy="-2"> = ${fmt(l.Mx, 2)} kNm</tspan>`);
       if (Math.abs(l.T) > 1e-9) { const r0 = 0.22 * span, arc = []; for (let t = 0; t <= 300; t += 15) { const w = (l.T > 0 ? t : -t) * Math.PI / 180; arc.push(Q(S0.x + r0 * Math.cos(w), S0.y + r0 * Math.sin(w), pl.t)); }
@@ -1944,9 +1947,10 @@ function isometrie(E, R, L) {
     if (iN >= 0 && N[iN] > 1e-9) s += txt([10, 18], `höchstbelasteter Anker ${iN + 1}: N<tspan font-size="8" dy="2">Ed</tspan><tspan dy="-2"> = ${fmt(N[iN], 2)} kN</tspan>`, `fill="#b3261e" font-size="10.5" font-weight="bold"`);
   }
   // Legende, Achsen
-  const o = [fy > 0 ? 16 : 40, Hh - (fy > 0 ? 18 : 34)];
-  s += pfeil(o, [o[0] + 26, o[1]], "#1b2430", 1) + pfeil(o, [o[0] + fy * 26 * k * ca * 1.4, o[1] - fy * 26 * k * sa * 1.4], "#1b2430", 1) + pfeil(o, [o[0], o[1] - 26], "#1b2430", 1);
-  s += txt([o[0] + 30, o[1] + 4], "x", `font-size="10"`) + txt([o[0] + fy * 20 + 4, o[1] - fy * 12 + 3], "y", `font-size="10"`) + txt([o[0] - 4, o[1] - 30], "z", `font-size="10"`);
+  // Achsenkreuz in derselben Projektion
+  const o = [36, Hh - 30], ach = (x, y, z, t) => { const q = P(x, y, z), l = Math.hypot(q[0], q[1]) || 1, e = [o[0] + 26 * q[0] / l, o[1] + 26 * q[1] / l];
+    return pfeil(o, e, "#1b2430", 1) + txt([e[0] + 4 * q[0] / l - 3, e[1] + 4 * q[1] / l + 4], t, `font-size="10"`); };
+  s += ach(1, 0, 0, "x") + ach(0, 1, 0, "y") + ach(0, 0, 1, "z");
   s += `<text x="${W - 6}" y="${Hh - 6}" text-anchor="end" font-size="9.5" fill="#5d6875">${L ? "Kombination " + esc(L.name) + " · " : ""}Maße in mm · gestrichelte Kante = Bauteil geht weiter</text>`;
   return s + "</svg>";
 }
