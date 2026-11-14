@@ -24,8 +24,24 @@ button{font:inherit;cursor:pointer}
 .btn.pri{background:#fff;color:var(--acc);font-weight:600;border-color:#fff}
 .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
 .btn.sm{padding:3px 8px;font-size:12px}
-.wrap{display:grid;grid-template-columns:minmax(380px,500px) minmax(0,1fr);gap:16px;padding:16px 20px;max-width:1560px;margin:0 auto}
-@media (max-width:1020px){.wrap{grid-template-columns:minmax(0,1fr);padding:12px 16px}}
+.wrap{display:grid;grid-template-columns:400px minmax(0,1fr) 320px;gap:14px;padding:14px 16px;max-width:1800px;margin:0 auto;align-items:start}
+@media (max-width:1380px){.wrap{grid-template-columns:380px minmax(0,1fr)}.wrap>.right{grid-column:2}}
+@media (max-width:900px){.wrap{grid-template-columns:minmax(0,1fr)}.wrap>.right{grid-column:auto}}
+.wrap>.right{position:sticky;top:8px}
+details.sek{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
+details.sek>summary{list-style:none;cursor:pointer;padding:10px 14px;font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--acc);font-weight:600;display:flex;align-items:center;gap:8px}
+details.sek>summary::-webkit-details-marker{display:none}
+details.sek>summary::before{content:"▸";color:var(--mute);font-size:11px;width:10px}
+details.sek[open]>summary::before{content:"▾"}
+details.sek>summary .zus{margin-left:auto;text-transform:none;letter-spacing:0;font-weight:400;color:var(--mute);font-size:11.5px;max-width:58%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+details.sek>.inh{padding:0 14px 12px}
+.ansicht{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.ansicht .sp{flex:1}
+#iso svg,#viz svg{max-width:100%;height:auto}
+#iso{user-select:none}
+.kw{font-size:12px;border-collapse:collapse;width:100%}
+.kw td{padding:2px 4px;border-top:1px solid var(--line)} .kw td:last-child{text-align:right;white-space:nowrap}
+.dubinfo{font-size:12.5px;color:var(--ink);background:var(--acc2);border-radius:8px;padding:8px 10px;margin-top:8px;line-height:1.55}
 .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
 .card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--acc);margin:0 0 10px;display:flex;align-items:center;gap:8px}
 .card h2 .n{background:var(--acc);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
@@ -159,7 +175,8 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
 @page{size:A4;margin:20mm 15mm 25mm 15mm}
 @media print{
   body{background:#fff}
-  header.app,.wrap>.left,.right>.card,.sheetbar{display:none!important}
+  header.app,.wrap,.sheetbar,#eigenView{display:none!important}
+  #berichtView{display:block!important}
   .wrap{display:block;padding:0;max-width:none}
   .sheetwrap{background:none;padding:0;border-radius:0;overflow:visible}
   #report{width:180mm;margin:0}
@@ -182,25 +199,36 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
 </header>
 <nav class="tabs" role="tablist">
   <button type="button" role="tab" data-tab="nachweis" aria-selected="true">Nachweis</button>
-  <button type="button" role="tab" data-tab="lib" aria-selected="false">Ankerbibliothek</button>
+  <button type="button" role="tab" data-tab="bericht" aria-selected="false">Bericht</button>
+  <button type="button" role="tab" data-tab="lib" aria-selected="false">Bibliothek (ETA)</button>
+  <button type="button" role="tab" data-tab="eigen" aria-selected="false">Benutzerdefiniert</button>
 </nav>
 
 <div class="wrap" id="nachweisView">
 <div class="left" id="left">
-  <div class="card"><h2><span class="n">1</span>Position</h2><div class="grid" id="fPos"></div></div>
-  <div class="card"><h2><span class="n">2</span>Dübel – Kennwerte aus der ETA</h2><div id="fDub"></div></div>
-  <div class="card"><h2><span class="n">3</span>Ankerplatte und Lochbild</h2><div id="fLoch"></div></div>
-  <div class="card"><h2><span class="n">4</span>Betonbauteil und Ränder</h2><div id="fBeton"></div></div>
-  <div class="card"><h2><span class="n">5</span>Einwirkungen (Bemessungswerte)</h2><div id="fLast"></div></div>
-  <div class="card"><h2><span class="n">6</span>Querlast: mit oder ohne Hebelarm</h2><div id="fHebel"></div></div>
-  <div class="card"><h2><span class="n">7</span>Widerstände je Versagensart</h2><div id="fWid"></div></div>
-  <div class="card" id="cStand">
-    <h2><span class="n">8</span>Stände</h2>
+  <details class="sek" open><summary>Position<span class="zus" id="zPos"></span></summary><div class="inh grid" id="fPos"></div></details>
+  <details class="sek" open><summary>Anker<span class="zus" id="zDub"></span></summary><div class="inh" id="fDub"></div></details>
+  <details class="sek" open><summary>Betonbauteil und Ränder<span class="zus" id="zBeton"></span></summary><div class="inh" id="fBeton"></div></details>
+  <details class="sek" open><summary>Lochbild<span class="zus" id="zLoch"></span></summary><div class="inh" id="fLoch"></div></details>
+  <details class="sek"><summary>Anbauteil und Querlast<span class="zus" id="zHebel"></span></summary><div class="inh" id="fHebel"></div></details>
+  <details class="sek" open><summary>Einwirkungen<span class="zus" id="zLast"></span></summary><div class="inh" id="fLast"></div></details>
+  <details class="sek"><summary>Erweitert<span class="zus">Bewehrung, α<sub>sus</sub>, Widerstände</span></summary><div class="inh"><div id="fErw"></div><div id="fWid"></div></div></details>
+  <details class="sek" id="cStand"><summary>Stände</summary><div class="inh">
     <div class="fileinfo" id="fileInfo"></div>
     <div class="row"><input type="text" id="snapName" placeholder="Bezeichnung (Vorgabe: Positionsnummer)"><button class="btn" id="bSnap">Zwischenstand merken</button></div>
     <div id="snapL"></div>
-    <div class="hint" style="margin-top:8px">Zwischenstände (höchstens 40) liegen nur in diesem Browser. Zum Archivieren „Projekt speichern“ verwenden: Es entsteht eine eigene HTML-Datei (Dateiname = Positionsnummer), die beim Öffnen die gespeicherten Eingaben zeigt und neu rechnet. Vor jedem Laden wird der aktuelle Stand vorgehalten und lässt sich rückgängig machen.</div>
+    <div class="hint" style="margin-top:8px">Zwischenstände (höchstens 40) liegen nur in diesem Browser. Zum Archivieren „Projekt speichern“ verwenden: Es entsteht eine eigene HTML-Datei (Dateiname = Positionsnummer), die beim Öffnen die gespeicherten Eingaben zeigt und neu rechnet.</div>
+  </div></details>
+</div>
+
+<div class="mid">
+  <div class="card">
+    <div class="ansicht"><span class="seg" id="ansSeg"><button type="button" data-ans="iso" aria-pressed="true">3D</button><button type="button" data-ans="grund" aria-pressed="false">Grundriss</button></span>
+      <span class="hint">Ziehen: drehen · Mausrad: zoomen · Doppelklick: zurücksetzen</span><span class="sp"></span><button class="btn sm" id="bIsoReset">Ansicht zurücksetzen</button></div>
+    <div id="iso" title="Ziehen: drehen · Mausrad: zoomen · Doppelklick: Ansicht zurücksetzen"></div>
+    <div id="viz" hidden></div>
   </div>
+  <div class="card"><h2>Prüfung: Anwendungsgrenzen, Rand- und Achsabstände</h2><div class="scroll"><table class="limt" id="limT"></table></div></div>
 </div>
 
 <div class="right">
@@ -212,25 +240,27 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
       <div class="bars" id="bars"></div>
     </div>
     <div class="warns" id="warns" style="margin-top:10px"></div>
+    <button class="btn" id="bZuBericht" style="margin-top:10px;width:100%">Bericht anzeigen</button>
   </div>
-  <div class="card"><h2>Anwendungsgrenzen und Mindestwerte</h2><div class="scroll"><table class="limt" id="limT"></table></div></div>
-  <div class="card"><h2>System (Grundriss und Isometrie, maßgebende Kombination)</h2><div id="viz"></div><div id="iso" style="margin-top:8px" title="Ziehen: drehen · Mausrad: zoomen · Doppelklick: Ansicht zurücksetzen"></div></div>
-  <div class="sheetwrap">
+</div>
+</div>
+
+<section id="berichtView" hidden>
+  <div class="sheetwrap" style="max-width:1000px;margin:14px auto">
     <div class="sheetbar"><span>Protokoll – Vorschau des Ausdrucks</span><button class="btn" id="bPrint2">Drucken</button></div>
     <div id="report" class="rep"></div>
   </div>
-</div>
-</div>
+</section>
 
 <div id="measure" class="rep" aria-hidden="true"></div>
 <div id="toast" role="status"></div>
 
 <section id="libView" hidden>
   <div class="card">
-    <h2>Ankerbibliothek</h2>
+    <h2 id="libTitel">Ankerbibliothek</h2>
     <p class="hint" style="margin-top:0">Geometrieunabhängige Kennwerte aus der ETA: Abmessungen, Mindestwerte, Lochspiel, Stahlversagen und die Kennwerte, aus denen das Werkzeug die Betonwiderstände nach DIN EN 1992-4 je Position berechnet (k<sub>cr/ucr,N</sub>, c<sub>cr,N</sub>, c<sub>cr,sp</sub>, N<sub>Rk,p</sub> bzw. τ<sub>Rk</sub>, ψ<sub>c</sub>, k<sub>8</sub>, l<sub>f</sub>). ψ<sub>c</sub>: „exp:0,5“ für (f<sub>ck</sub>/20)<sup>0,5</sup> oder Tabelle „C30/37=1,22; C40/50=1,41“; N<sub>Rk,p</sub> „nm“ = laut ETA nicht maßgebend. Die Bibliothek liegt in diesem Browser; zum Teilen als JSON exportieren.</p>
     <p class="hint">Pflichtangaben je Eintrag: Hersteller, Produkt, ETA-Nummer, Ausgabedatum der ETA. Fehlt eine, ist der Eintrag <span class="st unv">⚠ unvollständig</span>. Mitgelieferte Einträge <span class="st ok">ETA</span> sind aus den ETAs übernommen (Fundstelle je Eintrag) und schreibgeschützt; „Kopie“ legt einen änderbaren eigenen Eintrag an.</p>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0" id="libKn">
       <button class="btn" id="libNeu">+ Eintrag</button>
       <button class="btn" id="libExp">Bibliothek exportieren (JSON)</button>
       <button class="btn" id="libImp">Bibliothek importieren (JSON)</button><input type="file" id="libFile" accept=".json,application/json" hidden>
@@ -1486,6 +1516,44 @@ function uebernehmeLib(s, e) {
   if (e.spEingabe) s.w.Nsp = { art: "k", Rk: "", gM: "", Rd: "", quelle: "", grund: "", hinweis: "Spalten nach ETA eingeben: " + (e.notiz || "") };
   Object.keys(s.w.Vc || {}).forEach(r => s.w.Vc[r] = Z.wB());
   s.hebel.M0Rks = e.M0Rks; s.hebel.gMs = e.gMsV === "" ? s.hebel.gMs : e.gMsV;
+  if (isFinite(Number(e.dfETA)) && e.dfETA !== "") s.geo.df = e.dfETA;   // Durchgangsloch aus der ETA vorbelegen
+}
+// Auswahl Hersteller → System → Größe; eigene Einträge unter „Benutzerdefiniert“
+const SYSNAME = { "ETA-19/0601": "HIT-HY 200-A/R V3 (Verbunddübel)", "ETA-98/0001": "HST3 / HST3-R (Bolzenanker)", "ETA-20/0867": "HUS4 (Betonschraube)",
+  "ETA-12/0164": "WIT-VM 250 / WIT-NORDIC (Verbunddübel)", "ETA-19/0542": "WIT-PE 1000 (Verbunddübel)", "ETA-99/0011": "W-FAZ (Bolzenanker)",
+  "ETA-20/0229": "W-FAZ PRO/S (Bolzenanker)", "ETA-16/0043": "W-BS (Betonschraube)" };
+const herName = e => e.werk ? e.hersteller : "Benutzerdefiniert";
+const sysName = e => e.werk ? (SYSNAME[e.eta] || e.eta) : (e.hersteller || "eigene Einträge");
+const varName = e => e.werk ? String(e.produkt).replace(VARPRAEFIX, "") : libName(e);
+const VARPRAEFIX = new RegExp("^(HIT-HY 200-A/R V3, Gewindestange |WIT-VM 250 / WIT-NORDIC, Gewindestange |WIT-PE 1000, Gewindestange |W-FAZ PRO/S |W-FAZ |W-BS |HUS4-)");
+const uniq = a => [...new Set(a)];
+function dubKarte() {
+  const d = S.dub, e = d.lib, alle = libAlle();
+  const her = e ? herName(e) : "", sys = e ? sysName(e) : "";
+  const hers = uniq(ETA_LIB.map(herName)).concat(LIB.length ? ["Benutzerdefiniert"] : []);
+  const syss = uniq(alle.filter(x => herName(x) === her).map(sysName));
+  const vars = alle.filter(x => herName(x) === her && sysName(x) === sys);
+  const sel = (id, lab, opts, wert, leer) => `<label class="f wide"><span>${lab}</span><select id="${id}">${leer ? `<option value="">${leer}</option>` : ""}${opts.map(([k, t]) => `<option value="${esc(k)}"${k === wert ? " selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
+  let h = `<div class="grid">${sel("wHer", "Hersteller", hers.map(x => [x, x]), her, "– wählen –")}`;
+  if (e) h += sel("wSys", "Produkt", syss.map(x => [x, x]), sys) + sel("wVar", "Größe / Ausführung", vars.map(x => [x.id, varName(x)]), e.id);
+  h += `</div>`;
+  if (!LIB.length) h += `<div class="hint">Eigene Anker: Reiter „Benutzerdefiniert“; danach erscheint hier der Hersteller „Benutzerdefiniert“.</div>`;
+  if (!e) return h + `<div class="info" style="margin-top:8px">Bitte Hersteller und Anker wählen.</div>`;
+  // Eingaben nur, wo die ETA einen Bereich bzw. keinen festen Wert nennt
+  const frei = [];
+  if (e.hef === "" || e.hef == null) frei.push(fld(sub("h", "ef") + ` [mm] (${fmtA(e.hefMin)} … ${fmtA(e.hefMax)})`, "dub.hef", { st: true, fh: "Verankerungstiefe im Bereich der ETA" }));
+  if (e.smin === "" || e.smin == null) frei.push(fld(sub("s", "min") + " [mm] laut ETA", "dub.smin", { fh: "von h_ef bzw. c abhängig, siehe ETA" }));
+  if (e.cmin === "" || e.cmin == null) frei.push(fld(sub("c", "min") + " [mm] laut ETA", "dub.cmin"));
+  if (e.hmin === "" || e.hmin == null) frei.push(fld(sub("h", "min") + " [mm] laut ETA", "dub.hmin", { text: true }));
+  if (frei.length) h += `<div class="grid" style="margin-top:6px">${frei.join("")}</div>`;
+  const hmin = Z.hminWert(d.hmin, zahl(d.hef));
+  h += `<div class="dubinfo"><b>${esc(e.eta)}</b> vom ${esc(e.etaDatum)} · ${e.typ === "verbund" ? "Verbunddübel" : e.schraube ? "Betonschraube" : "mechanischer Dübel"}<br>
+    d = ${fmtA(e.d)} mm · h<sub>ef</sub> = ${fmtA(zahl(d.hef))} mm · h<sub>min</sub> = ${fmtA(hmin)} mm · s<sub>min</sub> = ${fmtA(zahl(d.smin))} mm · c<sub>min</sub> = ${fmtA(zahl(d.cmin))} mm${e.dfETA !== "" ? ` · d<sub>f</sub> ≤ ${fmtA(e.dfETA)} mm` : ""}
+    ${e.notiz ? `<div class="hint" style="margin-top:4px">${fx(e.notiz)}</div>` : ""}</div>`;
+  const zeilen = LIBF.filter(([k, , a]) => !["hersteller", "produkt", "eta", "etaDatum", "notiz", "quelle"].includes(k) && e[k] !== "" && e[k] != null && e[k] !== false)
+    .map(([k, t]) => `<tr><td>${t}</td><td>${esc(e[k] === true ? "ja" : e[k] === "nm" ? "nicht maßgebend" : e[k])}</td></tr>`).join("");
+  h += `<details style="margin-top:6px"><summary class="hint" style="cursor:pointer">Kennwerte aus der ETA anzeigen</summary><table class="kw">${zeilen}</table><div class="hint">Fundstelle: ${esc(e.quelle || "")}</div></details>`;
+  return h;
 }
 // Abweichungen der Eingabe vom übernommenen Eintrag
 function abweichungen(s) {
@@ -1555,41 +1623,8 @@ function baue() {
   syncJe();
   const d = S.dub, g = S.geo, H = S.hebel;
   $("fPos").innerHTML = fld("Position (Dateiname, Kopf des Ausdrucks)", "pos", { text: true }) + fld("Bezeichnung / Bauteil", "bez", { text: true, wide: true });
-  const libSel = `<label class="f wide"><span>Aus der Ankerbibliothek übernehmen</span><select id="libWahl"><option value="">– freie Eingabe / keine Übernahme –</option>${libAlle().map(e => `<option value="${esc(e.id)}"${d.lib && d.lib.id === e.id ? " selected" : ""}>${esc(libName(e))}</option>`).join("")}</select><span class="fh">${d.lib ? "übernommen: " + esc(libName(d.lib)) + (libAlle().some(e => e.id === d.lib.id) ? "" : " (nicht mehr in der Bibliothek)") : "Werte werden in die Felder kopiert und bleiben überschreibbar"}</span></label>`;
-  $("fDub").innerHTML = `${d.lib && d.lib.beispiel ? `<div class="bspband">BEISPIELWERTE – nicht für die Bemessung (${esc(d.lib.produkt)})</div>` : ""}<div class="grid">
-    ${libSel}
-    ${fld("Hersteller", "dub.hersteller", { text: true })}
-    ${fld("Produkt / Größe", "dub.produkt", { text: true })}
-    ${fld("ETA-Nummer", "dub.eta", { text: true, ph: "ETA-xx/xxxx" })}
-    ${fld("Ausgabedatum der ETA", "dub.etaDatum", { text: true, ph: "TT.MM.JJJJ" })}
-    ${fld("Dübelart", "dub.typ", { sel: [["mechanisch", "mechanisch (Spreiz-, Hinterschnitt-, Schraubanker)"], ["verbund", "Verbunddübel"]], rb: true, st: true })}
-    ${fld(sub("d", "") + " Schaft/Gewinde [mm]", "dub.d")}
-    ${fld(sub("d", "nom") + " Außendurchmesser [mm]", "dub.dnom", { fh: "für Tab. 6.1, a₃, 60·d<sub>nom</sub>" })}
-    ${fld(sub("h", "ef") + " Verankerungstiefe [mm]", "dub.hef", { st: true })}
-    ${fld(sub("f", "uk") + " [N/mm²] (optional)", "dub.fuk", { fh: "Prüfung f<sub>uk</sub> ≤ 1000, 1.3 (3)" })}
-    ${chk("Betonschraube (Grenze f<sub>uk</sub> ≤ 1000 N/mm² gilt nicht)", "dub.schraube")}
-  </div><h3>Mindestwerte und Lochspiel laut ETA</h3><div class="grid">
-    ${fld(sub("s", "min") + " [mm]", "dub.smin")}${fld(sub("c", "min") + " [mm]", "dub.cmin")}
-    ${fld(sub("h", "min") + " [mm]", "dub.hmin", { text: true, ph: "Zahl oder hef+30>=100", fh: isFinite(Number(d.hmin)) || d.hmin === "" ? "" : "Regel der ETA: h<sub>min</sub> = " + fmtA(Z.hminWert(d.hmin, zahl(d.hef))) + " mm" })}${fld(sub("d", "f,max") + " laut ETA [mm] (optional)", "dub.dfETA", { fh: "hat Vorrang vor Tab. 6.1" })}
-  </div><div class="hint" style="margin-top:6px">Gekoppelte Mindestwerte (s<sub>min</sub> bei c ≥ …, Diagramme der ETA) bildet das Werkzeug nicht ab: zur Geometrie passendes Wertepaar eintragen.</div>
-  <h3>ETA-Kennwerte für berechnete Betonwiderstände</h3><div class="grid">
-    ${fld(sub("γ", "inst") + " (Zug)", "dub.gInst", { fh: "γ<sub>Mc</sub> = 1,5·γ<sub>inst</sub>; Querlast γ<sub>inst</sub> = 1,0" })}
-    ${fld(sub("k", "cr,N"), "dub.kcr", { fh: "gerissen" })}${fld(sub("k", "ucr,N"), "dub.kucr", { fh: "ungerissen" })}
-    ${fld(sub("c", "cr,N") + " / " + sub("h", "ef"), "dub.ccrNf", { fh: "meist 1,5 (s<sub>cr,N</sub> = 2·c<sub>cr,N</sub>)" })}
-    ${d.typ === "verbund" ? fld(sub("τ", "Rk,cr") + " C20/25 [N/mm²]", "dub.tauCr") + fld(sub("τ", "Rk,ucr") + " C20/25 [N/mm²]", "dub.tauUcr") + fld(sup(sub("ψ", "sus"), "0"), "dub.psi0sus")
-      : fld(sub("N", "Rk,p") + " gerissen [kN]", "dub.NRkpCr", { text: true, fh: "„nm“ = laut ETA nicht maßgebend" }) + fld(sub("N", "Rk,p") + " ungerissen [kN]", "dub.NRkpUcr", { text: true, fh: "„nm“ = nicht maßgebend" })}
-    ${fld(sub("ψ", "c") + " Betonfestigkeit", "dub.psic", { text: true, ph: "exp:0,5 oder C30/37=1,22; C40/50=1,41", fh: "leer = 1,0" })}
-    ${fld(sub("ψ", "c") + " ungerissen (optional)", "dub.psicU", { text: true, fh: "nur wenn die ETA für ungerissenen Beton einen anderen Wert nennt" })}
-    ${fld(sub("c", "cr,sp") + " Angabe", "dub.spArt", { sel: [["paare", "Wertepaare h<sub>min</sub> / c<sub>cr,sp</sub>"], ["faktor", "Faktor · h<sub>ef</sub> (bei h<sub>min</sub> der ETA)"], ["ead", "nach h/h<sub>ef</sub> (1,0·h<sub>ef</sub> … X·h<sub>ef</sub>)"]], rb: true })}
-    ${d.spArt === "faktor" ? fld(sub("c", "cr,sp") + " / " + sub("h", "ef"), "dub.sp1c") : d.spArt === "ead" ? fld("X: " + sub("c", "cr,sp") + "/" + sub("h", "ef") + " bei h/h<sub>ef</sub> ≤ 1,3", "dub.sp1c", { fh: "z. B. 2,26 (Hilti) bzw. 2,4; leer = 2,26" }) : ""}
-    ${d.spArt === "ead" || d.spArt === "faktor" ? "" : fld(sub("h", "min,1") + " [mm]", "dub.sp1h") + fld(sub("c", "cr,sp,1") + " [mm]", "dub.sp1c") + fld(sub("h", "min,2") + " [mm] (optional)", "dub.sp2h") + fld(sub("c", "cr,sp,2") + " [mm]", "dub.sp2c")}
-    ${fld(sup(sub("N", "Rk,sp"), "0") + " ungerissen [kN] (optional)", "dub.N0Rksp", { fh: "gerissen bzw. leer: Anm. zu 7.2.1.7 (2)" })}
-    ${fld(sub("k", "8") + " lastabgewandte Seite", "dub.k8")}
-    ${fld(sub("k", "7") + " Duktilität (Gruppe)", "dub.k7", { fh: "Gl. (7.35); leer = 1,0" })}
-    ${fld(sub("l", "f") + " [mm] (optional)", "dub.lf", { fh: "leer: l<sub>f</sub> = h<sub>ef</sub> ≤ 12·d<sub>nom</sub>" })}
-    ${fld("Beton laut ETA von", "dub.betonMin", { sel: Object.keys(K.BETON).map(k => [k, k]) })}${fld("bis", "dub.betonMax", { sel: Object.keys(K.BETON).map(k => [k, k]) })}
-    ${fld(sub("h", "ef,min") + " (optional)", "dub.hefMin", { fh: "Verbunddübel: Bereich laut ETA" })}${fld(sub("h", "ef,max"), "dub.hefMax")}
-  </div>`;
+  $("fDub").innerHTML = dubKarte();
+  $("zDub").textContent = d.lib ? [d.lib.hersteller, d.produkt, "h_ef = " + fmtA(zahl(d.hef)) + " mm"].join(" · ") : "nicht gewählt";
 
   const frei = g.vorlage === "frei";
   const rows = g.anker.map((p, i) => `<tr><td class="lab">Anker ${i + 1}</td><td><input type="number" step="any" data-p="geo.anker.${i}.x" value="${esc(p.x)}"${frei ? "" : " readonly"} data-st></td><td><input type="number" step="any" data-p="geo.anker.${i}.y" value="${esc(p.y)}"${frei ? "" : " readonly"} data-st></td><td>${frei ? `<button class="x" data-del-anker="${i}" ${g.anker.length < 2 ? "disabled" : ""} title="Anker entfernen">×</button>` : ""}</td></tr>`).join("");
@@ -1615,7 +1650,13 @@ function baue() {
   </div><h3>Ränder: Abstand c vom nächstgelegenen Anker (leer = kein Rand)</h3><div class="grid">
     ${DIRS.map(r => fld(`Rand in ${r}-Richtung, c [mm]`, "geo.rand." + r, { rb: true, st: true })).join("")}
   </div><div class="hint">Koordinatensystem wie in der Skizze: x nach rechts, y nach oben. c<sub>1</sub> ist der Randabstand in Richtung der Querlast, c<sub>2</sub> der Abstand quer dazu.</div>
-  <h3>Bewehrung (nur für berechnete Betonwiderstände; ohne Haken ungünstig)</h3><div class="grid">
+`;
+  $("zBeton").textContent = `${g.beton}, ${g.zustand}, h = ${fmtA(zahl(g.h))} mm`;
+  $("zLoch").textContent = `${g.anker.length} Anker` + (g.lochspiel === "tab61" ? `, d_f = ${fmtA(zahl(g.df))} mm` : ", ohne Lochspiel");
+  $("zPos").textContent = [S.pos, S.bez].filter(Boolean).join(" – ");
+  $("zHebel").textContent = H.mit ? "mit Hebelarm" : "ohne Hebelarm";
+  $("zLast").textContent = S.lf.length + (S.lf.length === 1 ? " Kombination" : " Kombinationen");
+  $("fErw").innerHTML = `<h3 style="margin-top:0">Bewehrung (für berechnete Betonwiderstände; ohne Haken ungünstig)</h3><div class="grid">
     ${chk("Bewehrung Achsabstand ≥ 150 mm bzw. Ø ≤ 10 mm mit ≥ 100 mm, in beiden Richtungen → ψ<sub>re,N</sub> = 1,0 (7.2.1.4 (5))", "geo.bew.reN")}
     ${g.zustand === "gerissen" ? chk("Randbewehrung mit Bügeln bzw. Matten a ≤ 100 mm und ≤ 2·c<sub>1</sub>, h<sub>ef</sub> ≥ 2,5·Betondeckung → ψ<sub>re,V</sub> = 1,4 (7.2.2.5 (13))", "geo.bew.reV") : ""}
     ${g.zustand === "gerissen" ? chk("Bewehrung begrenzt Spaltrisse auf w<sub>k</sub> ≤ 0,3 mm (7.2.1.7 (2) b) 2) mit Anm.) → kein Spaltnachweis; Bewehrung nach Gl. (7.22) gesondert nachweisen. Ohne Haken wird Spalten nachgewiesen.", "geo.bew.spalt") : ""}
@@ -1637,9 +1678,9 @@ function baue() {
     <button class="btn" id="bLf" style="margin-top:8px">+ Kombination</button>
     <div class="hint" style="margin-top:6px">${starr ? "Bezugspunkt: Schwerpunkt der Ankergruppe. M<sub>Ed,y</sub> > 0 erzeugt Zug auf der +x-Seite, M<sub>Ed,x</sub> > 0 auf der +y-Seite, T<sub>Ed</sub> gegen den Uhrzeigersinn positiv. Abstützkräfte (6.1 (4)) sind in den Einwirkungen zu erfassen." : `Kräfte je Anker in der Reihenfolge des Lochbilds (${n} Anker).`}</div>`;
 
-  $("fHebel").innerHTML = `<div class="modus">${seg("hebel.mit", [["false", "ohne Hebelarm"], ["true", "mit Hebelarm"]])}</div>` + (H.mit ? `<div class="grid">
+  $("fHebel").innerHTML = `<div class="grid">${fld(sub("t", "fix") + " Dicke Anbauteil / Blech [mm]", "hebel.tfix", { fh: "für Isometrie und Hebelarm" })}</div><div class="modus">${seg("hebel.mit", [["false", "ohne Hebelarm"], ["true", "mit Hebelarm"]])}</div>` + (H.mit ? `<div class="grid">
     ${fld(sub("e", "1") + " ermitteln aus", "hebel.quelle", { sel: [["e1", "Eingabe e<sub>1</sub>"], ["hb", "Zwischenschicht H<sub>B</sub> + t<sub>fix</sub>/2"]], rb: true, wide: true })}
-    ${H.quelle === "hb" ? fld("Art der Zwischenschicht", "hebel.zw", { sel: [["sonstige", "sonstige (Holz, Elastomer z. B. XYLOFON)"], ["moertel", "Mörtelbett"]], rb: true, wide: true }) + fld(sub("H", "B") + " Zwischenschicht [mm]", "hebel.HB") + fld(sub("t", "fix") + " Anbauteil [mm]", "hebel.tfix") + (H.zw === "moertel" ? chk("Mörtel f<sub>c</sub> ≥ 30 N/mm² (mit t<sub>grout</sub> ≤ d/2: a<sub>3</sub> = 0)", "hebel.mf") : "") : fld(sub("e", "1") + " Abstand Querlast – Betonoberfläche [mm]", "hebel.e1")}
+    ${H.quelle === "hb" ? fld("Art der Zwischenschicht", "hebel.zw", { sel: [["sonstige", "sonstige (Holz, Elastomer z. B. XYLOFON)"], ["moertel", "Mörtelbett"]], rb: true, wide: true }) + fld(sub("H", "B") + " Zwischenschicht [mm]", "hebel.HB") + (H.zw === "moertel" ? chk("Mörtel f<sub>c</sub> ≥ 30 N/mm² (mit t<sub>grout</sub> ≤ d/2: a<sub>3</sub> = 0)", "hebel.mf") : "") : fld(sub("e", "1") + " Abstand Querlast – Betonoberfläche [mm]", "hebel.e1")}
     ${fld(sub("α", "M") + " Einspannung", "hebel.alphaM", { sel: [["1", "1,0 – frei verdrehbar (Vorgabe)"], ["2", "2,0 – volle Einspannung"]] })}
     ${fld(sup(sub("M", "Rk,s"), "0") + " [Nm] laut ETA", "hebel.M0Rks")}
     ${fld(sub("γ", "Ms") + " Querlast", "hebel.gMs")}
@@ -1700,7 +1741,13 @@ L0.addEventListener("click", ev => {
   if (b.dataset.delAnker != null) { S.geo.anker.splice(+b.dataset.delAnker, 1); baue(); return; }
   if (b.id === "bStempel") { S.geoSchluessel = K.geoSchluessel(kernEingabe()); rechne(); return; }
 });
-L0.addEventListener("change", ev => { if (ev.target.id !== "libWahl") return; const e = libAlle().find(x => x.id === ev.target.value);
+L0.addEventListener("change", ev => {
+  const id = ev.target.id; if (!["wHer", "wSys", "wVar"].includes(id)) return;
+  const v = ev.target.value, alle = libAlle();
+  let e = null;
+  if (id === "wVar") e = alle.find(x => x.id === v);
+  else if (id === "wSys") e = alle.find(x => sysName(x) === v && herName(x) === $("wHer").value);
+  else e = alle.find(x => herName(x) === v);
   if (e) uebernehmeLib(S, e); else S.dub.lib = null; touch(); baue(); });
 $("bReset").addEventListener("click", () => { if (!confirm("Alle Eingaben zurücksetzen?")) return; PREV = { state: clone(S), file: FILE, dirty: DIRTY }; S = defState(); FILE = null; DIRTY = false; baue(); toast("Eingaben zurückgesetzt.", "", { lab: "Rückgängig", fn: undoLoad }); });
 $("bPrint").addEventListener("click", () => window.print());
@@ -1735,7 +1782,8 @@ function rechne() {
   $("bars").innerHTML = b;
   const hin = [...new Set([...R.hinweise, ...R.lf.flatMap(l => l.hinweise || [])])];
   $("warns").innerHTML = R.fehler.map(t => `<div class="err">${fx(t)}</div>`).join("") + R.warn.map(t => `<div>${fx(t)}</div>`).join("")
-    + hin.map(t => `<div class="hin">${fx(t)}</div>`).join("") + R.ungeprueft.map(u => `<div class="ung"><b>ungeprüft:</b> ${fx(u.text)}</div>`).join("");
+    + R.ungeprueft.map(u => `<div class="ung"><b>ungeprüft:</b> ${fx(u.text)}</div>`).join("")
+    + (hin.length ? `<details class="hinw"><summary class="hint" style="cursor:pointer">Hinweise und Annahmen (${hin.length})</summary>${hin.map(t => `<div class="hin">${fx(t)}</div>`).join("")}</details>` : "");
   $("limT").innerHTML = `<tr><th>Bedingung</th><th>vorhanden</th><th>Grenze</th><th>Status</th></tr>` + grenzen(E, R).map(g => `<tr class="${g.ok === true ? "ok" : g.ok === false ? "bad" : ""}"><td>${g.t}</td><td>${g.v}</td><td>${g.g}</td><td><span class="dot"></span>${g.ok === true ? "erfüllt" : g.ok === false ? "nicht erfüllt" : (g.s || "Hinweis")}</td></tr>`).join("");
   // berechnete Widerstände der maßgebenden Kombination in Karte 7 anzeigen
   const Lm = massgebend(R);
@@ -1757,7 +1805,7 @@ function rechne() {
   $("warns").insertAdjacentHTML("afterbegin", zusatz.join(""));
   const L = massgebend(R);
   $("viz").innerHTML = skizze(E, R, L);
-  $("iso").innerHTML = isometrie(E, R, L);
+  $("iso").innerHTML = isometrie(E, R, L, isoMass());
   $("report").innerHTML = paginate(report(E, R, L), beispielAktiv(S));
   document.title = Z.titel(S);
   fileInfo();
@@ -2013,7 +2061,10 @@ function isoInteraktiv(el) {
   el.addEventListener("dblclick", () => { ISO.az = 30; ISO.el = 35; ISO.zoom = 1; isoNeu(); });
 }
 let isoTakt = 0;
-function isoNeu() { if (isoTakt) return; isoTakt = requestAnimationFrame(() => { isoTakt = 0; const el = $("iso"); if (LAST && el) el.innerHTML = isometrie(LAST.E, LAST.R, massgebend(LAST.R)); }); }
+function isoNeu() { if (isoTakt) return; isoTakt = requestAnimationFrame(() => { isoTakt = 0; const el = $("iso"); if (LAST && el) el.innerHTML = isometrie(LAST.E, LAST.R, massgebend(LAST.R), isoMass()); }); }
+// Zeichenfläche passend zur Spaltenbreite (Schrift bleibt in Originalgröße)
+function isoMass() { const el = $("iso"), w = el && el.clientWidth > 300 ? Math.min(el.clientWidth, 1000) : 700; return { W: Math.round(w), H: Math.round(Math.max(420, w * 0.66)) }; }
+let isoBreite = 0; window.addEventListener("resize", () => { const el = $("iso"); if (el && Math.abs(el.clientWidth - isoBreite) > 20) { isoBreite = el.clientWidth; isoNeu(); } });
 isoInteraktiv($("iso"));
 
 // ------------------------------------------------------------------ Protokoll
@@ -2291,11 +2342,18 @@ function nachweise(E, R, L) {
 }
 
 // ------------------------------------------------------------------ Reiter und Bibliotheksansicht
+let REITER = "nachweis";
 function zeigeReiter(t) {
+  REITER = t;
   document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
-  $("nachweisView").hidden = t !== "nachweis"; $("libView").hidden = t !== "lib";
-  if (t === "lib") baueLib(); else baue();
+  $("nachweisView").hidden = t !== "nachweis"; $("berichtView").hidden = t !== "bericht"; $("libView").hidden = t !== "lib" && t !== "eigen";
+  if (t === "lib" || t === "eigen") baueLib(); else baue();
 }
+$("bZuBericht").addEventListener("click", () => zeigeReiter("bericht"));
+let ANSICHT = "iso";
+$("ansSeg").addEventListener("click", ev => { const b = ev.target.closest("button[data-ans]"); if (!b) return; ANSICHT = b.dataset.ans;
+  $("ansSeg").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b))); $("iso").hidden = ANSICHT !== "iso"; $("viz").hidden = ANSICHT !== "grund"; });
+$("bIsoReset").addEventListener("click", () => { ISO.az = 30; ISO.el = 35; ISO.zoom = 1; isoNeu(); });
 document.querySelector("nav.tabs").addEventListener("click", ev => { const b = ev.target.closest("button[data-tab]"); if (b) zeigeReiter(b.dataset.tab); });
 function baueLib() {
   const kopf = `<tr><th>Status</th>${LIBF.map(([, t]) => `<th>${t}</th>`).join("")}<th></th></tr>`;
@@ -2314,7 +2372,10 @@ function baueLib() {
   };
   const werk = (e, i) => { const zellen = LIBF.map(([k]) => `<td>${esc(e[k] === true ? "ja" : e[k] === false ? "" : e[k])}</td>`).join("");
     return `<tr class="werk"><td><span class="st ok" title="aus der ETA übernommen, schreibgeschützt">ETA</span></td>${zellen}<td><button class="btn sm" data-werk-dup="${i}">Kopie</button></td></tr>`; };
-  $("libT").innerHTML = kopf + ETA_LIB.map(werk).join("") + LIB.map(zeile).join("");
+  const eigen = REITER === "eigen";
+  $("libTitel").textContent = eigen ? "Benutzerdefinierte Anker" : "Ankerbibliothek – Einträge aus den ETAs (schreibgeschützt)";
+  $("libKn").hidden = !eigen;
+  $("libT").innerHTML = kopf + (eigen ? LIB.map(zeile).join("") || `<tr><td colspan="${LIBF.length + 2}" class="hint">Noch keine eigenen Einträge. „+ Eintrag“ oder „Kopie“ eines ETA-Eintrags im Reiter Bibliothek.</td></tr>` : ETA_LIB.map(werk).join(""));
 }
 $("libT").addEventListener("change", ev => {
   const el = ev.target, dl = el.dataset.lib; if (!dl) return;
@@ -2326,7 +2387,7 @@ $("libT").addEventListener("change", ev => {
 });
 $("libT").addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
-  if (b.dataset.werkDup != null) { const e = clone(ETA_LIB[+b.dataset.werkDup]); e.id = libLeer().id; delete e.werk; e.produkt += " (Kopie)"; LIB.push(e); }
+  if (b.dataset.werkDup != null) { const e = clone(ETA_LIB[+b.dataset.werkDup]); e.id = libLeer().id; delete e.werk; e.produkt += " (Kopie)"; LIB.push(e); libSpeichern(); toast("Kopie im Reiter „Benutzerdefiniert“ angelegt."); return; }
   else if (b.dataset.libDup != null) { const e = clone(LIB[+b.dataset.libDup]); e.id = libLeer().id; e.produkt += " (Kopie)"; LIB.splice(+b.dataset.libDup + 1, 0, e); }
   else if (b.dataset.libDel != null) { const e = LIB[+b.dataset.libDel]; if (!confirm(`Eintrag „${[e.hersteller, e.produkt].join(" ")}“ löschen?`)) return; LIB.splice(+b.dataset.libDel, 1); }
   else return;
