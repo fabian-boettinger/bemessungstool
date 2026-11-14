@@ -171,7 +171,7 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
 </head>
 <body>
 <header class="app">
-  <div><h1>Verankerung in Beton – Nachweis</h1><div class="sub">DIN EN 1992-4:2019-04 mit NA · Widerstände aus ETA bzw. Herstellersoftware · <a href="../index.html">Übersicht</a></div></div>
+  <div><h1>Verankerung in Beton – Nachweis</h1><div class="sub">DIN EN 1992-4:2019-04 mit NA · Betonwiderstände berechnet oder aus ETA · <a href="../index.html">Übersicht</a></div></div>
   <div class="sp"></div>
   <button class="btn ghost" id="bExp" title="Neue HTML-Datei mit allen Eingaben ablegen, Name = Positionsnummer (Strg+S)">Projekt speichern</button>
   <button class="btn ghost" id="bImp" title="Gespeicherte Projektdatei (.html) oder Stand (.json) laden (Strg+O) – oder Datei auf die Seite ziehen">Projekt laden</button>
@@ -227,13 +227,12 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
 <section id="libView" hidden>
   <div class="card">
     <h2>Ankerbibliothek</h2>
-    <p class="hint" style="margin-top:0">Geometrieunabhängige Kennwerte aus der ETA: Abmessungen, Mindestwerte, Lochspiel, Stahlversagen und Herausziehen mechanischer Dübel. Betonausbruch, Spalten, lastabgewandte Seite, Kantenbruch und das kombinierte Versagen von Verbunddübeln hängen von der Geometrie ab und werden je Position eingegeben. Die Bibliothek liegt in diesem Browser; zum Teilen als JSON exportieren.</p>
-    <p class="hint">Pflichtangaben je Eintrag: Hersteller, Produkt, ETA-Nummer, Ausgabedatum der ETA. Fehlt eine, ist der Eintrag <span class="st unv">⚠ unvollständig</span>. Beispieleinträge <span class="st bsp">BEISPIEL</span> enthalten frei gewählte Werte, sind schreibgeschützt und nicht für die Bemessung bestimmt.</p>
+    <p class="hint" style="margin-top:0">Geometrieunabhängige Kennwerte aus der ETA: Abmessungen, Mindestwerte, Lochspiel, Stahlversagen und die Kennwerte, aus denen das Werkzeug die Betonwiderstände nach DIN EN 1992-4 je Position berechnet (k<sub>cr/ucr,N</sub>, c<sub>cr,N</sub>, c<sub>cr,sp</sub>, N<sub>Rk,p</sub> bzw. τ<sub>Rk</sub>, ψ<sub>c</sub>, k<sub>8</sub>, l<sub>f</sub>). ψ<sub>c</sub>: „exp:0,5“ für (f<sub>ck</sub>/20)<sup>0,5</sup> oder Tabelle „C30/37=1,22; C40/50=1,41“; N<sub>Rk,p</sub> „nm“ = laut ETA nicht maßgebend. Die Bibliothek liegt in diesem Browser; zum Teilen als JSON exportieren.</p>
+    <p class="hint">Pflichtangaben je Eintrag: Hersteller, Produkt, ETA-Nummer, Ausgabedatum der ETA. Fehlt eine, ist der Eintrag <span class="st unv">⚠ unvollständig</span>. Mitgelieferte Einträge <span class="st ok">ETA</span> sind aus den ETAs übernommen (Fundstelle je Eintrag) und schreibgeschützt; „Kopie“ legt einen änderbaren eigenen Eintrag an.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
       <button class="btn" id="libNeu">+ Eintrag</button>
       <button class="btn" id="libExp">Bibliothek exportieren (JSON)</button>
       <button class="btn" id="libImp">Bibliothek importieren (JSON)</button><input type="file" id="libFile" accept=".json,application/json" hidden>
-      <button class="btn" id="libBsp">Beispieleinträge wiederherstellen</button>
     </div>
     <div class="scroll"><table class="lib" id="libT"></table></div>
   </div>
@@ -243,19 +242,23 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
 "use strict";
 /* =====================================================================================================
    Rechenkern Verankerung in Beton – DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04
-   Version 1: Widerstände je Versagensart aus ETA bzw. Herstellersoftware (Eingabe), Nachweise nach
-   Tab. 7.1, 7.2 und 7.3. Reine Funktionen ohne DOM; im Browser global ANKER, in Node über tests/anker.test.mjs.
+   Version 2: Betonwiderstände nach 7.2.1.4–7.2.1.7 und 7.2.2.4–7.2.2.5 aus ETA-Kennwerten berechnet oder je
+   Versagensart eingegeben (ETA, Herstellersoftware); Nachweise nach Tab. 7.1, 7.2 und 7.3. Reine Funktionen ohne DOM; im Browser global ANKER, in Node über tests/anker.test.mjs.
    Einheiten: Kräfte kN, Längen mm, Momente kNm (Eingabe), intern kN·mm. M⁰Rk,s in Nm (= kN·mm).
    NA: Für statische und quasi-statische Bemessung gelten die Empfehlungen der Norm (NDP zu 4.4.2.2 (2)).
    ===================================================================================================== */
 const ANKER = (() => {
-const VERSION = "1.0", STAND = "14.11.2026";
+const VERSION = "2.0", STAND = "14.11.2026";
 const EPS = 1e-9;
 
 // Ungeprüfte Annahmen: im Code mit PRÜFEN markiert, in der Oberfläche als „ungeprüft“ angezeigt
 const PRUEFEN = {
   druck: "Gedrückte Anker: Druckresultierende an der äußeren gedrückten Ankerreihe, Gleichgewicht neu gelöst. Vereinfachter Ansatz auf der sicheren Seite statt Druckzone nach 6.2.1 (1) und Bild 6.2.", // PRÜFEN
   druck2d: "Gedrückte Anker bei zweiachsiger Biegung: Druckpunkt im Schwerpunkt der äußersten gedrückten Anker (Ecke).", // PRÜFEN
+  sMittel: "Gl. (7.17) bei ungleichen Achsabständen: Mittelwert der Abstände benachbarter Rasterlinien in x und y (die Norm sagt nur „Mittelwert der Achsabstände“).", // PRÜFEN
+  psiHsp: "Gl. (7.24): c₁ als kleinster Randabstand der Gruppe angesetzt (die Norm definiert c₁ an dieser Stelle nicht).", // PRÜFEN
+  vcpEc: "V_Rk,cp: ψ_ec,N mit der Exzentrizität der Querkraft-Resultierenden (Beträge |V_i|) zum Schwerpunkt der querbelasteten Anker.", // PRÜFEN
+  vcpVirt: "V_Rk,cp bei entgegengesetzten Querkräften: virtuelle Ränder (c = 0,5·s) auch in ψ_s,N angesetzt (auf der sicheren Seite); Bild 7.11 zeigt nur die Fläche.", // PRÜFEN
 };
 
 // Feste Protokolltexte
@@ -263,6 +266,10 @@ const TEXT = {
   starr: "Annahme starre Ankerplatte nach 6.2.1, Plattennachweis nicht enthalten.",
   druck: "Vereinfacht: Druckpunkt im Schwerpunkt der äußersten gedrückten Anker, abweichend von 6.2.1 / Bild 6.2.",
   jeAnker: "Ankerkräfte je Anker aus dem Verfahren des Herstellers übernommen (keine Aufteilung im Werkzeug).",
+  psiM: "ψ_M,N = 1,0 angesetzt: der günstige Einfluss einer Druckkraft unter dem Anbauteil (7.2.1.4 (7), Gl. 7.7) wird nicht genutzt – auf der sicheren Seite.",
+  genauer: "Nicht genutzt (auf der sicheren Seite): h'_ef bei drei oder mehr Rändern (7.2.1.4 (8), 7.2.1.6 (8)) und c'₁ in schmalen dünnen Bauteilen (7.2.2.5 (14)).",
+  abstand: "Vorausgesetzt nach 7.1 (7): Abstand zu benachbarten Ankern bzw. Gruppen a ≥ s_cr,N, bei Betonkantenbruch a ≥ 3·c₁.",
+  f08: "7.2.2.5 (8): Zweiergruppe mit entgegengesetzten Querkräften – Faktor 0,8 ohne Prüfung der Bedingungen angesetzt (auf der sicheren Seite).",
   druckReihe: "Anker in einer Reihe mit Überstand des Anbauteils über den äußersten Anker: vereinfachte Neuverteilung mit Druckpunkt am äußersten gedrückten Anker. Die tatsächliche Druckresultierende liegt außerhalb des äußersten Ankers (Schenkelüberstand), der Hebelarm ist also größer; der Ansatz liegt auf der sicheren Seite.",
 };
 
@@ -291,6 +298,13 @@ const REF = {
   intS: "DIN EN 1992-4, 7.2.3.1, Tab. 7.3 Z. 1, Gl. (7.54)",
   intC: "DIN EN 1992-4, 7.2.3.1, Tab. 7.3 Z. 2, Gl. (7.55)",
   intC12: "DIN EN 1992-4, 7.2.3.1, Tab. 7.3 Z. 2, Gl. (7.56)",
+  NcB: "DIN EN 1992-4, 7.2.1.4, Gl. (7.1)–(7.6)",
+  NpB: "DIN EN 1992-4, 7.2.1.5; ETA",
+  NpvB: "DIN EN 1992-4, 7.2.1.6, Gl. (7.13)–(7.21)",
+  NspB: "DIN EN 1992-4, 7.2.1.7, Gl. (7.23), (7.24)",
+  VcpB: "DIN EN 1992-4, 7.2.2.4, Gl. (7.39a) bzw. (7.39c)",
+  VcB: "DIN EN 1992-4, 7.2.2.5, Gl. (7.40)–(7.48)",
+  gammaC: "DIN EN 1992-4, Tab. 4.1: γ_Mc = γ_c·γ_inst, γ_c = 1,5; Querlast γ_inst = 1,0",
 };
 
 const NAME = {
@@ -466,6 +480,10 @@ function gruppe(anker, Ni, Vi) {
 function bemessungswert(key, w, fehler) {
   if (!w || !w.art) return { fehlt: true };
   const nm = NAME[key] || key;
+  if (w.art === "b") {
+    if (["Ns", "Vs", "VsM"].includes(key)) { fehler.push(`${nm}: Stahlwiderstand aus der ETA eingeben.`); return { fehlt: true }; }
+    return { art: "b" };
+  }
   if (w.art === "entfaellt") {
     if (key === "Ns" || key === "Vs" || key === "VsM") { fehler.push(`${nm}: Stahlversagen kann nicht entfallen.`); return { fehlt: true }; }
     if (!String(w.grund || "").trim()) { fehler.push(`${nm}: „entfällt“ nur mit Begründung.`); return { fehlt: true }; }
@@ -486,6 +504,7 @@ function bemessungswert(key, w, fehler) {
 function quote(E, R, key, fehler) {
   if (E <= EPS) return 0;
   if (R.entfaellt) return 0;
+  if (R.still) return NaN;
   if (R.fehlt) { fehler.push(`${NAME[key] || key}: Widerstand fehlt, Einwirkung ${E.toFixed(2).replace(".", ",")} kN.`); return NaN; }
   return E / R.Rd;
 }
@@ -499,6 +518,215 @@ function geoSchluessel(e) {
 
 const RICHTUNG = { "+x": [1, 0], "-x": [-1, 0], "+y": [0, 1], "-y": [0, -1] };
 
+// ------------------------------------------------------------------ Betonwiderstände nach DIN EN 1992-4 (Version 2)
+// Je Versagensart wählbar: „berechnet“ (art "b") aus den ETA-Kennwerten e.kw oder Eingabe wie in Version 1.
+// Längen mm, f_ck und τ in N/mm², Widerstände in kN (Gleichungen der Norm in N, daher /1000).
+const KLASSEN = Object.keys(BETON);
+const fckBem = k => Math.min(BETON[k], 60);   // 7.1 (2): f_ck ≤ 60 N/mm²
+
+// ψ_c: Einfluss der Betonfestigkeit auf N_Rk,p bzw. τ_Rk (ETA). Angabe als "exp:0,1" für (f_ck/20)^0,1
+// oder als Tabelle "C30/37=1,22; C40/50=1,41; C50/60=1,58". Zwischenklassen: nächstniedrigere Klasse der Tabelle.
+function psiC(spec, klasse) {
+  const s = String(spec == null ? "" : spec).replace(/\s/g, "").replace(/,/g, ".");
+  const fck = BETON[klasse];
+  if (!s) return { psi: 1, text: "ETA ohne Erhöhung: ψ_c = 1,0" };
+  const m = s.match(/^exp:(\d*\.?\d+)$/i);
+  if (m) { const p = Number(m[1]); return { psi: Math.pow(Math.min(fck, 60) / 20, p), text: `ψ_c = (f_ck/20)^${String(p).replace(".", ",")}`, exp: p }; }
+  const tab = {};
+  s.split(";").forEach(t => { const i = t.search(/[=:]/); if (i > 0) { const k = t.slice(0, i).toUpperCase(), v = Number(t.slice(i + 1)); if (BETON[k] && isFinite(v) && v > 0) tab[k] = v; } });
+  if (!Object.keys(tab).length) return null;
+  let best = "C20/25", v = 1;
+  for (const k of KLASSEN) if (tab[k] != null && BETON[k] <= fck && BETON[k] >= BETON[best]) { best = k; v = tab[k]; }
+  return { psi: v, text: `ψ_c nach ETA-Tabelle (${best})`, aus: best };
+}
+
+// Lage der Ränder als Koordinaten; Randabstand c gilt vom jeweils äußersten Anker. Kein Rand: ±∞.
+function kantenLage(A, raender) {
+  const xs = A.map(p => p.x), ys = A.map(p => p.y);
+  const K = { "+x": Infinity, "-x": -Infinity, "+y": Infinity, "-y": -Infinity };
+  (raender || []).forEach(r => {
+    if (r.richtung === "+x") K["+x"] = Math.max(...xs) + r.c; else if (r.richtung === "-x") K["-x"] = Math.min(...xs) - r.c;
+    else if (r.richtung === "+y") K["+y"] = Math.max(...ys) + r.c; else if (r.richtung === "-y") K["-y"] = Math.min(...ys) - r.c;
+  });
+  return K;
+}
+const randAbstand = (p, K) => Math.min(K["+x"] - p.x, p.x - K["-x"], K["+y"] - p.y, p.y - K["-y"]);
+
+// Fläche der Vereinigung achsparalleler Rechtecke [x0, x1, y0, y1] (exakt, Koordinatenzerlegung)
+function vereinigung(rs) {
+  const r = rs.filter(q => q[1] - q[0] > EPS && q[3] - q[2] > EPS);
+  const xs = [...new Set(r.flatMap(q => [q[0], q[1]]))].sort((a, b) => a - b), ys = [...new Set(r.flatMap(q => [q[2], q[3]]))].sort((a, b) => a - b);
+  let F = 0;
+  for (let i = 0; i + 1 < xs.length; i++) for (let j = 0; j + 1 < ys.length; j++) {
+    const cx = (xs[i] + xs[i + 1]) / 2, cy = (ys[j] + ys[j + 1]) / 2;
+    if (r.some(q => q[0] <= cx && cx <= q[1] && q[2] <= cy && cy <= q[3])) F += (xs[i + 1] - xs[i]) * (ys[j + 1] - ys[j]);
+  }
+  return F;
+}
+// Wirkliche projizierte Fläche (Bild 7.3, 7.4): Quadrate der Seitenlänge 2·c_cr um die Anker, begrenzt durch die Ränder
+function flaecheN(A, idx, ccr, K) {
+  return vereinigung(idx.map(i => [Math.max(A[i].x - ccr, K["-x"]), Math.min(A[i].x + ccr, K["+x"]), Math.max(A[i].y - ccr, K["-y"]), Math.min(A[i].y + ccr, K["+y"])]));
+}
+// Exzentrizität der Resultierenden (Gewichte w) zum Schwerpunkt der betrachteten Anker
+function exzentrizitaet(A, idx, w) {
+  const W = idx.reduce((s, i) => s + w[i], 0), n = idx.length;
+  if (!(W > EPS)) return { x: 0, y: 0 };
+  const cx = idx.reduce((s, i) => s + A[i].x, 0) / n, cy = idx.reduce((s, i) => s + A[i].y, 0) / n;
+  return { x: idx.reduce((s, i) => s + w[i] * A[i].x, 0) / W - cx, y: idx.reduce((s, i) => s + w[i] * A[i].y, 0) / W - cy };
+}
+// Mittlerer Achsabstand für Gl. (7.17) – PRÜFEN (PRUEFEN.sMittel): Mittel der Abstände benachbarter Rasterlinien in x und y
+function achsabstandMittel(A, idx) {
+  const lin = vs => { const u = []; [...vs].sort((a, b) => a - b).forEach(v => { if (!u.length || v - u[u.length - 1] > 1) u.push(v); }); return u; };
+  const s = [];
+  for (const l of [lin(idx.map(i => A[i].x)), lin(idx.map(i => A[i].y))]) for (let i = 0; i + 1 < l.length; i++) s.push(l[i + 1] - l[i]);
+  return { s: s.length ? s.reduce((a, b) => a + b, 0) / s.length : 0, gleich: s.every(x => Math.abs(x - s[0]) <= 1) };
+}
+
+// Gemeinsame Faktoren der Kegel-Gleichungen (7.1), (7.13), (7.23): A/A⁰, ψ_s (7.4/7.20), ψ_ec (7.6/7.21)
+function kegelFaktoren(A, idx, ccr, K, e) {
+  const scr = 2 * ccr, Ac = flaecheN(A, idx, ccr, K), A0 = scr * scr;
+  const c = Math.min(...idx.map(i => randAbstand(A[i], K)));
+  const psiS = Math.min(0.7 + 0.3 * c / ccr, 1);
+  const psiEcX = Math.min(1 / (1 + 2 * Math.abs(e.x) / scr), 1), psiEcY = Math.min(1 / (1 + 2 * Math.abs(e.y) / scr), 1);
+  return { ccr, scr, Ac, A0, c, psiS, psiEcX, psiEcY, psiEc: psiEcX * psiEcY, e };
+}
+const psiReN = (hef, bewehrt) => bewehrt ? 1 : Math.min(0.5 + hef / 200, 1);   // Gl. (7.5), 7.2.1.4 (5)
+
+// Kegelförmiger Betonausbruch, Gl. (7.1)–(7.6); ψ_M,N = 1 (auf der sicheren Seite, TEXT.psiM)
+function NRkc(c, idx, e, K) {
+  const N0 = c.k1 * Math.sqrt(c.fck) * Math.pow(c.hef, 1.5) / 1000;
+  const f = kegelFaktoren(c.A, idx, c.ccrN, K, e);
+  return { gl: "7.1", N0, k1: c.k1, ...f, psiRe: c.psiRe, psiM: 1, Rk: N0 * f.Ac / f.A0 * f.psiS * c.psiRe * f.psiEc };
+}
+// Kombiniertes Versagen Herausziehen und Betonbruch (Verbunddübel), Gl. (7.13)–(7.21)
+function NRkpVerbund(c, idx, e, K) {
+  const N0 = c.psiSus * c.tau * Math.PI * c.d * c.hef / 1000;
+  const scrNp = Math.min(7.3 * c.d * Math.sqrt(c.psiSus * c.tauUcr2025), 3 * c.hef);
+  const f = kegelFaktoren(c.A, idx, scrNp / 2, K, e);
+  const n = idx.length, k3 = c.gerissen ? 7.7 : 11.0, tauC = k3 / (Math.PI * c.d) * Math.sqrt(c.hef * c.fck);
+  const psiG0 = Math.max(Math.sqrt(n) - (Math.sqrt(n) - 1) * Math.pow(c.tau / tauC, 1.5), 1);
+  const am = n > 1 ? achsabstandMittel(c.A, idx) : { s: 0, gleich: true }, s = am.s;
+  const psiG = n > 1 ? Math.max(psiG0 - Math.sqrt(Math.min(s / scrNp, 1)) * (psiG0 - 1), 1) : 1;
+  return { gl: "7.13", N0, psiSus: c.psiSus, tau: c.tau, scrNp, ...f, k3, tauC, psiG0, s, sGleich: am.gleich, psiG, psiRe: c.psiRe,
+    Rk: N0 * f.Ac / f.A0 * psiG * f.psiS * c.psiRe * f.psiEc };
+}
+// Charakteristischer Randabstand für Spalten aus der ETA: Wertepaare (h_min; c_cr,sp) oder Ansatz nach h/h_ef
+function ccrSpVarianten(kw, h, hef) {
+  if (kw.spArt === "ead") {
+    const r = h / hef, ccr = r >= 2 ? hef : r > 1.3 ? 4.6 * hef - 1.8 * h : 2.26 * hef;
+    return [{ ccr, hmin: h, text: r >= 2 ? "h/h_ef ≥ 2,0: c_cr,sp = 1,0·h_ef" : r > 1.3 ? "2,0 > h/h_ef > 1,3: c_cr,sp = 4,6·h_ef − 1,8·h" : "h/h_ef ≤ 1,3: c_cr,sp = 2,26·h_ef", abhH: true }];
+  }
+  const v = [[kw.sp1h, kw.sp1c], [kw.sp2h, kw.sp2c]].filter(([a, b]) => num(a) && num(b) && a > 0 && b > 0);
+  return v.filter(([a]) => h >= a - 1e-9).map(([a, b]) => ({ ccr: b, hmin: a, text: `h_min = ${fmtz(a)} mm: c_cr,sp = ${fmtz(b)} mm` }));
+}
+// ψ_h,sp nach Gl. (7.24); c₁ = kleinster Randabstand der Gruppe – PRÜFEN (PRUEFEN.psiHsp)
+function psiHsp(h, hmin, hef, c1) {
+  const a = Math.pow(h / hmin, 2 / 3), b = Math.max(1, Math.pow((hef + 1.5 * c1) / hmin, 2 / 3));
+  return Math.min(a, b, 2);
+}
+// Spalten, Gl. (7.23); Rückgabe der günstigsten zulässigen ETA-Variante
+function NRksp(c, idx, e, K, N0sp) {
+  const best = c.spV.map(v => {
+    const f = kegelFaktoren(c.A, idx, v.ccr, K, e);
+    const c1 = Math.min(...idx.map(i => randAbstand(c.A[i], K)));
+    const psiH = v.abhH ? 1 : psiHsp(c.h, v.hmin, c.hef, c1);
+    return { gl: "7.23", N0: N0sp.wert, N0text: N0sp.text, variante: v.text, hmin: v.hmin, c1, ...f, psiRe: c.psiRe, psiH, abhH: !!v.abhH,
+      Rk: N0sp.wert * f.Ac / f.A0 * f.psiS * c.psiRe * f.psiEc * psiH };
+  });
+  return best.reduce((m, x) => !m || x.Rk > m.Rk ? x : m, null);
+}
+// Virtuelle Ränder c = 0,5·s zu den Nachbarankern (7.2.2.4 (4), Bild 7.11)
+function virtuelleRaender(A, i, K) {
+  const V = Object.assign({}, K), p = A[i];
+  A.forEach((q, j) => {
+    if (j === i) return;
+    if (Math.abs(q.y - p.y) <= 1) { if (q.x > p.x) V["+x"] = Math.min(V["+x"], (p.x + q.x) / 2); else V["-x"] = Math.max(V["-x"], (p.x + q.x) / 2); }
+    if (Math.abs(q.x - p.x) <= 1) { if (q.y > p.y) V["+y"] = Math.min(V["+y"], (p.y + q.y) / 2); else V["-y"] = Math.max(V["-y"], (p.y + q.y) / 2); }
+  });
+  return V;
+}
+// Betonkantenbruch an einem Rand, Gl. (7.40)–(7.48)
+function VRkcRand(c, r, K, nahIdx, VE, perp, w) {
+  const A = c.A, c1 = r.c, quer = r.n[0] !== 0;                  // Rand ±x: Koordinate längs des Randes ist y
+  const t = i => quer ? A[i].y : A[i].x, lo = quer ? K["-y"] : K["-x"], hi = quer ? K["+y"] : K["+x"];
+  const iv = nahIdx.map(i => [Math.max(t(i) - 1.5 * c1, lo), Math.min(t(i) + 1.5 * c1, hi)]).sort((a, b) => a[0] - b[0]);
+  let L = 0, cur = null;
+  iv.forEach(q => { if (!cur || q[0] > cur[1]) { if (cur) L += cur[1] - cur[0]; cur = q.slice(); } else cur[1] = Math.max(cur[1], q[1]); });
+  if (cur) L += cur[1] - cur[0];
+  const tief = Math.min(c.h, 1.5 * c1), Ac = L * tief, A0 = 4.5 * c1 * c1;
+  const c2 = Math.min(...nahIdx.map(i => Math.min(t(i) - lo, hi - t(i))));
+  const psiS = Math.min(0.7 + 0.3 * c2 / (1.5 * c1), 1);
+  const psiH = Math.max(Math.sqrt(1.5 * c1 / c.h), 1);
+  const W = nahIdx.reduce((s, i) => s + w[i], 0);
+  const ev = W > EPS ? Math.abs(nahIdx.reduce((s, i) => s + w[i] * t(i), 0) / W - nahIdx.reduce((s, i) => s + t(i), 0) / nahIdx.length) : 0;
+  const psiEc = Math.min(1 / (1 + 2 * ev / (3 * c1)), 1);
+  const cosA = VE > EPS ? Math.min(Math.max(perp, 0) / VE, 1) : 1, sinA = Math.sqrt(Math.max(1 - cosA * cosA, 0));
+  const alphaV = Math.acos(cosA) * 180 / Math.PI, psiA = Math.max(Math.sqrt(1 / (cosA * cosA + 0.25 * sinA * sinA)), 1);
+  const al = 0.1 * Math.sqrt(c.lf / c1), be = 0.1 * Math.pow(c.dnom / c1, 0.2), k9 = c.gerissen ? 1.7 : 2.4;
+  const V0 = k9 * Math.pow(c.dnom, al) * Math.pow(c.lf, be) * Math.sqrt(c.fck) * Math.pow(c1, 1.5) / 1000;
+  const f08 = c.torsion2 ? 0.8 : 1;
+  return { gl: "7.40", c1, k9, alpha: al, beta: be, lf: c.lf, dnom: c.dnom, V0, L, tief, Ac, A0, c2, psiS, psiH, ev, psiEc, alphaV, psiA, psiRe: c.psiReV, f08,
+    Rk: V0 * Ac / A0 * psiS * psiH * psiEc * psiA * c.psiReV * f08 };
+}
+
+// Fehlende Kennwerte für die gewählten berechneten Versagensarten
+function kennwertePruefen(e, keys, fehler) {
+  const kw = e.kw || {}, g = e.geo || {}, fehlt = [];
+  const brauch = (cond, t) => { if (cond) fehlt.push(t); };
+  const tension = keys.some(k => ["Nc", "Nsp", "Np"].includes(k)), verbund = g.typ === "verbund";
+  if (tension) brauch(!num(kw.gInst) || kw.gInst < 1, "γ_inst");
+  if (keys.some(k => ["Nc", "Nsp", "Vcp"].includes(k)) || (verbund && keys.includes("Np"))) {
+    brauch(!num(g.zustand === "gerissen" ? kw.kcr : kw.kucr), g.zustand === "gerissen" ? "k_cr,N" : "k_ucr,N");
+    brauch(!num(kw.ccrNf) || kw.ccrNf <= 0, "c_cr,N/h_ef");
+  }
+  if (keys.includes("Np") && !verbund) { const v = g.zustand === "gerissen" ? kw.NRkpCr : kw.NRkpUcr; brauch(!(v === "nm" || (num(v) && v > 0)), g.zustand === "gerissen" ? "N_Rk,p gerissen" : "N_Rk,p ungerissen"); }
+  if (verbund && (keys.includes("Np") || keys.includes("Vcp") || keys.includes("Nsp"))) {
+    brauch(!num(g.zustand === "gerissen" ? kw.tauCr : kw.tauUcr), g.zustand === "gerissen" ? "τ_Rk,cr" : "τ_Rk,ucr");
+    brauch(!num(kw.tauUcr), "τ_Rk,ucr (für s_cr,Np, Gl. 7.16)");
+    brauch(!num(kw.psi0sus), "ψ⁰_sus");
+    brauch(!num(e.alphaSus) || e.alphaSus < 0 || e.alphaSus > 1, "α_sus (0 … 1)");
+  }
+  if (keys.includes("Np") || (verbund && keys.some(k => k === "Vcp" || k === "Nsp")) || (!verbund && keys.includes("Nsp") && !num(kw.N0Rksp))) {
+    if (!psiC(kw.psic, g.beton)) fehlt.push("ψ_c (Angabe unlesbar)");
+  }
+  if (keys.includes("Nsp")) brauch(kw.spArt !== "ead" && !(num(kw.sp1h) && num(kw.sp1c)), "c_cr,sp mit h_min");
+  if (keys.includes("Vcp")) brauch(!num(kw.k8) || kw.k8 <= 0, "k₈");
+  if (keys.includes("Vc")) brauch(!num(g.dnom) && !num(g.d), "d_nom");
+  if (fehlt.length) fehler.push(`Für die Berechnung fehlen ETA-Kennwerte: ${fehlt.join(", ")}.`);
+  // Betonfestigkeitsklasse im Geltungsbereich der ETA
+  const bmin = BETON[kw.betonMin] ? kw.betonMin : "C20/25", bmax = BETON[kw.betonMax] ? kw.betonMax : "C50/60";
+  if (BETON[g.beton] < BETON[bmin] || BETON[g.beton] > BETON[bmax]) fehler.push(`Beton ${g.beton} außerhalb des Geltungsbereichs der ETA (${bmin} bis ${bmax}); berechnete Betonwiderstände nicht zulässig.`);
+  if (num(kw.hefMin) && g.hef < kw.hefMin - 1e-9) fehler.push(`h_ef = ${fmtz(g.hef)} mm < h_ef,min = ${fmtz(kw.hefMin)} mm laut ETA.`);
+  if (num(kw.hefMax) && g.hef > kw.hefMax + 1e-9) fehler.push(`h_ef = ${fmtz(g.hef)} mm > h_ef,max = ${fmtz(kw.hefMax)} mm laut ETA.`);
+}
+// Rechenumgebung (Werte unabhängig vom Lastfall)
+function betonKontext(e, A, raender, dnom) {
+  const g = e.geo, kw = e.kw || {}, bew = e.bew || {}, ger = g.zustand === "gerissen";
+  const pc = psiC(kw.psic, g.beton) || { psi: 1, text: "" };
+  const lfCap = dnom <= 24 ? 12 * dnom : Math.max(8 * dnom, 300);
+  const lfE = num(kw.lf) && kw.lf > 0 ? kw.lf : g.hef;
+  const psi0 = kw.psi0sus, aS = e.alphaSus;
+  const c = {
+    A, h: g.h, hef: g.hef, d: g.d, dnom, fck: fckBem(g.beton), gerissen: ger, K: kantenLage(A, raender),
+    k1: ger ? kw.kcr : kw.kucr, ccrN: (kw.ccrNf || 1.5) * g.hef, psiRe: psiReN(g.hef, !!bew.reN),
+    psiC: pc, gMc: 1.5 * (num(kw.gInst) ? kw.gInst : 1), gMcV: 1.5,
+    tau: (ger ? kw.tauCr : kw.tauUcr) * pc.psi, tauUcr2025: kw.tauUcr,
+    psiSus: num(psi0) && num(aS) ? (aS <= psi0 ? 1 : psi0 + 1 - aS) : NaN, psi0sus: psi0, alphaSus: aS,
+    NRkp: ger ? kw.NRkpCr : kw.NRkpUcr, k8: kw.k8,
+    lf: Math.min(lfE, lfCap), lfCap, lfETA: num(kw.lf) && kw.lf > 0, psiReV: ger && bew.reV ? 1.4 : 1,
+    spV: ccrSpVarianten(kw, g.h, g.hef), N0RkspETA: num(kw.N0Rksp) && kw.N0Rksp > 0 ? kw.N0Rksp : null, spBew: !!bew.spalt && ger,
+  };
+  return c;
+}
+// Spalten: kein Nachweis nach 7.2.1.7 (2) b) 1) bzw. 2)?
+function spaltenEntfaellt(c, idxAlle, raender) {
+  if (c.spBew) return "7.2.1.7 (2) b) 2): gerissener Beton, Bewehrung nimmt die Spaltkräfte auf und begrenzt w_k ≤ 0,3 mm (bestätigt; Bewehrung nach Gl. (7.22) gesondert nachweisen)";
+  const f = idxAlle.length > 1 ? 1.2 : 1.0;
+  const cmin = Math.min(Infinity, ...idxAlle.map(i => randAbstand(c.A[i], c.K)));
+  const ok = c.spV.find(v => cmin >= f * v.ccr - 1e-9 && c.h >= v.hmin - 1e-9);
+  return ok ? `7.2.1.7 (2) b) 1): c = ${cmin === Infinity ? "∞" : fmtz(cmin) + " mm"} ≥ ${f === 1 ? "1,0" : "1,2"}·c_cr,sp = ${fmtz(f * ok.ccr)} mm, h ≥ h_min (${ok.text})` : null;
+}
+
 // ------------------------------------------------------------------ Gesamtnachweis
 /* e = {
      anker: [{x, y}],                        Lage [mm]
@@ -509,7 +737,10 @@ const RICHTUNG = { "+x": [1, 0], "-x": [-1, 0], "+y": [0, 1], "-y": [0, -1] };
             raender: [{richtung: "+x"|"-x"|"+y"|"-y", c}], lochspiel: "ohne"|"tab61", df },
      mindest: { smin, cmin, hmin },
      lastfaelle: [{ name, N, Vx, Vy, Mx, My, T }]  bzw. [{ name, je: [{N, Vx, Vy}] }],
-     widerstand: { Ns, Np, Nc, Nsp, Vs, Vcp, Vc: [je Rand] },
+     widerstand: { Ns, Np, Nc, Nsp, Vs, Vcp, Vc: [je Rand] },   je {art: "k"|"d"|"entfaellt"|"b" (berechnet)}
+     kw: ETA-Kennwerte für „berechnet“ (gInst, kcr, kucr, ccrNf, NRkpCr, NRkpUcr ("nm" = nicht maßgebend), psic,
+         tauCr, tauUcr, psi0sus, spArt ("paare"|"ead"), sp1h, sp1c, sp2h, sp2c, N0Rksp, k8, lf, betonMin, betonMax, hefMin, hefMax),
+     bew: { reN, reV, spalt }, alphaSus,
      hebel: { mit: bool, M0Rks [Nm], alphaM, gMs, e1, a3Null },
      geoSchluessel
    } */
@@ -589,7 +820,9 @@ function nachweis(e) {
   else if (b12 && !B12.b) fehler.push(`Mit Lochspiel bei kleinem Randabstand und Querlast deckt Bild 1.2 b) nur 1 Anker, 2 Anker in einer Reihe oder 2 × 2 ab (vorhanden ${B12.text}).`);
   if (fehler.length) return fertig();
   if (n > 1 && raender.some(r => !r.gross) && hatQuer && out.smin < 4 * dnom) warn.push(`Achsabstand s = ${fmtz(out.smin)} mm < 4·d_nom = ${fmtz(4 * dnom)} mm: Kantenbruch für Gruppen dann nicht abgedeckt, 7.2.2.5 (4).`);
-  if (e.geoSchluessel && e.geoSchluessel !== geoSchluessel(e)) { out.geoAbweichung = true; warn.push("Die Betonwiderstände wurden für eine andere Geometrie eingegeben (Rand-/Achsabstände, h, h_ef, Beton). Werte neu ermitteln oder bestätigen."); }
+  const BETONK = ["Np", "Nc", "Nsp", "Vcp"];
+  const nurBerechnet = BETONK.filter(k => k !== "Np" || g.typ === "verbund").every(k => (W[k] || {}).art === "b") && (W.Vc || []).every(w => (w || {}).art === "b");
+  if (e.geoSchluessel && !nurBerechnet && e.geoSchluessel !== geoSchluessel(e)) { out.geoAbweichung = true; warn.push("Die Betonwiderstände wurden für eine andere Geometrie eingegeben (Rand-/Achsabstände, h, h_ef, Beton). Werte neu ermitteln oder bestätigen."); }
 
   // Widerstände
   const Rd = {};
@@ -598,6 +831,19 @@ function nachweis(e) {
   const Vc = raender.map((r, k) => bemessungswert("Vc", (W.Vc || [])[k], fehler));
   Object.assign(out, { raender, la, Rd, Vc, dnom, hatQuer, mitLochspiel });
   if (fehler.length) return fertig();
+  // Berechnete Betonwiderstände: Kennwerte prüfen, Rechenumgebung
+  const keysB = BETONK.filter(k => Rd[k] && Rd[k].art === "b").concat(Vc.some(v => v.art === "b") ? ["Vc"] : []);
+  let bc = null;
+  if (keysB.length) {
+    kennwertePruefen(e, keysB, fehler);
+    if (!fehler.length) {
+      bc = betonKontext(e, A, R, dnom);
+      out.beton = { psiC: bc.psiC, gMc: bc.gMc, gMcV: bc.gMcV, ccrN: bc.ccrN, psiRe: bc.psiRe, psiReV: bc.psiReV, lf: bc.lf, lfCap: bc.lfCap, lfETA: bc.lfETA,
+        psiSus: bc.psiSus, psi0sus: bc.psi0sus, alphaSus: bc.alphaSus, tau: bc.tau, fck: bc.fck, k1: bc.k1, keys: keysB, K: bc.K };
+      hinweise.push(TEXT.psiM, TEXT.genauer, TEXT.abstand);
+    }
+    if (fehler.length) return fertig();
+  }
   const NRds = Rd.Ns.fehlt ? null : Rd.Ns.Rd;
   const kNp = g.typ === "verbund" ? "Npv" : "Np";
 
@@ -624,11 +870,49 @@ function nachweis(e) {
     Object.assign(L, { N: Ni, V: Vi, G });
     const f = [];
     const b = {};
+    // Berechnete Betonwiderstände dieses Lastfalls (abhängig von gezogenen Ankern, Exzentrizität, Querkraftrichtung)
+    const RdL = Object.assign({}, Rd), ber = {};
+    const setze = (k, r, gM) => { r.gM = gM; r.Rd = r.Rk / gM; r.art = "b"; r.Rk0 = r.Rk; ber[k] = r; return r; };
+    const zugIdx = Ni.map((x, i) => x > EPS ? i : -1).filter(i => i >= 0);
+    if (bc) {
+      if (Rd.Nc.art === "b" && zugIdx.length) RdL.Nc = setze("Nc", NRkc(bc, zugIdx, G.eN, bc.K), bc.gMc);
+      if (Rd.Np.art === "b") {
+        if (g.typ === "verbund") { if (zugIdx.length) { RdL.Np = setze("Np", NRkpVerbund(bc, zugIdx, G.eN, bc.K), bc.gMc); if (zugIdx.length > 1 && !ber.Np.sGleich) ung.add("sMittel"); } }
+        else if (bc.NRkp === "nm") { RdL.Np = { entfaellt: true, grund: "Herausziehen laut ETA nicht maßgebend" }; ber.Np = { entfaellt: true, grund: RdL.Np.grund }; }
+        else RdL.Np = setze("Np", { gl: "ETA", NRkp0: bc.NRkp, psiC: bc.psiC.psi, psiCtext: bc.psiC.text, Rk: bc.NRkp * bc.psiC.psi }, bc.gMc);
+      }
+      if (Rd.Nsp.art === "b" && zugIdx.length) {
+        const grund = spaltenEntfaellt(bc, A.map((_, i) => i));
+        if (grund) { RdL.Nsp = { entfaellt: true, grund }; ber.Nsp = { entfaellt: true, grund }; }
+        else if (!bc.spV.length) { f.push(`Spalten: keine c_cr,sp-Angabe der ETA für h = ${fmtz(g.h)} mm (h < h_min aller Wertepaare).`); RdL.Nsp = { fehlt: true, still: true }; }
+        else {
+          const n0c = bc.k1 * Math.sqrt(bc.fck) * Math.pow(g.hef, 1.5) / 1000;
+          let N0;
+          if (bc.N0RkspETA) N0 = { wert: bc.N0RkspETA, text: "N⁰_Rk,sp laut ETA" };
+          else if (g.typ === "verbund") N0 = { wert: bc.psiSus * bc.tau * Math.PI * g.d * g.hef / 1000, text: "N⁰_Rk,sp = N⁰_Rk,p nach Gl. (7.14) (Anm. zu 7.2.1.7 (2))" };
+          else if (bc.NRkp === "nm") N0 = { wert: n0c, text: "N⁰_Rk,sp = N⁰_Rk,c nach Gl. (7.2) (Herausziehen laut ETA nicht maßgebend; Anm. zu 7.2.1.7 (2))" };
+          else { const p = bc.NRkp * bc.psiC.psi; N0 = { wert: Math.min(p, n0c), NRkp: p, N0c: n0c, text: "N⁰_Rk,sp = min{N_Rk,p; N⁰_Rk,c} (Anm. zu 7.2.1.7 (2))" }; }
+          RdL.Nsp = setze("Nsp", NRksp(bc, zugIdx, G.eN, bc.K, N0), bc.gMc);
+          if (!ber.Nsp.abhH) ung.add("psiHsp");
+        }
+      }
+      if (Rd.Vcp.art === "b") {
+        const Vb = Vi.map(v => hyp(v[0], v[1])), qIdx = Vb.map((v, i) => v > EPS ? i : -1).filter(i => i >= 0);
+        if (qIdx.length) {
+          let idx = qIdx, KK = bc.K, eV = exzentrizitaet(A, qIdx, Vb), virt = false;
+          if (G.gegen) { const hi = Vb.indexOf(Math.max(...Vb)); idx = [hi]; KK = virtuelleRaender(A, hi, bc.K); eV = { x: 0, y: 0 }; virt = true; ung.add("vcpVirt"); }
+          else if (hyp(eV.x, eV.y) > 1e-6) ung.add("vcpEc");
+          const nc = NRkc(bc, idx, eV, KK), np = g.typ === "verbund" ? NRkpVerbund(bc, idx, eV, KK) : null;
+          RdL.Vcp = setze("Vcp", { gl: np ? "7.39c" : "7.39a", k8: bc.k8, nc, np, virt, idx: idx.map(i => i + 1), K: KK, Rk: bc.k8 * (np ? Math.min(nc.Rk, np.Rk) : nc.Rk) }, bc.gMcV);
+        }
+      }
+    }
+    L.ber = ber; L.Rd = RdL;
     // Zug (Tab. 7.1)
     b.Ns = quote(G.Nh, Rd.Ns, "Ns", f);
-    b.Np = quote(g.typ === "verbund" ? G.Ng : G.Nh, Rd.Np, kNp, f);
-    b.Nc = quote(G.Ng, Rd.Nc, "Nc", f);
-    b.Nsp = quote(G.Ng, Rd.Nsp, "Nsp", f);
+    b.Np = quote(g.typ === "verbund" ? G.Ng : G.Nh, RdL.Np, kNp, f);
+    b.Nc = quote(G.Ng, RdL.Nc, "Nc", f);
+    b.Nsp = quote(G.Ng, RdL.Nsp, "Nsp", f);
     // Quer – Stahl (Tab. 7.2 Z. 1/2)
     const jeAnker = Ni.map((N, i) => ({ i, N, V: hyp(Vi[i][0], Vi[i][1]) }));
     if (H.mit) {
@@ -646,7 +930,7 @@ function nachweis(e) {
     // Quer – Beton, lastabgewandte Seite (Tab. 7.2 Z. 3; 7.2.2.4 (4))
     L.VcpE = G.gegen ? G.Vh : G.Vg;
     if (G.gegen && G.Vh > EPS) L.hinweise.push("Querkräfte der Anker wirken teils entgegengesetzt: Betonausbruch auf der lastabgewandten Seite für den höchstbeanspruchten Anker; V_Rk,c,p mit virtuellem Rand c = 0,5·s ermitteln (7.2.2.4 (4)).");
-    b.Vcp = quote(L.VcpE, Rd.Vcp, "Vcp", f);
+    b.Vcp = quote(L.VcpE, RdL.Vcp, "Vcp", f);
     // Quer – Betonkantenbruch je Rand (Tab. 7.2 Z. 4; 6.2.2.2; 7.2.2.5 (2), (3))
     // Kantenbruch je Rand, ausgewertet an Bild 6.5 (Norm-Seite 42) und 7.2.2.5 (2): nachgewiesen werden nur die Kräfte
     // der dem Rand nächsten Anker. Verteilung nach 6.2.2.2:
@@ -662,8 +946,16 @@ function nachweis(e) {
       const perp = alleWirksam ? Vi.reduce((s, v, i) => s + (r.nah[i] ? Math.max(vn(v), 0) : 0), 0) : Math.max(vn(G.Vsum), 0);
       const VE = [perp * r.n[0] + par[0], perp * r.n[1] + par[1]];
       const E = hyp(VE[0], VE[1]), zumRand = vn(G.Vsum);
+      let RV = Vc[k];
+      if (bc && Vc[k].art === "b" && E > EPS) {
+        const nahIdx = r.nah.map((x, i) => x ? i : -1).filter(i => i >= 0);
+        const w = Vi.map((v, i) => alleWirksam && r.nah[i] ? Math.max(vn(v), 0) : (r.nah[i] ? 1 : 0));
+        const x = VRkcRand(Object.assign({}, bc, { torsion2: G.gegen && n === 2 }), r, bc.K, nahIdx, E, perp, w);
+        x.gM = bc.gMcV; x.Rd = x.Rk / x.gM; x.art = "b"; RV = x;
+        if (x.f08 < 1 && !L.hinweise.includes(TEXT.f08)) L.hinweise.push(TEXT.f08);
+      }
       return { k, richtung: r.richtung, c: r.c, alleWirksam, anker: r.nah.map((x, i) => x ? i + 1 : 0).filter(Boolean),
-        VE: E, perp, zumRand, beta: quote(E, Vc[k], "Vc", f), Rd: Vc[k] };
+        VE: E, perp, zumRand, beta: quote(E, RV, "Vc", f), Rd: RV };
     });
     b.Vc = Math.max(0, ...L.kante.map(x => x.beta));
     if (f.length) { fehler.push(...f.map(t => `Lastfall ${L.name}: ${t}`)); okAlle = false; out.lf.push(L); continue; }
@@ -737,7 +1029,9 @@ function leseHash(h) {
 }
 
 return { VERSION, STAND, PRUEFEN, TEXT, REF, NAME, RICHTUNG, BETON, TAB61, dfMax, gammaMsN, gammaMsV, gammaMc, hebelarm, e1AusZwischenschicht,
-  rasterBild12, loese2, schwerpunkt, zugElastisch, zugNeuverteilt, aufteilen, gruppe, bemessungswert, geoSchluessel, nachweis, leseHash };
+  rasterBild12, loese2, schwerpunkt, zugElastisch, zugNeuverteilt, aufteilen, gruppe, bemessungswert, geoSchluessel, nachweis, leseHash,
+  psiC, kantenLage, vereinigung, flaecheN, exzentrizitaet, achsabstandMittel, kegelFaktoren, psiReN, NRkc, NRkpVerbund, ccrSpVarianten, psiHsp, NRksp,
+  virtuelleRaender, VRkcRand, betonKontext, spaltenEntfaellt };
 })();
 if (typeof globalThis !== "undefined") globalThis.ANKER = ANKER;
 </script>
@@ -757,19 +1051,24 @@ function vorlageAnker(v, s1, s2) {
   const a = []; for (let j = 0; j < nn[1]; j++) for (let i = 0; i < nn[0]; i++) a.push({ x: (i - (nn[0] - 1) / 2) * s1, y: (j - (nn[1] - 1) / 2) * s2 });
   return a;
 }
-const wk = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Beispielwert", grund: "", bsp: true });
 const wLeer = () => ({ art: "k", Rk: "", gM: "", Rd: "", quelle: "", grund: "" });
-// Vorgabezustand ohne Dübel; die Oberfläche übernimmt dazu den Beispieleintrag der Bibliothek
+const wB = () => ({ art: "b", Rk: "", gM: "", Rd: "", quelle: "", grund: "" });
+// ETA-Kennwerte für berechnete Betonwiderstände (Felder des Dübels; Text: psic, spArt, betonMin, betonMax; "nm" bei N_Rk,p)
+const KWF = ["gInst", "kcr", "kucr", "ccrNf", "NRkpCr", "NRkpUcr", "psic", "tauCr", "tauUcr", "psi0sus", "spArt", "sp1h", "sp1c", "sp2h", "sp2c", "N0Rksp", "k8", "lf", "betonMin", "betonMax", "hefMin", "hefMax"];
+const KWTEXT = new Set(["psic", "spArt", "betonMin", "betonMax"]);
+const kwLeer = () => { const o = {}; KWF.forEach(k => o[k] = ""); o.spArt = "paare"; o.betonMin = "C20/25"; o.betonMax = "C50/60"; return o; };
+const npWert = v => /^\s*(nm|–|-|n\.?\s*m\.?)\s*$/i.test(String(v)) ? "nm" : zahl(v);
+// Vorgabezustand: leerer Dübel, Betonwiderstände „berechnet“
 function vorgabe() {
   return {
     pos: "", bez: "", herkunft: null,
-    dub: { lib: null, hersteller: "", produkt: "", eta: "", etaDatum: "", typ: "mechanisch", d: "", dnom: "", hef: "", fuk: "", schraube: false, smin: "", cmin: "", hmin: "", dfETA: "" },
+    dub: Object.assign({ lib: null, hersteller: "", produkt: "", eta: "", etaDatum: "", typ: "mechanisch", d: "", dnom: "", hef: "", fuk: "", schraube: false, smin: "", cmin: "", hmin: "", dfETA: "" }, kwLeer()),
     geo: { vorlage: "2x", s1: 150, s2: 100, anker: vorlageAnker("2x", 150, 100), h: 200, beton: "C25/30", zustand: "gerissen", lochspiel: "tab61", df: 14,
-           rand: { "+x": "", "-x": "", "+y": 100, "-y": "" }, ueberstand: "" },
+           rand: { "+x": "", "-x": "", "+y": 100, "-y": "" }, ueberstand: "", bew: { reN: false, reV: false, spalt: false }, alphaSus: "" },
     modus: "starr", druck: "ablehnen", interaktion: "7.55",
     lf: [{ name: "LK1", N: 8, Vx: 0, Vy: 5, Mx: 0, My: 0, T: 0, je: [] }],
     hebel: { mit: false, quelle: "e1", e1: 10, HB: 0, tfix: 3, zw: "sonstige", mf: false, a3Null: false, alphaM: 1, M0Rks: "", gMs: 1.25 },
-    w: { Ns: wk(30, 1.5), Np: wk(20, 1.5), Nc: wk(25, 1.5), Nsp: wk(25, 1.5), Vs: wk(18, 1.25), Vcp: wk(40, 1.5), Vc: { "+y": wk(15, 1.5) } },
+    w: { Ns: wLeer(), Np: wB(), Nc: wB(), Nsp: wB(), Vs: wLeer(), Vcp: wB(), Vc: {} },
     geoSchluessel: null,
   };
 }
@@ -782,6 +1081,7 @@ function wIn(w) {
   if (w.art === "k") return { art: "k", Rk: zahl(w.Rk), gM: zahl(w.gM), quelle: w.quelle };
   if (w.art === "d") return { art: "d", Rd: zahl(w.Rd), quelle: w.quelle };
   if (w.art === "entfaellt") return { art: "entfaellt", grund: w.grund };
+  if (w.art === "b") return { art: "b" };
   return null;
 }
 // Zustand → Eingabe des Rechenkerns
@@ -799,6 +1099,8 @@ function kernEingabe(s) {
       : { name: l.name, N: zahl(l.N) || 0, Vx: zahl(l.Vx) || 0, Vy: zahl(l.Vy) || 0, Mx: zahl(l.Mx) || 0, My: zahl(l.My) || 0, T: zahl(l.T) || 0 }),
     widerstand: W,
     hebel: H.mit ? { mit: true, M0Rks: zahl(H.M0Rks), alphaM: zahl(H.alphaM), gMs: zahl(H.gMs), e1: e1(s), e1HB: H.quelle === "hb", zw: H.zw, a3Null: a3Null(s) } : { mit: false },
+    kw: Object.fromEntries(KWF.map(k => [k, KWTEXT.has(k) ? d[k] : k.startsWith("NRkp") ? npWert(d[k]) : zahl(d[k])])),
+    bew: Object.assign({ reN: false, reV: false, spalt: false }, g.bew), alphaSus: zahl(g.alphaSus),
     geoSchluessel: s.geoSchluessel,
   };
 }
@@ -848,6 +1150,8 @@ function normalisiere(st, d) {
     s.w.Vc = {}; if (obj(st.w.Vc)) DIRS.forEach(r => { if (obj(st.w.Vc[r])) s.w.Vc[r] = Object.assign(wLeer(), clone(st.w.Vc[r])); });
   }
   s.geo.rand = Object.assign({ "+x": "", "-x": "", "+y": "", "-y": "" }, obj(st.geo) && obj(st.geo.rand) ? st.geo.rand : {});
+  s.geo.bew = Object.assign({ reN: false, reV: false, spalt: false }, obj(st.geo) && obj(st.geo.bew) ? st.geo.bew : {});
+  // Stände aus Version 1 ohne Angabe: Betonwiderstände bleiben Eingaben (art aus der Datei)
   if (!Array.isArray(s.geo.anker) || !s.geo.anker.length || s.geo.anker.length > 9 || s.geo.anker.some(p => !obj(p))) throw new Error("Lochbild fehlt oder ist fehlerhaft");
   s.geo.anker = s.geo.anker.map(p => ({ x: p.x, y: p.y }));
   if (Array.isArray(st.lf) && st.lf.length) s.lf = st.lf.map(l => ({ name: String(l && l.name != null ? l.name : ""), N: l.N ?? 0, Vx: l.Vx ?? 0, Vy: l.Vy ?? 0, Mx: l.Mx ?? 0, My: l.My ?? 0, T: l.T ?? 0,
@@ -876,13 +1180,15 @@ function hashAnwenden(s, q) {
   else if (q.modus === "starr") { s.modus = "starr"; s.lf = q.lastfaelle.map(l => ({ name: l.name, N: l.N, Vx: l.Vx, Vy: l.Vy, Mx: l.Mx, My: l.My, T: l.T, je: [] })); }
   if (q.hb != null) { s.hebel.mit = true; s.hebel.quelle = "hb"; s.hebel.HB = q.hb; s.hebel.alphaM = 1; if (q.tfix != null) s.hebel.tfix = q.tfix; if (q.zw) s.hebel.zw = q.zw; }
   if (q.ue != null) s.geo.ueberstand = q.ue;
-  s.w.Nc = wLeer(); s.w.Nsp = wLeer(); s.w.Vcp = wLeer(); s.w.Vc = {};
-  if (s.dub.typ === "verbund") s.w.Np = wLeer();
+  // berechnete Betonwiderstände bleiben „berechnet“, eingegebene gehören zur alten Position und werden geleert
+  for (const k of ["Nc", "Nsp", "Vcp"]) if (s.w[k].art !== "b") s.w[k] = wLeer();
+  s.w.Vc = {};
+  if (s.dub.typ === "verbund" && s.w.Np.art !== "b") s.w.Np = wLeer();
   s.geoSchluessel = null;
   s.herkunft = q.von ? { von: q.von, prod: q.prod, typ: q.typ, ausg: q.ausg, modus: q.modus } : { von: "Link" };
   return s;
 }
-return { FORMAT, DIRS, VORL_N, vorlageAnker, vorgabe, raender, e1, a3Null, kernEingabe, beispielAktiv, titel, dateiname, packe, projektHtml, embBlock, leseText,
+return { FORMAT, DIRS, VORL_N, KWF, KWTEXT, kwLeer, npWert, wB, vorlageAnker, vorgabe, raender, e1, a3Null, kernEingabe, beispielAktiv, titel, dateiname, packe, projektHtml, embBlock, leseText,
   zustandAus, normalisiere, ladePruefung, hashAnwenden, clone };
 })();
 if (typeof globalThis !== "undefined") globalThis.ZUSTAND = ZUSTAND;
@@ -898,6 +1204,8 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&a
 const fmt = (x, n = 2) => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { minimumFractionDigits: n, maximumFractionDigits: n });
 const fmtA = x => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 const sub = (a, b) => a + "<sub>" + b + "</sub>";
+// Kerntexte mit Indizes in Klartext (ψ_M,N, c_cr,sp, N⁰_Rk,p) → HTML mit tiefgestellten Indizes
+const fx = t => esc(t).replace(/([A-Za-zψτγαβηΔ](?:⁰|&#39;)?)_([A-Za-z0-9]+(?:,[A-Za-z0-9]+)*)/g, "$1<sub>$2</sub>");
 const sup = (a, b) => a + "<sup>" + b + "</sup>";
 const zahl = v => (v === "" || v == null) ? NaN : Number(v);
 const fin = v => isFinite(zahl(v));
@@ -914,20 +1222,19 @@ const LIBF = [ // [Schlüssel, Kopf, Art]
   ["hersteller", "Hersteller", "t"], ["produkt", "Produkt / Größe", "tl"], ["eta", "ETA-Nummer", "t"], ["etaDatum", "Ausgabe ETA", "t"],
   ["typ", "Dübelart", "typ"], ["d", "d", "n"], ["dnom", "d<sub>nom</sub>", "n"], ["hef", "h<sub>ef</sub>", "n"], ["fuk", "f<sub>uk</sub>", "n"], ["schraube", "Beton&shy;schraube", "b"],
   ["smin", "s<sub>min</sub>", "n"], ["cmin", "c<sub>min</sub>", "n"], ["hmin", "h<sub>min</sub>", "n"], ["dfETA", "d<sub>f,max</sub>", "n"],
-  ["NRks", "N<sub>Rk,s</sub> [kN]", "n"], ["gMs", "γ<sub>Ms</sub>", "n"], ["NRkpCr", "N<sub>Rk,p</sub> geriss.", "n"], ["NRkpUcr", "N<sub>Rk,p</sub> ungeriss.", "n"], ["gMp", "γ<sub>Mp</sub>", "n"],
-  ["VRks", "V<sub>Rk,s</sub> [kN]", "n"], ["gMsV", "γ<sub>Ms,V</sub>", "n"], ["M0Rks", "M<sup>0</sup><sub>Rk,s</sub> [Nm]", "n"], ["notiz", "Notiz", "tl"]];
+  ["NRks", "N<sub>Rk,s</sub> [kN]", "n"], ["gMs", "γ<sub>Ms</sub>", "n"], ["VRks", "V<sub>Rk,s</sub> [kN]", "n"], ["gMsV", "γ<sub>Ms,V</sub>", "n"], ["M0Rks", "M<sup>0</sup><sub>Rk,s</sub> [Nm]", "n"],
+  ["gInst", "γ<sub>inst</sub>", "n"], ["kcr", "k<sub>cr,N</sub>", "n"], ["kucr", "k<sub>ucr,N</sub>", "n"], ["ccrNf", "c<sub>cr,N</sub>/h<sub>ef</sub>", "n"],
+  ["NRkpCr", "N<sub>Rk,p</sub> geriss. [kN]", "np"], ["NRkpUcr", "N<sub>Rk,p</sub> ungeriss. [kN]", "np"], ["psic", "ψ<sub>c</sub>", "t"],
+  ["tauCr", "τ<sub>Rk,cr</sub> [N/mm²]", "n"], ["tauUcr", "τ<sub>Rk,ucr</sub> [N/mm²]", "n"], ["psi0sus", "ψ<sup>0</sup><sub>sus</sub>", "n"],
+  ["spArt", "c<sub>cr,sp</sub> Art", "sp"], ["sp1h", "h<sub>min,1</sub>", "n"], ["sp1c", "c<sub>cr,sp,1</sub>", "n"], ["sp2h", "h<sub>min,2</sub>", "n"], ["sp2c", "c<sub>cr,sp,2</sub>", "n"],
+  ["N0Rksp", "N<sup>0</sup><sub>Rk,sp</sub> [kN]", "n"], ["k8", "k<sub>8</sub>", "n"], ["lf", "l<sub>f</sub> [mm]", "n"], ["betonMin", "Beton von", "bk"], ["betonMax", "Beton bis", "bk"],
+  ["hefMin", "h<sub>ef,min</sub>", "n"], ["hefMax", "h<sub>ef,max</sub>", "n"], ["quelle", "Fundstelle (Anhang, Seite)", "tl"], ["notiz", "Notiz", "tl"]];
 const PFLICHT = [["hersteller", "Hersteller"], ["produkt", "Produkt"], ["eta", "ETA-Nummer"], ["etaDatum", "Ausgabedatum der ETA"]];
-const BSPTXT = "BEISPIEL – frei gewählte Werte, keine ETA";
-const BSP_LIB = [
-  { id: "bsp-m12", beispiel: true, hersteller: "BEISPIEL", produkt: "BEISPIEL-Anker M12", eta: BSPTXT, etaDatum: "", typ: "mechanisch", d: 12, dnom: 12, hef: 80, fuk: 800, schraube: false,
-    smin: 60, cmin: 60, hmin: 120, dfETA: "", NRks: 67, gMs: 1.5, NRkpCr: 16, NRkpUcr: 25, gMp: 1.5, VRks: 34, gMsV: 1.25, M0Rks: 105, notiz: "nur zur Erprobung des Werkzeugs" },
-  { id: "bsp-m16", beispiel: true, hersteller: "BEISPIEL", produkt: "BEISPIEL-Anker M16", eta: BSPTXT, etaDatum: "", typ: "mechanisch", d: 16, dnom: 16, hef: 100, fuk: 800, schraube: false,
-    smin: 80, cmin: 80, hmin: 160, dfETA: "", NRks: 125, gMs: 1.5, NRkpCr: 25, NRkpUcr: 35, gMp: 1.5, VRks: 63, gMsV: 1.25, M0Rks: 266, notiz: "nur zur Erprobung des Werkzeugs" },
-  { id: "bsp-v16", beispiel: true, hersteller: "BEISPIEL", produkt: "BEISPIEL-Verbunddübel M16", eta: BSPTXT, etaDatum: "", typ: "verbund", d: 16, dnom: 16, hef: 125, fuk: 500, schraube: false,
-    smin: 80, cmin: 80, hmin: 160, dfETA: "", NRks: 78, gMs: 1.5, NRkpCr: "", NRkpUcr: "", gMp: "", VRks: 39, gMsV: 1.25, M0Rks: 166, notiz: "Herausziehen/Betonbruch geometrieabhängig, je Position eingeben" }];
+// Mitgelieferte Einträge aus den ETAs (schreibgeschützt, werk: true; Fundstelle im Feld „quelle“); eigene Einträge im Browser-Speicher
+const ETA_LIB = [ /* ETA-DATEN-START */ /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
 const clone = o => JSON.parse(JSON.stringify(o));
 const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); return true; } catch (er) { return null; } };
-const libLeer = () => { const e = { id: "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), beispiel: false }; LIBF.forEach(([k, , a]) => e[k] = a === "b" ? false : a === "typ" ? "mechanisch" : ""); return e; };
+const libLeer = () => { const e = { id: "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), beispiel: false }; LIBF.forEach(([k, , a]) => e[k] = a === "b" ? false : a === "typ" ? "mechanisch" : a === "sp" ? "paare" : a === "bk" ? (k === "betonMin" ? "C20/25" : "C50/60") : ""); return e; };
 // Eintrag aus fremder Quelle (Browser-Speicher, Import) bereinigen: nur bekannte Felder, Typen erzwingen
 function libSauber(x) {
   if (!x || typeof x !== "object") return null;
@@ -937,33 +1244,39 @@ function libSauber(x) {
   LIBF.forEach(([k, , a]) => {
     const v = x[k];
     if (a === "n") e[k] = (v === "" || v == null || !isFinite(Number(v))) ? "" : Number(v);
+    else if (a === "np") e[k] = Z.npWert(v) === "nm" ? "nm" : (v === "" || v == null || !isFinite(Number(v))) ? "" : Number(v);
     else if (a === "b") e[k] = v === true;
     else if (a === "typ") e[k] = v === "verbund" ? "verbund" : "mechanisch";
+    else if (a === "sp") e[k] = v === "ead" ? "ead" : "paare";
+    else if (a === "bk") e[k] = K.BETON[v] ? v : (k === "betonMin" ? "C20/25" : "C50/60");
     else e[k] = String(v == null ? "" : v).slice(0, 200);
   });
   if (/^BEISPIEL/i.test(e.produkt) || /^BEISPIEL/i.test(e.hersteller)) e.beispiel = true;
   return e;
 }
-let LIB = (() => { try { const o = JSON.parse(LS(LIBKEY)); if (o && Array.isArray(o.eintraege)) return o.eintraege.map(libSauber).filter(Boolean); } catch (er) {} return clone(BSP_LIB); })();
-const libSpeichern = () => LS(LIBKEY, JSON.stringify({ format: LIBFMT, fv: 1, eintraege: LIB }));
+// Eigene Einträge (Browser-Speicher); Beispieleinträge aus Version 1 werden nicht mehr übernommen
+let LIB = (() => { try { const o = JSON.parse(LS(LIBKEY)); if (o && Array.isArray(o.eintraege)) return o.eintraege.map(libSauber).filter(e => e && !e.beispiel && !/^bsp-/.test(e.id)); } catch (er) {} return []; })();
+const libSpeichern = () => LS(LIBKEY, JSON.stringify({ format: LIBFMT, fv: 2, eintraege: LIB }));
+const libAlle = () => ETA_LIB.concat(LIB);   // Auswahl: mitgelieferte ETA-Einträge + eigene
 const libFehlt = e => PFLICHT.filter(([k]) => !String(e[k] == null ? "" : e[k]).trim()).map(([, t]) => t);
-const libStatus = e => e.beispiel ? ["bsp", "BEISPIEL"] : libFehlt(e).length ? ["unv", "⚠ unvollständig"] : ["ok", "vollständig"];
-const libName = e => (e.beispiel ? "[BEISPIEL] " : libFehlt(e).length ? "⚠ " : "") + [e.beispiel ? "" : e.hersteller, e.produkt].filter(Boolean).join(" ") + (e.eta && !e.beispiel ? " – " + e.eta : "") + (e.hef !== "" ? `, hef = ${e.hef} mm` : "");
+const libStatus = e => e.werk ? ["ok", "ETA (mitgeliefert)"] : e.beispiel ? ["bsp", "BEISPIEL"] : libFehlt(e).length ? ["unv", "⚠ unvollständig"] : ["ok", "vollständig"];
+const libName = e => (e.beispiel ? "[BEISPIEL] " : libFehlt(e).length ? "⚠ " : "") + [e.beispiel ? "" : e.hersteller, e.produkt].filter(Boolean).join(" ") + (e.eta && !e.beispiel ? " – " + e.eta : "")
+  + (e.hef !== "" ? `, hef = ${e.hef} mm` : e.hefMin !== "" && e.hefMax !== "" && e.hefMin != null ? `, hef = ${e.hefMin}–${e.hefMax} mm` : "");
 // Abbildung Bibliothek → Eingabe
-const DUBF = ["hersteller", "produkt", "eta", "etaDatum", "typ", "d", "dnom", "hef", "fuk", "schraube", "smin", "cmin", "hmin", "dfETA"];
+const DUBF = ["hersteller", "produkt", "eta", "etaDatum", "typ", "d", "dnom", "hef", "fuk", "schraube", "smin", "cmin", "hmin", "dfETA"].concat(Z.KWF);
 function libZuordnung(s) {
-  const z = [["w.Ns.Rk", "NRks"], ["w.Ns.gM", "gMs"], ["w.Vs.Rk", "VRks"], ["w.Vs.gM", "gMsV"], ["hebel.M0Rks", "M0Rks"], ["hebel.gMs", "gMsV"]];
-  if (s.dub.typ === "mechanisch") z.push(["w.Np.Rk", s.geo.zustand === "ungerissen" ? "NRkpUcr" : "NRkpCr"], ["w.Np.gM", "gMp"]);
-  return z;
+  return [["w.Ns.Rk", "NRks"], ["w.Ns.gM", "gMs"], ["w.Vs.Rk", "VRks"], ["w.Vs.gM", "gMsV"], ["hebel.M0Rks", "M0Rks"], ["hebel.gMs", "gMsV"]];
 }
 function uebernehmeLib(s, e) {
   if (!e) { s.dub.lib = null; return; }
   s.dub.lib = clone(e);
-  DUBF.forEach(k => s.dub[k] = e[k]);
+  DUBF.forEach(k => s.dub[k] = e[k] === undefined ? "" : e[k]);
+  if (s.dub.hef === "" && e.hefMin !== "" && e.hefMin != null) s.dub.hef = e.hefMin;   // Verbunddübel: h_ef frei im Bereich der ETA
   const quelle = (e.beispiel ? "BEISPIEL" : "Bibliothek") + (e.eta && !e.beispiel ? ": " + e.eta : "");
   const setzeW = (k, Rk, gM) => { s.w[k] = { art: "k", Rk, gM, Rd: "", quelle, grund: "", bsp: !!e.beispiel }; };
   setzeW("Ns", e.NRks, e.gMs); setzeW("Vs", e.VRks, e.gMsV);
-  if (e.typ === "mechanisch") setzeW("Np", s.geo.zustand === "ungerissen" ? e.NRkpUcr : e.NRkpCr, e.gMp);
+  for (const k of ["Np", "Nc", "Nsp", "Vcp"]) s.w[k] = Z.wB();
+  Object.keys(s.w.Vc || {}).forEach(r => s.w.Vc[r] = Z.wB());
   s.hebel.M0Rks = e.M0Rks; s.hebel.gMs = e.gMsV === "" ? s.hebel.gMs : e.gMsV;
 }
 // Abweichungen der Eingabe vom übernommenen Eintrag
@@ -971,7 +1284,7 @@ function abweichungen(s) {
   const e = s.dub.lib; if (!e) return [];
   const gl = (a, b) => (a === "" || a == null) && (b === "" || b == null) ? true : String(a) === String(b);
   const out = [];
-  DUBF.forEach(k => { if (!gl(s.dub[k], e[k])) out.push({ p: "dub." + k, k, ist: s.dub[k], lib: e[k] }); });
+  DUBF.forEach(k => { if (k === "hef" && e.hef === "" && e.hefMin !== "") return; if (e[k] !== undefined && !gl(s.dub[k], e[k])) out.push({ p: "dub." + k, k, ist: s.dub[k], lib: e[k] }); });
   libZuordnung(s).forEach(([p, k]) => {
     if (p.startsWith("hebel.") && !s.hebel.mit) return;
     if (p.startsWith("w.Vs") && s.hebel.mit) return;
@@ -983,11 +1296,7 @@ function abweichungen(s) {
 }
 const beispielAktiv = Z.beispielAktiv;
 
-function defState() {
-  const s = Z.vorgabe();
-  uebernehmeLib(s, LIB.find(x => x.id === "bsp-m12") || BSP_LIB[0]);
-  return s;
-}
+function defState() { return Z.vorgabe(); }
 
 // ------------------------------------------------------------------ Zustand → Kerneingabe (Zustandsblock)
 const raenderAus = () => Z.raender(S);
@@ -1023,9 +1332,11 @@ const BETONW = new Set(["Nc", "Nsp", "Vcp"]);   // geometrieabhängig (Np nur be
 
 function widZeile(p, nm, beton) {
   const w = getP(p), st = beton ? " data-st" : "";
-  const art = `<select data-p="${p}.art" data-rb${st}>${[["k", "charakt. + γ"], ["d", "Bemessungswert"], ["entfaellt", "entfällt"]].map(([k, t]) => `<option value="${k}"${w.art === k ? " selected" : ""}>${t}</option>`).join("")}</select>`;
+  const opts = (beton ? [["b", "berechnet (EN 1992-4)"]] : []).concat([["k", "charakt. + γ"], ["d", "Bemessungswert"], ["entfaellt", "entfällt"]]);
+  const art = `<select data-p="${p}.art" data-rb${st}>${opts.map(([k, t]) => `<option value="${k}"${w.art === k ? " selected" : ""}>${t}</option>`).join("")}</select>`;
   let wert;
-  if (w.art === "k") wert = `<td><input type="number" step="any" data-p="${p}.Rk" value="${esc(w.Rk)}" title="${nm[2]} [kN]"${st}></td><td><input type="number" step="any" data-p="${p}.gM" value="${esc(w.gM)}" title="${nm[3]}"${st}></td><td><input type="text" data-p="${p}.quelle" value="${esc(w.quelle)}" placeholder="Quelle"></td>`;
+  if (w.art === "b") wert = `<td colspan="3" class="hint" id="wb_${p.replace(/\./g, "_").replace(/\+/g, "p").replace(/-/g, "m")}">aus den ETA-Kennwerten (Karte 2) je Kombination</td>`;
+  else if (w.art === "k") wert = `<td><input type="number" step="any" data-p="${p}.Rk" value="${esc(w.Rk)}" title="${nm[2]} [kN]"${st}></td><td><input type="number" step="any" data-p="${p}.gM" value="${esc(w.gM)}" title="${nm[3]}"${st}></td><td><input type="text" data-p="${p}.quelle" value="${esc(w.quelle)}" placeholder="Quelle"></td>`;
   else if (w.art === "d") wert = `<td><input type="number" step="any" data-p="${p}.Rd" value="${esc(w.Rd)}" title="Bemessungswert [kN]"${st}></td><td></td><td><input type="text" data-p="${p}.quelle" value="${esc(w.quelle)}" placeholder="Quelle"></td>`;
   else wert = `<td colspan="3"><input type="text" data-p="${p}.grund" value="${esc(w.grund)}" placeholder="Begründung (Pflicht)"></td>`;
   return `<tr><td class="lab">${nm[0]}<small>${nm[1]}</small></td><td>${art}</td>${wert}</tr>`;
@@ -1036,7 +1347,7 @@ function baue() {
   syncJe();
   const d = S.dub, g = S.geo, H = S.hebel;
   $("fPos").innerHTML = fld("Position (Dateiname, Kopf des Ausdrucks)", "pos", { text: true }) + fld("Bezeichnung / Bauteil", "bez", { text: true, wide: true });
-  const libSel = `<label class="f wide"><span>Aus der Ankerbibliothek übernehmen</span><select id="libWahl"><option value="">– freie Eingabe / keine Übernahme –</option>${LIB.map(e => `<option value="${esc(e.id)}"${d.lib && d.lib.id === e.id ? " selected" : ""}>${esc(libName(e))}</option>`).join("")}</select><span class="fh">${d.lib ? "übernommen: " + esc(libName(d.lib)) + (LIB.some(e => e.id === d.lib.id) ? "" : " (nicht mehr in der Bibliothek dieses Browsers)") : "Werte werden in die Felder kopiert und bleiben überschreibbar"}</span></label>`;
+  const libSel = `<label class="f wide"><span>Aus der Ankerbibliothek übernehmen</span><select id="libWahl"><option value="">– freie Eingabe / keine Übernahme –</option>${libAlle().map(e => `<option value="${esc(e.id)}"${d.lib && d.lib.id === e.id ? " selected" : ""}>${esc(libName(e))}</option>`).join("")}</select><span class="fh">${d.lib ? "übernommen: " + esc(libName(d.lib)) + (libAlle().some(e => e.id === d.lib.id) ? "" : " (nicht mehr in der Bibliothek)") : "Werte werden in die Felder kopiert und bleiben überschreibbar"}</span></label>`;
   $("fDub").innerHTML = `${d.lib && d.lib.beispiel ? `<div class="bspband">BEISPIELWERTE – nicht für die Bemessung (${esc(d.lib.produkt)})</div>` : ""}<div class="grid">
     ${libSel}
     ${fld("Hersteller", "dub.hersteller", { text: true })}
@@ -1052,7 +1363,22 @@ function baue() {
   </div><h3>Mindestwerte und Lochspiel laut ETA</h3><div class="grid">
     ${fld(sub("s", "min") + " [mm]", "dub.smin")}${fld(sub("c", "min") + " [mm]", "dub.cmin")}
     ${fld(sub("h", "min") + " [mm]", "dub.hmin")}${fld(sub("d", "f,max") + " laut ETA [mm] (optional)", "dub.dfETA", { fh: "hat Vorrang vor Tab. 6.1" })}
-  </div><div class="hint" style="margin-top:6px">Gekoppelte Mindestwerte (s<sub>min</sub> bei c ≥ …, Diagramme der ETA) bildet das Werkzeug nicht ab: zur Geometrie passendes Wertepaar eintragen.</div>`;
+  </div><div class="hint" style="margin-top:6px">Gekoppelte Mindestwerte (s<sub>min</sub> bei c ≥ …, Diagramme der ETA) bildet das Werkzeug nicht ab: zur Geometrie passendes Wertepaar eintragen.</div>
+  <h3>ETA-Kennwerte für berechnete Betonwiderstände</h3><div class="grid">
+    ${fld(sub("γ", "inst") + " (Zug)", "dub.gInst", { fh: "γ<sub>Mc</sub> = 1,5·γ<sub>inst</sub>; Querlast γ<sub>inst</sub> = 1,0" })}
+    ${fld(sub("k", "cr,N"), "dub.kcr", { fh: "gerissen" })}${fld(sub("k", "ucr,N"), "dub.kucr", { fh: "ungerissen" })}
+    ${fld(sub("c", "cr,N") + " / " + sub("h", "ef"), "dub.ccrNf", { fh: "meist 1,5 (s<sub>cr,N</sub> = 2·c<sub>cr,N</sub>)" })}
+    ${d.typ === "verbund" ? fld(sub("τ", "Rk,cr") + " C20/25 [N/mm²]", "dub.tauCr") + fld(sub("τ", "Rk,ucr") + " C20/25 [N/mm²]", "dub.tauUcr") + fld(sup(sub("ψ", "sus"), "0"), "dub.psi0sus")
+      : fld(sub("N", "Rk,p") + " gerissen [kN]", "dub.NRkpCr", { text: true, fh: "„nm“ = laut ETA nicht maßgebend" }) + fld(sub("N", "Rk,p") + " ungerissen [kN]", "dub.NRkpUcr", { text: true, fh: "„nm“ = nicht maßgebend" })}
+    ${fld(sub("ψ", "c") + " Betonfestigkeit", "dub.psic", { text: true, ph: "exp:0,5 oder C30/37=1,22; C40/50=1,41", fh: "leer = 1,0" })}
+    ${fld(sub("c", "cr,sp") + " Angabe", "dub.spArt", { sel: [["paare", "Wertepaare h<sub>min</sub> / c<sub>cr,sp</sub>"], ["ead", "nach h/h<sub>ef</sub> (1,0·h<sub>ef</sub> … 2,26·h<sub>ef</sub>)"]], rb: true })}
+    ${d.spArt === "ead" ? "" : fld(sub("h", "min,1") + " [mm]", "dub.sp1h") + fld(sub("c", "cr,sp,1") + " [mm]", "dub.sp1c") + fld(sub("h", "min,2") + " [mm] (optional)", "dub.sp2h") + fld(sub("c", "cr,sp,2") + " [mm]", "dub.sp2c")}
+    ${fld(sup(sub("N", "Rk,sp"), "0") + " [kN] (optional)", "dub.N0Rksp", { fh: "leer: Anm. zu 7.2.1.7 (2)" })}
+    ${fld(sub("k", "8") + " lastabgewandte Seite", "dub.k8")}
+    ${fld(sub("l", "f") + " [mm] (optional)", "dub.lf", { fh: "leer: l<sub>f</sub> = h<sub>ef</sub> ≤ 12·d<sub>nom</sub>" })}
+    ${fld("Beton laut ETA von", "dub.betonMin", { sel: Object.keys(K.BETON).map(k => [k, k]) })}${fld("bis", "dub.betonMax", { sel: Object.keys(K.BETON).map(k => [k, k]) })}
+    ${fld(sub("h", "ef,min") + " (optional)", "dub.hefMin", { fh: "Verbunddübel: Bereich laut ETA" })}${fld(sub("h", "ef,max"), "dub.hefMax")}
+  </div>`;
 
   const frei = g.vorlage === "frei";
   const rows = g.anker.map((p, i) => `<tr><td class="lab">Anker ${i + 1}</td><td><input type="number" step="any" data-p="geo.anker.${i}.x" value="${esc(p.x)}"${frei ? "" : " readonly"} data-st></td><td><input type="number" step="any" data-p="geo.anker.${i}.y" value="${esc(p.y)}"${frei ? "" : " readonly"} data-st></td><td>${frei ? `<button class="x" data-del-anker="${i}" ${g.anker.length < 2 ? "disabled" : ""} title="Anker entfernen">×</button>` : ""}</td></tr>`).join("");
@@ -1077,7 +1403,13 @@ function baue() {
     ${fld("Bauteildicke h [mm]", "geo.h", { st: true })}
   </div><h3>Ränder: Abstand c vom nächstgelegenen Anker (leer = kein Rand)</h3><div class="grid">
     ${DIRS.map(r => fld(`Rand in ${r}-Richtung, c [mm]`, "geo.rand." + r, { rb: true, st: true })).join("")}
-  </div><div class="hint">Koordinatensystem wie in der Skizze: x nach rechts, y nach oben. c<sub>1</sub> ist der Randabstand in Richtung der Querlast, c<sub>2</sub> der Abstand quer dazu.</div>`;
+  </div><div class="hint">Koordinatensystem wie in der Skizze: x nach rechts, y nach oben. c<sub>1</sub> ist der Randabstand in Richtung der Querlast, c<sub>2</sub> der Abstand quer dazu.</div>
+  <h3>Bewehrung (nur für berechnete Betonwiderstände; ohne Haken ungünstig)</h3><div class="grid">
+    ${chk("Bewehrung Achsabstand ≥ 150 mm bzw. Ø ≤ 10 mm mit ≥ 100 mm, in beiden Richtungen → ψ<sub>re,N</sub> = 1,0 (7.2.1.4 (5))", "geo.bew.reN")}
+    ${g.zustand === "gerissen" ? chk("Randbewehrung mit Bügeln bzw. Matten a ≤ 100 mm und ≤ 2·c<sub>1</sub>, h<sub>ef</sub> ≥ 2,5·Betondeckung → ψ<sub>re,V</sub> = 1,4 (7.2.2.5 (13))", "geo.bew.reV") : ""}
+    ${g.zustand === "gerissen" ? chk("Bewehrung nimmt Spaltkräfte auf und begrenzt w<sub>k</sub> ≤ 0,3 mm → kein Spaltnachweis (7.2.1.7 (2) b) 2)); A<sub>s,re</sub> nach Gl. (7.22) gesondert", "geo.bew.spalt") : ""}
+    ${d.typ === "verbund" ? fld(sub("α", "sus") + " Anteil Dauerlast (0 … 1)", "geo.alphaSus", { fh: "Dauerlast/Gesamtlast im GZT, 7.2.1.6 (2)" }) : ""}
+  </div>`;
 
   const starr = S.modus === "starr", n = g.anker.length;
   let t;
@@ -1089,7 +1421,7 @@ function baue() {
       S.lf.map((l, i) => l.je.map((a, j) => `<tr${j === 0 ? ' class="grp"' : ""}><td>${j === 0 ? `<input type="text" data-p="lf.${i}.name" value="${esc(l.name)}">` : ""}</td><td class="lab">${j + 1}</td>${["N", "Vx", "Vy"].map(k => `<td><input type="number" step="any" data-p="lf.${i}.je.${j}.${k}" value="${esc(a[k])}"></td>`).join("")}<td>${j === 0 ? `<button class="x" data-del-lf="${i}" ${S.lf.length < 2 ? "disabled" : ""} title="Kombination entfernen">×</button>` : ""}</td></tr>`).join("")).join("");
   }
   $("fLast").innerHTML = `<div class="modus"><span>Eingabe</span>${seg("modus", [["starr", "Schnittgrößen am Gruppenschwerpunkt"], ["jeAnker", "Kräfte je Anker"]])}</div>
-    ${starr ? `<div class="grid">${fld("Rechnerisch gedrückte Anker", "druck", { sel: [["ablehnen", "ablehnen (Vorgabe)"], ["neuverteilen", "vereinfacht neu verteilen (Druckpunkt äußerste gedrückte Anker)"]], wide: true })}</div>${S.druck === "neuverteilen" ? `<div class="info">${esc(K.TEXT.druck)} ${UNG(K.PRUEFEN.druck)}</div>` : ""}` : `<div class="info">${esc(K.TEXT.jeAnker)} Zug positiv; Druck je Anker ist nicht vorgesehen.</div>`}
+    ${starr ? `<div class="grid">${fld("Rechnerisch gedrückte Anker", "druck", { sel: [["ablehnen", "ablehnen (Vorgabe)"], ["neuverteilen", "vereinfacht neu verteilen (Druckpunkt äußerste gedrückte Anker)"]], wide: true })}</div>${S.druck === "neuverteilen" ? `<div class="info">${fx(K.TEXT.druck)} ${UNG(K.PRUEFEN.druck)}</div>` : ""}` : `<div class="info">${fx(K.TEXT.jeAnker)} Zug positiv; Druck je Anker ist nicht vorgesehen.</div>`}
     <div class="scroll" style="margin-top:8px"><table class="lc">${t}</table></div>
     <button class="btn" id="bLf" style="margin-top:8px">+ Kombination</button>
     <div class="hint" style="margin-top:6px">${starr ? "Bezugspunkt: Schwerpunkt der Ankergruppe. M<sub>Ed,y</sub> > 0 erzeugt Zug auf der +x-Seite, M<sub>Ed,x</sub> > 0 auf der +y-Seite, T<sub>Ed</sub> gegen den Uhrzeigersinn positiv. Abstützkräfte (6.1 (4)) sind in den Einwirkungen zu erfassen." : `Kräfte je Anker in der Reihenfolge des Lochbilds (${n} Anker).`}</div>`;
@@ -1105,12 +1437,12 @@ function baue() {
     : `<div class="hint">Ohne Hebelarm nur, wenn alle Bedingungen von 6.2.2.3 (1) erfüllt sind: Anbauteil aus Metall, Kontakt zum Dübel über ≥ 0,5·t<sub>fix</sub>, direkt auf dem Beton oder auf Ausgleichsmörtel t<sub>grout</sub> ≤ 0,5·d. Sonst „mit Hebelarm“ wählen.</div>`);
 
   const R = raenderAus(), NW = NAMEW();
-  R.forEach(r => { if (!S.w.Vc[r.richtung]) S.w.Vc[r.richtung] = { art: "k", Rk: "", gM: 1.5, Rd: "", quelle: "", grund: "" }; });
+  R.forEach(r => { if (!S.w.Vc[r.richtung]) S.w.Vc[r.richtung] = Z.wB(); });
   const zeilen = ["Ns", "Np", "Nc", "Nsp"].map(k => widZeile("w." + k, NW[k], BETONW.has(k) || (k === "Np" && d.typ === "verbund"))).join("")
     + (H.mit ? `<tr><td class="lab">${K.NAME.VsM}<small>V<sub>Ed</sub><sup>h</sup></small></td><td colspan="4" class="hint">aus M<sup>0</sup><sub>Rk,s</sub>, α<sub>M</sub>, l<sub>a</sub> (Karte 6), Gl. (7.37)/(7.38)</td></tr>` : widZeile("w.Vs", NW.Vs, false))
     + widZeile("w.Vcp", NW.Vcp, true)
     + R.map(r => widZeile("w.Vc." + r.richtung, [`${K.NAME.Vc}, Rand ${r.richtung}`, `V<sub>Ed</sub> der wirksamen Anker, c = ${fmtA(r.c)} mm`, sub("V", "Rk,c"), sub("γ", "Mc")], true)).join("");
-  $("fWid").innerHTML = `<div class="info bsp">Die Widerstände für Betonausbruch, Spalten, lastabgewandte Seite und Kantenbruch gehören zur eingegebenen Geometrie (Rand- und Achsabstände, h, h<sub>ef</sub>, Beton) und zur Lastrichtung bzw. Exzentrizität. Bei Änderungen neu ermitteln.</div>
+  $("fWid").innerHTML = `<div class="info">„berechnet“: Betonwiderstände nach DIN EN 1992-4 aus den ETA-Kennwerten (Karte 2) für jede Kombination. Eingegebene Werte gehören zur eingegebenen Geometrie und Lastrichtung und sind bei Änderungen neu zu ermitteln.</div>
     <div class="scroll" style="margin-top:8px"><table class="lc wid"><tr><th>Versagensart</th><th>Eingabe</th><th>R<sub>k</sub> bzw. R<sub>d</sub> [kN]</th><th>γ<sub>M</sub></th><th>Quelle / Begründung</th></tr>${zeilen}</table></div>
     <div id="libAbw"></div>
     <div id="geoStempel"></div>
@@ -1135,14 +1467,10 @@ function nachEingabe(el) {
   }
   // Betonwiderstand eingegeben → Werte gelten ab jetzt für diese Geometrie
   if (/^w\.(Nc|Nsp|Vcp|Vc\.)/.test(p) || (p.startsWith("w.Np") && S.dub.typ === "verbund")) S.geoSchluessel = K.geoSchluessel(kernEingabe());
+  if (p === "geo.zustand" && S.geo.zustand !== "gerissen") { S.geo.bew.reV = false; S.geo.bew.spalt = false; }
   // eigene Eingabe ersetzt einen Beispielwert
   const mw = p.match(/^(w\.(?:Vc\.[+-][xy]|\w+))\.(Rk|gM|Rd|art|grund)$/); if (mw) { const w = getP(mw[1]); if (w) w.bsp = false; }
-  // Wechsel gerissen/ungerissen: Herausziehen aus der Bibliothek nachführen, solange nicht überschrieben
-  if (p === "geo.zustand" && S.dub.lib && S.dub.typ === "mechanisch" && S.w.Np.art === "k") {
-    const e = S.dub.lib, alt = S.geo.zustand === "ungerissen" ? e.NRkpCr : e.NRkpUcr;
-    if (String(S.w.Np.Rk) === String(alt)) S.w.Np.Rk = S.geo.zustand === "ungerissen" ? e.NRkpUcr : e.NRkpCr;
-  }
-  if (el.hasAttribute("data-rb")) baue(); else rechne();
+  if (el.hasAttribute("data-rb") || p === "geo.zustand" || p === "dub.typ") baue(); else rechne();
 }
 const L0 = $("left");
 L0.addEventListener("input", ev => { const el = ev.target; if (!el.dataset.p || el.tagName === "SELECT" || el.type === "checkbox") return; nachEingabe(el); });
@@ -1157,9 +1485,9 @@ L0.addEventListener("click", ev => {
   if (b.dataset.delAnker != null) { S.geo.anker.splice(+b.dataset.delAnker, 1); baue(); return; }
   if (b.id === "bStempel") { S.geoSchluessel = K.geoSchluessel(kernEingabe()); rechne(); return; }
 });
-L0.addEventListener("change", ev => { if (ev.target.id !== "libWahl") return; const e = LIB.find(x => x.id === ev.target.value);
+L0.addEventListener("change", ev => { if (ev.target.id !== "libWahl") return; const e = libAlle().find(x => x.id === ev.target.value);
   if (e) uebernehmeLib(S, e); else S.dub.lib = null; touch(); baue(); });
-$("bReset").addEventListener("click", () => { if (!confirm("Alle Eingaben auf die Beispielwerte zurücksetzen?")) return; PREV = { state: clone(S), file: FILE, dirty: DIRTY }; S = defState(); FILE = null; DIRTY = false; baue(); toast("Eingaben zurückgesetzt.", "", { lab: "Rückgängig", fn: undoLoad }); });
+$("bReset").addEventListener("click", () => { if (!confirm("Alle Eingaben zurücksetzen?")) return; PREV = { state: clone(S), file: FILE, dirty: DIRTY }; S = defState(); FILE = null; DIRTY = false; baue(); toast("Eingaben zurückgesetzt.", "", { lab: "Rückgängig", fn: undoLoad }); });
 $("bPrint").addEventListener("click", () => window.print());
 $("bPrint2").addEventListener("click", () => window.print());
 
@@ -1191,9 +1519,16 @@ function rechne() {
   }
   $("bars").innerHTML = b;
   const hin = [...new Set([...R.hinweise, ...R.lf.flatMap(l => l.hinweise || [])])];
-  $("warns").innerHTML = R.fehler.map(t => `<div class="err">${esc(t)}</div>`).join("") + R.warn.map(t => `<div>${esc(t)}</div>`).join("")
-    + hin.map(t => `<div class="hin">${esc(t)}</div>`).join("") + R.ungeprueft.map(u => `<div class="ung"><b>ungeprüft:</b> ${esc(u.text)}</div>`).join("");
+  $("warns").innerHTML = R.fehler.map(t => `<div class="err">${fx(t)}</div>`).join("") + R.warn.map(t => `<div>${fx(t)}</div>`).join("")
+    + hin.map(t => `<div class="hin">${fx(t)}</div>`).join("") + R.ungeprueft.map(u => `<div class="ung"><b>ungeprüft:</b> ${fx(u.text)}</div>`).join("");
   $("limT").innerHTML = `<tr><th>Bedingung</th><th>vorhanden</th><th>Grenze</th><th>Status</th></tr>` + grenzen(E, R).map(g => `<tr class="${g.ok === true ? "ok" : g.ok === false ? "bad" : ""}"><td>${g.t}</td><td>${g.v}</td><td>${g.g}</td><td><span class="dot"></span>${g.ok === true ? "erfüllt" : g.ok === false ? "nicht erfüllt" : (g.s || "Hinweis")}</td></tr>`).join("");
+  // berechnete Widerstände der maßgebenden Kombination in Karte 7 anzeigen
+  const Lm = massgebend(R);
+  document.querySelectorAll('[id^="wb_w_"]').forEach(el => {
+    const k = el.id.replace("wb_w_", ""); let r = null;
+    if (Lm && Lm.Rd) { if (k.startsWith("Vc_")) { const dir = (k[3] === "p" ? "+" : "-") + k[4], kt = (Lm.kante || []).find(x => x.richtung === dir); r = kt ? kt.Rd : null; } else r = Lm.Rd[k]; }
+    el.innerHTML = !r || r.art !== "b" ? (r && r.entfaellt ? "entfällt: " + esc(r.grund) : "aus den ETA-Kennwerten (Karte 2) je Kombination") : `R<sub>k</sub> = ${fmt(r.Rk)} kN, γ<sub>M</sub> = ${fmt(r.gM)} → R<sub>d</sub> = <b>${fmt(r.Rd)} kN</b> <span class="pl">(${esc(Lm.name)}; Herleitung im Protokoll)</span>`;
+  });
   const st = $("geoStempel");
   if (st) st.innerHTML = R.geoAbweichung ? `<div class="warns" style="margin-top:8px"><div class="err">Die Betonwiderstände wurden für eine andere Geometrie eingegeben. Werte neu ermitteln und eintragen oder bestätigen: <button class="btn sm" id="bStempel">Werte gelten für die aktuelle Geometrie</button></div></div>` : "";
   // Bibliothek: Abweichungen an den Feldern, Pflichtangaben, Beispielwerte
@@ -1301,7 +1636,7 @@ function report(E, R, L) {
   const etaT = d.eta ? esc(d.eta) + (d.etaDatum ? " vom " + esc(d.etaDatum) : "") : "";
   let h = "";   // Vermerk BEISPIELWERTE setzt paginate() auf jede Seite
   h += `<h1>${S.pos ? "Pos. " + esc(S.pos) + " – " : ""}${S.bez ? esc(S.bez) + ": " : ""}Verankerung in Beton nach DIN EN 1992-4</h1>`;
-  h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(dn)}${etaT ? " (" + etaT + ")" : ""}. Widerstände je Versagensart aus ETA bzw. Herstellersoftware; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
+  h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(dn)}${etaT ? " (" + etaT + ")" : ""}. Stahlwiderstände aus der ETA; Betonwiderstände ${R.beton ? "nach DIN EN 1992-4 aus den ETA-Kennwerten berechnet" : ""}${R.beton && Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && !Array.isArray(w) && w.art && w.art !== "b") ? " bzw. " : ""}${Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && !Array.isArray(w) && w.art && w.art !== "b") ? "aus ETA bzw. Herstellersoftware eingegeben" : ""}; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
   // 1 System
   h += H2("System und Annahmen") + `<figure class="figs">${skizze(E, R, L)}<figcaption>Grundriss der Ankergruppe mit Rändern; Kräfte der maßgebenden Kombination</figcaption></figure>`;
   const rd = g.raender.length ? g.raender.map(r => `${r.richtung}: c = ${fmtA(r.c)} mm`).join("; ") : "keine Ränder (große Randabstände)";
@@ -1315,8 +1650,8 @@ function report(E, R, L) {
     <tr><td>Ränder</td><td>${rd}</td></tr>
     <tr><td>Ankerkräfte</td><td>${E.modus === "jeAnker" ? "je Anker übergeben" : "aus Schnittgrößen am Gruppenschwerpunkt, elastisch"}${S.herkunft ? "; " + esc(herkunftText()) : ""}</td></tr>
     <tr><td>Querlast</td><td>${H.mit ? "mit Hebelarm" : "ohne Hebelarm (Bedingungen 6.2.2.3 (1))"}</td></tr></table>`;
-  h += zl(esc(K.TEXT.starr), "6.2.1 (1)", true);
-  if (E.modus === "jeAnker") h += zl(esc(K.TEXT.jeAnker), "Übergabe", true);
+  h += zl(fx(K.TEXT.starr), "6.2.1 (1)", true);
+  if (E.modus === "jeAnker") h += zl(fx(K.TEXT.jeAnker), "Übergabe", true);
   // 2 Grenzen
   h += H2("Anwendungsgrenzen und Mindestwerte") + `<table class="g"><tr><th>Bedingung</th><th class="r">vorhanden</th><th class="r">Grenze</th><th>Bewertung</th><th>Normbezug</th></tr>`
     + grenzen(E, R).map(x => `<tr><td>${x.t}</td><td class="r">${x.v}</td><td class="r">${x.g}</td><td class="${x.ok === false ? "nok" : ""}">${x.ok === true ? "erfüllt" : x.ok === false ? "nicht erfüllt" : (x.s || "")}</td><td>${x.ref || ""}</td></tr>`).join("") + "</table>";
@@ -1326,7 +1661,7 @@ function report(E, R, L) {
   else h += `<table class="g"><tr><th>Kombination</th><th class="r">N<sub>Ed</sub> [kN]</th><th class="r">V<sub>Ed,x</sub> [kN]</th><th class="r">V<sub>Ed,y</sub> [kN]</th><th class="r">M<sub>Ed,x</sub> [kNm]</th><th class="r">M<sub>Ed,y</sub> [kNm]</th><th class="r">T<sub>Ed</sub> [kNm]</th></tr>` + E.lastfaelle.map(l => `<tr><td>${esc(l.name)}</td>${["N", "Vx", "Vy", "Mx", "My", "T"].map(x => `<td class="r">${fmt(l[x], ["Mx", "My", "T"].includes(x) ? 3 : 2)}</td>`).join("")}</tr>`).join("") + "</table><p>Zug positiv. Bezugspunkt Schwerpunkt der Ankergruppe; M<sub>Ed,y</sub> > 0 erzeugt Zug auf der +x-Seite, M<sub>Ed,x</sub> > 0 auf der +y-Seite, T<sub>Ed</sub> gegen den Uhrzeigersinn.</p>";
   if (R.etaMax == null) {
     if (bsp) h += `<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div>`;
-    h += H2("Ergebnis") + `<div class="res nok"><span>Nachweis nicht geführt</span><span>Eingaben unvollständig oder außerhalb des Anwendungsbereichs</span></div><ul>${R.fehler.map(t => `<li><b>${esc(t)}</b></li>`).join("")}</ul>`;
+    h += H2("Ergebnis") + `<div class="res nok"><span>Nachweis nicht geführt</span><span>Eingaben unvollständig oder außerhalb des Anwendungsbereichs</span></div><ul>${R.fehler.map(t => `<li><b>${fx(t)}</b></li>`).join("")}</ul>`;
     return h + fuss();
   }
   // 4 Ankerkräfte
@@ -1341,11 +1676,11 @@ function report(E, R, L) {
   if (bsp) h += `<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div>`;
   h += `<div class="res${R.ok ? "" : " nok"}"><span>${n} × ${esc(dn)} · maßgebend ${esc(L.name)}: ${mg}</span><span>max η = ${etaTxt(R.etaMax)} ${R.ok ? "≤ 1 – Nachweis erfüllt" : "> 1 – Nachweis NICHT erfüllt"}</span></div>`;
   const hin = [...new Set([...R.hinweise, ...R.lf.flatMap(l => l.hinweise || [])])];
-  if (R.warn.length || hin.length) h += "<ul>" + R.warn.map(t => `<li><b>${esc(t)}</b></li>`).join("") + hin.map(t => `<li>${esc(t)}</li>`).join("") + "</ul>";
-  if (R.ungeprueft.length) h += `<h3>Ungeprüfte Annahmen ${UNG()}</h3><ul>${R.ungeprueft.map(u => `<li>${esc(u.text)}</li>`).join("")}</ul>`;
+  if (R.warn.length || hin.length) h += "<ul>" + R.warn.map(t => `<li><b>${fx(t)}</b></li>`).join("") + hin.map(t => `<li>${fx(t)}</li>`).join("") + "</ul>";
+  if (R.ungeprueft.length) h += `<h3>Ungeprüfte Annahmen ${UNG()}</h3><ul>${R.ungeprueft.map(u => `<li>${fx(u.text)}</li>`).join("")}</ul>`;
   h += `<h3>Nicht geführte Nachweise</h3><ul>
     <li>Ankerplatte bzw. Anbauteil (Steifigkeit, Biegung, Lochleibung) und Betonpressung unter dem Anbauteil</li>
-    <li>Berechnung der Betonwiderstände (Eingabe aus ETA bzw. Herstellersoftware), lokaler Betonausbruch (7.2.1.8), Rückhängebewehrung</li>
+    <li>Lokaler Betonausbruch (7.2.1.8, Kopfbolzen und Hinterschnittdübel), Rückhängebewehrung, Spaltbewehrung nach Gl. (7.22)</li>
     <li>Ermüdung, Erdbeben (C1/C2), Brand, außergewöhnliche Bemessungssituation; benachbarte Gruppen (7.1 (7))</li></ul>`;
   return h + fuss();
 }
@@ -1379,14 +1714,14 @@ function ankerkraefte(E, R, L) {
         const ug = L.druck.auto ? "" : UNG(K.PRUEFEN.druck);
         h += zl(`Druckresultierende C im Schwerpunkt der äußersten gedrückten Anker ${L.druck.reihe.join(", ")}: P = (${fmtA(L.druck.P.x)}; ${fmtA(L.druck.P.y)}) mm; Drehung der starren Platte um P, Zuganker N<sub>i</sub> ∝ Abstand von P; Gleichgewicht ΣN<sub>i</sub> − C = N<sub>Ed</sub>, Momente um P`, ug);
         h += zl(`→ ${L.N.map((x, j) => `N<sub>${j + 1}</sub> = ${fmt(x)}`).join(", ")} kN; C = ${fmt(L.N.reduce((a, b) => a + b, 0))} − ${fmt(l.N)} = <b>${fmt(L.druck.C)} kN</b>`, "");
-        h += L.druck.auto ? zl(esc(K.TEXT.druckReihe) + ` Überstand ü = ${fmtA(E.geo.ueberstand)} mm > 0.`, "6.2.1 (1) d)", true) : zl(esc(K.TEXT.druck), ug, true);
+        h += L.druck.auto ? zl(fx(K.TEXT.druckReihe) + ` Überstand ü = ${fmtA(E.geo.ueberstand)} mm > 0.`, "6.2.1 (1) d)", true) : zl(fx(K.TEXT.druck), ug, true);
       }
       const iv = L.V.map(v => Math.hypot(v[0], v[1])), j = iv.indexOf(Math.max(...iv));
       if (iv[j] > 1e-9 && n > 1) { const xj = A[j].x - Sm.S0.x, yj = A[j].y - Sm.S0.y, T = l.T * 1000;
         const tx = T ? ` − ${fmtA(T)}·${fmtA(yj)}/${fmtA(Sm.sr2)}` : "", ty = T ? ` + ${fmtA(T)}·${fmtA(xj)}/${fmtA(Sm.sr2)}` : "";
         h += zl(`${esc(L.name)}: V<sub>${j + 1},x</sub> = ${fmt(l.Vx)}/${n}${tx} = ${fmt(L.V[j][0])} kN; V<sub>${j + 1},y</sub> = ${fmt(l.Vy)}/${n}${ty} = ${fmt(L.V[j][1])} kN → |V<sub>${j + 1}</sub>| = <b>${fmt(iv[j])} kN</b>`, T ? "T in kN·mm" : ""); }
     }
-  } else h += zl(esc(K.TEXT.jeAnker), "Übergabe", true);
+  } else h += zl(fx(K.TEXT.jeAnker), "Übergabe", true);
   // Tabelle je Kombination
   h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th><th class="r">|V<sub>Ed,i</sub>| [kN]</th></tr>`;
   R.lf.forEach(lf => { if (!lf.N) return; A.forEach((p, i) => { h += `<tr><td>${i ? "" : esc(lf.name)}</td><td>${i + 1}</td><td class="r">${fmt(lf.N[i])}</td><td class="r">${fmt(lf.V[i][0])}</td><td class="r">${fmt(lf.V[i][1])}</td><td class="r">${fmt(Math.hypot(lf.V[i][0], lf.V[i][1]))}</td></tr>`; }); });
@@ -1397,7 +1732,8 @@ function ankerkraefte(E, R, L) {
     h += zl(`N<sub>Ed</sub><sup>h</sup> = max N<sub>Ed,i</sub> = <b>${fmt(G.Nh)} kN</b>; N<sub>Ed</sub><sup>g</sup> = Σ N<sub>Ed,i</sub> (Zuganker) = <b>${fmt(G.Ng)} kN</b>`, "Tab. 7.1");
     if (G.SZ) h += zl(`e<sub>N</sub> = Abstand der Zugresultierenden vom Schwerpunkt der Zuganker (${fmtA(G.SZ.x)}; ${fmtA(G.SZ.y)}): e<sub>N,x</sub> = ${fmt(G.eN.x, 1)} mm, e<sub>N,y</sub> = ${fmt(G.eN.y, 1)} mm`, kurzRef(K.REF.exz));
     h += zl(`V<sub>Ed</sub><sup>h</sup> = max |V<sub>Ed,i</sub>| = <b>${fmt(G.Vh)} kN</b>; V<sub>Ed</sub><sup>g</sup> = |Σ V<sub>Ed,i</sub>| = <b>${fmt(G.Vg)} kN</b>; e<sub>V</sub> = T/V<sup>g</sup> = ${fmt(G.eV, 1)} mm`, "Tab. 7.2");
-    h += zl(`Die Exzentrizitäten e<sub>N</sub> und e<sub>V</sub> müssen in den eingegebenen Betonwiderständen (ψ<sub>ec,N</sub>, ψ<sub>ec,V</sub>) berücksichtigt sein.`, "7.2.1.4, 7.2.2.5", true);
+    if (!R.beton || Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && (Array.isArray(w) ? w.some(v => v && v.art !== "b") : w.art !== "b")))
+      h += zl(`Die Exzentrizitäten e<sub>N</sub> und e<sub>V</sub> müssen in den eingegebenen Betonwiderständen (ψ<sub>ec,N</sub>, ψ<sub>ec,V</sub>) berücksichtigt sein.`, "7.2.1.4, 7.2.2.5", true);
   }
   return h;
 }
@@ -1405,19 +1741,22 @@ function ankerkraefte(E, R, L) {
 function rdZeile(sym, r, ref, extra) {
   if (!r || r.fehlt) return zl(`${sym}: kein Wert (keine Einwirkung)`, ref);
   if (r.entfaellt) return zl(`${sym}: <b>entfällt</b> – ${esc(r.grund)}`, ref, true);
+  if (r.art === "b" && !(r.Rd > 0)) return zl(`${sym}: berechnet – in der maßgebenden Kombination keine Einwirkung`, ref);
+  if (r.art === "b") return zl(`${sym} = ${sym.replace("Rd", "Rk")}/γ<sub>M</sub> = ${fmt(r.Rk)}/${fmt(r.gM)} = <b>${fmt(r.Rd)} kN</b> <span class="pl">(berechnet nach DIN EN 1992-4, Herleitung unten)</span>${extra || ""}`, ref);
   const q = r.quelle ? ` <span class="pl">(${esc(r.quelle)})</span>` : "";
   if (r.art === "k") return zl(`${sym} = ${sym.replace("Rd", "Rk")}/γ<sub>M</sub> = ${fmt(r.Rk)}/${fmt(r.gM)} = <b>${fmt(r.Rd)} kN</b>${q}${extra || ""}`, ref);
   return zl(`${sym} = <b>${fmt(r.Rd)} kN</b> (Bemessungswert)${q}${extra || ""}`, ref);
 }
 function widerstaende(E, R, L) {
-  const Rd = R.Rd, H = E.hebel; let h = "";
+  const H = E.hebel; let h = "";
+  const Rd = Object.assign({}, R.Rd, L && L.Rd ? Object.fromEntries(Object.entries(L.Rd).filter(([k, v]) => R.Rd[k] && R.Rd[k].art === "b" && v)) : {});
   h += rdZeile(sub("N", "Rd,s"), Rd.Ns, kurzRef(K.REF.Ns));
   h += rdZeile(sub("N", "Rd,p"), Rd.Np, kurzRef(E.geo.typ === "verbund" ? K.REF.Npv : K.REF.Np));
   h += rdZeile(sub("N", "Rd,c"), Rd.Nc, kurzRef(K.REF.Nc));
   h += rdZeile(sub("N", "Rd,sp"), Rd.Nsp, kurzRef(K.REF.Nsp));
   if (!H.mit) h += rdZeile(sub("V", "Rd,s"), Rd.Vs, kurzRef(K.REF.Vs));
   h += rdZeile(sub("V", "Rd,cp"), Rd.Vcp, kurzRef(K.REF.Vcp));
-  (R.raender || []).forEach((r, i) => { h += rdZeile(sub("V", "Rd,c") + " (Rand " + r.richtung + ")", R.Vc[i], kurzRef(K.REF.Vc)); });
+  (R.raender || []).forEach((r, i) => { const kt = L && L.kante ? L.kante[i] : null; h += rdZeile(sub("V", "Rd,c") + " (Rand " + r.richtung + ")", R.Vc[i].art === "b" ? (kt && kt.Rd && kt.Rd.art === "b" ? kt.Rd : { art: "b" }) : R.Vc[i], kurzRef(K.REF.Vc)); });
   h += zl("Teilsicherheitsbeiwerte aus der ETA bzw. Tab. 4.1; der NA übernimmt die Empfehlungen.", kurzRef(K.REF.gamma), true);
   if (H.mit && R.la) {
     h += `<h3>Stahlbruch mit Hebelarm</h3>`;
@@ -1425,15 +1764,99 @@ function widerstaende(E, R, L) {
     h += zl(`l<sub>a</sub> = a<sub>3</sub> + e<sub>1</sub> = ${H.a3Null ? "0" : "0,5·" + fmtA(R.dnom)} + ${fmt(R.la.e1, 1)} = <b>${fmt(R.la.la, 1)} mm</b>`, "6.2.2.3 (3), Gl. (6.2)");
     h += zl(`α<sub>M</sub> = ${fmt(H.alphaM, 1)} (${H.alphaM === 2 ? "volle Einspannung" : "keine Einspannung, Anbauteil frei verdrehbar"}); M<sup>0</sup><sub>Rk,s</sub> = ${fmtA(H.M0Rks)} Nm; γ<sub>Ms</sub> = ${fmt(H.gMs)}`, "6.2.2.3 (3); ETA");
   }
+  return h + berechnetProtokoll(E, R, L);
+}
+// Herleitung der berechneten Betonwiderstände (maßgebende Kombination), je Zeile Formel → Werte → Ergebnis
+const f3 = x => fmt(x, 3), f1 = x => fmt(x, 1), mm = x => x === Infinity || x === -Infinity ? "∞" : fmtA(x);
+const ankerListe = idx => idx.length === 1 ? "Anker " + idx[0] : "Anker " + idx.join(", ");
+function kegelZeilen(x, o) {
+  // o: {sym:"N", ccrSym:"c<sub>cr,N</sub>", scrSym, idx:[1..], gl:{A,psiS,psiEc}, ecTxt}
+  let h = "";
+  h += zl(`${sup(sub("A", o.aSym), "0")} = ${o.scrSym}² = ${mm(x.scr)}² = ${fmtA(x.A0)} mm²; ${sub("A", o.aSym)} = <b>${fmtA(x.Ac)} mm²</b> (Quadrate 2·${o.ccrSym} = ${mm(x.scr)} mm um ${esc(ankerListe(o.idx))}, begrenzt durch ${o.virt ? "Ränder und virtuelle Ränder c = 0,5·s" : "die Ränder"}) → ${sub("A", o.aSym)}/${sup(sub("A", o.aSym), "0")} = ${f3(x.Ac / x.A0)}`, o.refA);
+  h += zl(`${sub("ψ", o.sSym)} = 0,7 + 0,3·c/${o.ccrSym} = ${x.c === Infinity ? "1,0 (kein Rand)" : `0,7 + 0,3·${mm(x.c)}/${mm(x.ccr)} = ${f3(Math.min(0.7 + 0.3 * x.c / x.ccr, 99))}`} → <b>${f3(x.psiS)}</b> ≤ 1`, o.refS);
+  h += zl(`${sub("ψ", o.ecSym)} = 1/(1 + 2·e<sub>x</sub>/${o.scrSym})·1/(1 + 2·e<sub>y</sub>/${o.scrSym}) = 1/(1 + 2·${f1(Math.abs(x.e.x))}/${mm(x.scr)})·1/(1 + 2·${f1(Math.abs(x.e.y))}/${mm(x.scr)}) = <b>${f3(x.psiEc)}</b>${o.ecTxt ? " " + o.ecTxt : ""}`, o.refEc);
   return h;
 }
+function berechnetProtokoll(E, R, L) {
+  if (!R.beton || !L || !L.ber) return "";
+  const g = E.geo, B = R.beton, ber = L.ber; let h = "";
+  const zug = L.N.map((x, i) => x > 1e-9 ? i + 1 : 0).filter(Boolean);
+  h += `<h3>Berechnete Betonwiderstände, Kombination ${esc(L.name)}</h3>`;
+  h += zl(`Beton ${esc(g.beton)}, ${g.zustand}: f<sub>ck</sub> = ${fmtA(B.fck)} N/mm² (≤ 60, 7.1 (2)); Kennwerte aus ${esc([S.dub.eta, S.dub.etaDatum].filter(Boolean).join(" vom ") || "Eingabe Karte 2")}`, "ETA; 7.1 (2)");
+  h += zl(`γ<sub>Mc</sub> = γ<sub>c</sub>·γ<sub>inst</sub> = 1,5·${fmt(B.gMc / 1.5)} = ${fmt(B.gMc)} (Zug, γ<sub>Mp</sub> = γ<sub>Msp</sub> = γ<sub>Mc</sub>); Querlast γ<sub>inst</sub> = 1,0 → γ<sub>Mc</sub> = 1,50`, kurzRef(K.REF.gammaC));
+  h += zl(`ψ<sub>re,N</sub> = ${S.geo.bew.reN ? "1,0 (Bewehrung nach 7.2.1.4 (5) a) bzw. b) bestätigt)" : `0,5 + h<sub>ef</sub>/200 = 0,5 + ${fmtA(g.hef)}/200 → ${f3(B.psiRe)} ≤ 1`}`, "7.2.1.4 (5), Gl. (7.5)");
+  if (ber.Nc && !ber.Nc.entfaellt) {
+    const x = ber.Nc;
+    h += `<h3>Kegelförmiger Betonausbruch</h3>`;
+    h += zl(`${sup(sub("N", "Rk,c"), "0")} = k<sub>1</sub>·√f<sub>ck</sub>·h<sub>ef</sub><sup>1,5</sup> = ${fmt(x.k1, 1)}·√${fmtA(B.fck)}·${fmtA(g.hef)}<sup>1,5</sup> = <b>${fmt(x.N0)} kN</b>`, "7.2.1.4 (2), Gl. (7.2)");
+    h += zl(`c<sub>cr,N</sub> = ${fmtA(B.ccrN / g.hef)}·h<sub>ef</sub> = ${mm(B.ccrN)} mm; s<sub>cr,N</sub> = 2·c<sub>cr,N</sub> = ${mm(2 * B.ccrN)} mm`, "7.2.1.4 (3); ETA");
+    h += kegelZeilen(x, { aSym: "c,N", ccrSym: "c<sub>cr,N</sub>", scrSym: "s<sub>cr,N</sub>", sSym: "s,N", ecSym: "ec,N", idx: zug, refA: "Gl. (7.3), Bild 7.4", refS: "Gl. (7.4)", refEc: "Gl. (7.6)", ecTxt: "(e<sub>N</sub> s. Gruppengrößen)" });
+    h += zl(fx(K.TEXT.psiM), "7.2.1.4 (7)", true);
+    h += zl(`N<sub>Rk,c</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)}·1,0 = <b>${fmt(x.Rk)} kN</b>; N<sub>Rd,c</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "Gl. (7.1)");
+  }
+  if (ber.Np) {
+    const x = ber.Np;
+    h += `<h3>${g.typ === "verbund" ? "Kombiniertes Versagen Herausziehen und Betonbruch" : "Herausziehen"}</h3>`;
+    if (x.entfaellt) h += zl(`entfällt – ${fx(x.grund)}`, "ETA", true);
+    else if (g.typ !== "verbund") h += zl(`N<sub>Rk,p</sub> = N<sub>Rk,p</sub>(C20/25)·ψ<sub>c</sub> = ${fmt(x.NRkp0)}·${f3(x.psiC)} = <b>${fmt(x.Rk)} kN</b> (${fx(x.psiCtext)}); N<sub>Rd,p</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "7.2.1.5; ETA");
+    else {
+      h += zl(`ψ<sub>sus</sub>: α<sub>sus</sub> = ${fmt(B.alphaSus)} ${B.alphaSus <= B.psi0sus ? "≤" : "&gt;"} ψ<sup>0</sup><sub>sus</sub> = ${fmt(B.psi0sus)} → ψ<sub>sus</sub> = ${B.alphaSus <= B.psi0sus ? "1,0" : `${fmt(B.psi0sus)} + 1 − ${fmt(B.alphaSus)} = ${f3(B.psiSus)}`}`, "Gl. (7.14a), (7.14b)");
+      h += zl(`τ<sub>Rk</sub> = τ<sub>Rk</sub>(C20/25)·ψ<sub>c</sub> = ${fmt(x.tau / B.psiC.psi)}·${f3(B.psiC.psi)} = ${fmt(x.tau)} N/mm² (${fx(B.psiC.text)})`, "7.2.1.6 (2); ETA");
+      h += zl(`${sup(sub("N", "Rk,p"), "0")} = ψ<sub>sus</sub>·τ<sub>Rk</sub>·π·d·h<sub>ef</sub> = ${f3(x.psiSus)}·${fmt(x.tau)}·π·${fmtA(g.d)}·${fmtA(g.hef)} = <b>${fmt(x.N0)} kN</b>`, "Gl. (7.14)");
+      h += zl(`s<sub>cr,Np</sub> = 7,3·d·(ψ<sub>sus</sub>·τ<sub>Rk,ucr</sub>)<sup>0,5</sup> ≤ 3·h<sub>ef</sub> = min{7,3·${fmtA(g.d)}·(${f3(x.psiSus)}·${fmt(E.kw.tauUcr)})<sup>0,5</sup>; ${fmtA(3 * g.hef)}} = <b>${f1(x.scrNp)} mm</b>; c<sub>cr,Np</sub> = ${f1(x.scrNp / 2)} mm`, "Gl. (7.15), (7.16)");
+      h += kegelZeilen(x, { aSym: "p,N", ccrSym: "c<sub>cr,Np</sub>", scrSym: "s<sub>cr,Np</sub>", sSym: "s,Np", ecSym: "ec,Np", idx: zug, refA: "7.2.1.6 (3)", refS: "Gl. (7.20)", refEc: "Gl. (7.21)" });
+      if (zug.length > 1) {
+        h += zl(`τ<sub>Rk,c</sub> = k<sub>3</sub>/(π·d)·(h<sub>ef</sub>·f<sub>ck</sub>)<sup>0,5</sup> = ${fmt(x.k3, 1)}/(π·${fmtA(g.d)})·(${fmtA(g.hef)}·${fmtA(B.fck)})<sup>0,5</sup> = ${fmt(x.tauC)} N/mm²`, "Gl. (7.19)");
+        h += zl(`${sup(sub("ψ", "g,Np"), "0")} = √n − (√n − 1)·(τ<sub>Rk</sub>/τ<sub>Rk,c</sub>)<sup>1,5</sup> = √${zug.length} − (√${zug.length} − 1)·(${fmt(x.tau)}/${fmt(x.tauC)})<sup>1,5</sup> → ${f3(x.psiG0)} ≥ 1`, "Gl. (7.18)");
+        h += zl(`ψ<sub>g,Np</sub> = ψ⁰ − (s/s<sub>cr,Np</sub>)<sup>0,5</sup>·(ψ⁰ − 1) = ${f3(x.psiG0)} − (${f1(x.s)}/${f1(x.scrNp)})<sup>0,5</sup>·(${f3(x.psiG0)} − 1) → <b>${f3(x.psiG)}</b> ≥ 1`, "Gl. (7.17)" + (x.sGleich ? "" : " " + UNG(K.PRUEFEN.sMittel)));
+      } else h += zl("ψ<sub>g,Np</sub> = 1,0 (ein zugbeanspruchter Anker)", "Gl. (7.17)");
+      h += zl(`N<sub>Rk,p</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiG)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)} = <b>${fmt(x.Rk)} kN</b>; N<sub>Rd,p</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "Gl. (7.13)");
+    }
+  }
+  if (ber.Nsp) {
+    const x = ber.Nsp;
+    h += `<h3>Spalten</h3>`;
+    if (x.entfaellt) h += zl(`Kein Nachweis erforderlich: ${fx(x.grund)}`, "7.2.1.7 (2) b)", true);
+    else {
+      h += zl(`c<sub>cr,sp</sub> = ${mm(x.ccr)} mm (${fx(x.variante)}); s<sub>cr,sp</sub> = ${mm(x.scr)} mm; Bedingung b) 1) c ≥ ${zug.length > 1 || E.anker.length > 1 ? "1,2" : "1,0"}·c<sub>cr,sp</sub> nicht erfüllt`, "7.2.1.7 (2) a), b); ETA");
+      h += zl(`${sup(sub("N", "Rk,sp"), "0")} = <b>${fmt(x.N0)} kN</b> – ${fx(x.N0text)}`, "7.2.1.7 (2) c), Anm.");
+      h += kegelZeilen(x, { aSym: "c,N", ccrSym: "c<sub>cr,sp</sub>", scrSym: "s<sub>cr,sp</sub>", sSym: "s,N", ecSym: "ec,N", idx: zug, refA: "7.2.1.7 (2) c)", refS: "Gl. (7.4) mit c<sub>cr,sp</sub>", refEc: "Gl. (7.6) mit s<sub>cr,sp</sub>" });
+      h += x.abhH ? zl("ψ<sub>h,sp</sub> = 1,0: c<sub>cr,sp</sub> nach ETA bereits für die vorhandene Dicke h ermittelt (h<sub>min</sub> = h)", "Gl. (7.24); 7.2.1.7 (2) d)", true)
+        : zl(`ψ<sub>h,sp</sub> = (h/h<sub>min</sub>)<sup>2/3</sup> ≤ max{1; ((h<sub>ef</sub> + 1,5·c<sub>1</sub>)/h<sub>min</sub>)<sup>2/3</sup>} ≤ 2 = min{(${fmtA(g.h)}/${fmtA(x.hmin)})<sup>2/3</sup>; max[1; ((${fmtA(g.hef)} + 1,5·${mm(x.c1)})/${fmtA(x.hmin)})<sup>2/3</sup>]; 2} = <b>${f3(x.psiH)}</b>`, "Gl. (7.24) " + UNG(K.PRUEFEN.psiHsp));
+      h += zl(`N<sub>Rk,sp</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)}·${f3(x.psiH)} = <b>${fmt(x.Rk)} kN</b>; N<sub>Rd,sp</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "Gl. (7.23)");
+    }
+  }
+  if (ber.Vcp) {
+    const x = ber.Vcp, nc = x.nc;
+    h += `<h3>Betonausbruch auf der lastabgewandten Seite</h3>`;
+    if (x.virt) h += zl(`Querkräfte teils entgegengesetzt: Nachweis für den höchstbeanspruchten Anker ${x.idx[0]} mit virtuellen Rändern c = 0,5·s zu den Nachbarankern`, "7.2.2.4 (4), Bild 7.11 " + UNG(K.PRUEFEN.vcpVirt));
+    h += zl(`N<sub>Rk,c</sub> für ${esc(ankerListe(x.idx))} (querbelastet): ${sup(sub("N", "Rk,c"), "0")} = ${fmt(nc.N0)} kN`, "7.2.2.4 (2); Gl. (7.2)");
+    h += kegelZeilen(nc, { aSym: "c,N", ccrSym: "c<sub>cr,N</sub>", scrSym: "s<sub>cr,N</sub>", sSym: "s,N", ecSym: "ec,N", idx: x.idx, virt: x.virt, refA: "Gl. (7.3)" + (x.virt ? ", Bild 7.11" : ""), refS: "Gl. (7.4)",
+      refEc: "Gl. (7.6)" + (!x.virt && Math.hypot(nc.e.x, nc.e.y) > 1e-6 ? " " + UNG(K.PRUEFEN.vcpEc) : ""), ecTxt: "(Resultierende der Querkraftbeträge)" });
+    h += zl(`N<sub>Rk,c</sub> = ${fmt(nc.N0)}·${f3(nc.Ac / nc.A0)}·${f3(nc.psiS)}·${f3(nc.psiRe)}·${f3(nc.psiEc)}·1,0 = ${fmt(nc.Rk)} kN`, "Gl. (7.1)");
+    if (x.np) h += zl(`N<sub>Rk,p</sub> (querbelastete Anker) = ${fmt(x.np.N0)}·${f3(x.np.Ac / x.np.A0)}·${f3(x.np.psiG)}·${f3(x.np.psiS)}·${f3(x.np.psiRe)}·${f3(x.np.psiEc)} = ${fmt(x.np.Rk)} kN`, "Gl. (7.13)");
+    h += zl(`V<sub>Rk,cp</sub> = k<sub>8</sub>·${x.np ? "min{N<sub>Rk,c</sub>; N<sub>Rk,p</sub>}" : "N<sub>Rk,c</sub>"} = ${fmt(x.k8)}·${fmt(x.np ? Math.min(nc.Rk, x.np.Rk) : nc.Rk)} = <b>${fmt(x.Rk)} kN</b>; V<sub>Rd,cp</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, x.np ? "Gl. (7.39c)" : "Gl. (7.39a)");
+  }
+  (L.kante || []).forEach(kt => {
+    const x = kt.Rd; if (!x || x.art !== "b") return;
+    h += `<h3>Betonkantenbruch, Rand ${kt.richtung}</h3>`;
+    h += zl(`l<sub>f</sub> = ${B.lfETA ? "ETA" : "h<sub>ef</sub>"} ≤ ${R.dnom <= 24 ? "12·d<sub>nom</sub>" : "max{8·d<sub>nom</sub>; 300}"} = ${fmtA(x.lf)} mm; α = 0,1·(l<sub>f</sub>/c<sub>1</sub>)<sup>0,5</sup> = 0,1·(${fmtA(x.lf)}/${fmtA(x.c1)})<sup>0,5</sup> = ${fmt(x.alpha, 4)}; β = 0,1·(d<sub>nom</sub>/c<sub>1</sub>)<sup>0,2</sup> = 0,1·(${fmtA(x.dnom)}/${fmtA(x.c1)})<sup>0,2</sup> = ${fmt(x.beta, 4)}`, "7.2.2.5 (6), Gl. (7.42), (7.43)");
+    h += zl(`${sup(sub("V", "Rk,c"), "0")} = k<sub>9</sub>·d<sub>nom</sub><sup>α</sup>·l<sub>f</sub><sup>β</sup>·√f<sub>ck</sub>·c<sub>1</sub><sup>1,5</sup> = ${fmt(x.k9, 1)}·${fmtA(x.dnom)}<sup>${fmt(x.alpha, 4)}</sup>·${fmtA(x.lf)}<sup>${fmt(x.beta, 4)}</sup>·√${fmtA(B.fck)}·${fmtA(x.c1)}<sup>1,5</sup> = <b>${fmt(x.V0)} kN</b>`, "Gl. (7.41)");
+    h += zl(`${sup(sub("A", "c,V"), "0")} = 4,5·c<sub>1</sub>² = ${fmtA(x.A0)} mm²; A<sub>c,V</sub> = ${fmtA(x.L)}·min{h; 1,5·c<sub>1</sub>} = ${fmtA(x.L)}·${fmtA(x.tief)} = <b>${fmtA(x.Ac)} mm²</b> (Anker ${kt.anker.join(", ")}) → ${f3(x.Ac / x.A0)}`, "Gl. (7.44), Bild 7.13, 7.14");
+    h += zl(`ψ<sub>s,V</sub> = 0,7 + 0,3·c<sub>2</sub>/(1,5·c<sub>1</sub>) = ${x.c2 === Infinity ? "1,0 (kein Seitenrand)" : `0,7 + 0,3·${mm(x.c2)}/${fmtA(1.5 * x.c1)}`} → <b>${f3(x.psiS)}</b>; ψ<sub>h,V</sub> = (1,5·c<sub>1</sub>/h)<sup>0,5</sup> = (${fmtA(1.5 * x.c1)}/${fmtA(g.h)})<sup>0,5</sup> → <b>${f3(x.psiH)}</b> ≥ 1`, "Gl. (7.45), (7.46)");
+    h += zl(`ψ<sub>ec,V</sub> = 1/(1 + 2·e<sub>v</sub>/(3·c<sub>1</sub>)) = 1/(1 + 2·${f1(x.ev)}/${fmtA(3 * x.c1)}) = <b>${f3(x.psiEc)}</b>; ψ<sub>α,V</sub> = (1/(cos²α<sub>V</sub> + 0,25·sin²α<sub>V</sub>))<sup>0,5</sup> mit α<sub>V</sub> = ${f1(x.alphaV)}° → <b>${f3(x.psiA)}</b>; ψ<sub>re,V</sub> = ${fmt(x.psiRe, 1)}`, "Gl. (7.47), (7.48); 7.2.2.5 (13)");
+    h += zl(`V<sub>Rk,c</sub> = ${fmt(x.V0)}·${f3(x.Ac / x.A0)}·${f3(x.psiS)}·${f3(x.psiH)}·${f3(x.psiEc)}·${f3(x.psiA)}·${fmt(x.psiRe, 1)}${x.f08 < 1 ? "·0,8" : ""} = <b>${fmt(x.Rk)} kN</b>; V<sub>Rd,c</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "Gl. (7.40)" + (x.f08 < 1 ? "; 7.2.2.5 (8)" : ""));
+  });
+  return h;
+}
+
 function beta(E, R, sym, Rsym, b, ref) {
   if (!(E > 1e-9)) return zl(`${sym} = 0: kein Nachweis erforderlich`, ref);
   if (R && R.entfaellt) return zl(`${sym} = ${fmt(E)} kN: Nachweis entfällt – ${esc(R.grund)}`, ref, true);
   return zl(`${sym} / ${Rsym} = ${fmt(E)} / ${fmt(R.Rd)} = <b>${etaTxt(b)}</b> ${b <= 1 + 1e-9 ? "≤" : "&gt;"} 1`, ref);
 }
 function nachweise(E, R, L) {
-  const G = L.G, b = L.beta, Rd = R.Rd, H = E.hebel, verb = E.geo.typ === "verbund"; let h = "";
+  const G = L.G, b = L.beta, Rd = L.Rd || R.Rd, H = E.hebel, verb = E.geo.typ === "verbund"; let h = "";
   h += `<h3>Maßgebende Kombination ${esc(L.name)} – Zugbeanspruchung</h3>`;
   h += beta(G.Nh, Rd.Ns, "N<sub>Ed</sub><sup>h</sup>", sub("N", "Rd,s"), b.Ns, kurzRef(K.REF.Ns));
   h += beta(verb ? G.Ng : G.Nh, Rd.Np, verb ? "N<sub>Ed</sub><sup>g</sup>" : "N<sub>Ed</sub><sup>h</sup>", sub("N", "Rd,p"), b.Np, kurzRef(verb ? K.REF.Npv : K.REF.Np));
@@ -1489,7 +1912,9 @@ function baueLib() {
     }).join("");
     return `<tr class="${e.beispiel ? "bsp" : ""}"><td><span class="st ${c}" title="${esc(fe.length && !e.beispiel ? "fehlt: " + fe.join(", ") : t)}">${t}</span></td>${zellen}<td style="white-space:nowrap">${e.beispiel ? "" : `<button class="btn sm" data-lib-dup="${i}">Kopie</button> <button class="btn sm" data-lib-del="${i}">Löschen</button>`}</td></tr>`;
   };
-  $("libT").innerHTML = kopf + LIB.map(zeile).join("");
+  const werk = (e, i) => { const zellen = LIBF.map(([k]) => `<td>${esc(e[k] === true ? "ja" : e[k] === false ? "" : e[k])}</td>`).join("");
+    return `<tr class="werk"><td><span class="st ok" title="aus der ETA übernommen, schreibgeschützt">ETA</span></td>${zellen}<td><button class="btn sm" data-werk-dup="${i}">Kopie</button></td></tr>`; };
+  $("libT").innerHTML = kopf + ETA_LIB.map(werk).join("") + LIB.map(zeile).join("");
 }
 $("libT").addEventListener("change", ev => {
   const el = ev.target, dl = el.dataset.lib; if (!dl) return;
@@ -1501,13 +1926,13 @@ $("libT").addEventListener("change", ev => {
 });
 $("libT").addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
-  if (b.dataset.libDup != null) { const e = clone(LIB[+b.dataset.libDup]); e.id = libLeer().id; e.produkt += " (Kopie)"; LIB.splice(+b.dataset.libDup + 1, 0, e); }
+  if (b.dataset.werkDup != null) { const e = clone(ETA_LIB[+b.dataset.werkDup]); e.id = libLeer().id; delete e.werk; e.produkt += " (Kopie)"; LIB.push(e); }
+  else if (b.dataset.libDup != null) { const e = clone(LIB[+b.dataset.libDup]); e.id = libLeer().id; e.produkt += " (Kopie)"; LIB.splice(+b.dataset.libDup + 1, 0, e); }
   else if (b.dataset.libDel != null) { const e = LIB[+b.dataset.libDel]; if (!confirm(`Eintrag „${[e.hersteller, e.produkt].join(" ")}“ löschen?`)) return; LIB.splice(+b.dataset.libDel, 1); }
   else return;
   libSpeichern(); baueLib();
 });
 $("libNeu").addEventListener("click", () => { LIB.push(libLeer()); libSpeichern(); baueLib(); });
-$("libBsp").addEventListener("click", () => { BSP_LIB.forEach(b => { const i = LIB.findIndex(e => e.id === b.id); if (i >= 0) LIB[i] = clone(b); else LIB.unshift(clone(b)); }); libSpeichern(); baueLib(); });
 $("libExp").addEventListener("click", () => {
   const p = n => String(n).padStart(2, "0"), d = new Date();
   const a = document.createElement("a");

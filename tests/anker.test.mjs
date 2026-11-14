@@ -438,3 +438,129 @@ test("Kopplung Rothoblaas: TCN240 mit TCW, Vorzeichen von M_y und höchstbelaste
   nah(RB.ankerGruppe(pn, { F1: 20, F23: 0, F4: 0, F5: 0 }).N, 12.1, "NINO N = 1,21·20/2");
   assert.ok(RB.ankerLuecken(pn, { F1: 0, F23: 0, F4: 3, F5: 0 }).length === 1);
 });
+
+// ================================================================================ Version 2: berechnete Betonwiderstände
+// Sollwerte werden hier unabhängig vom Kern direkt aus den Gleichungen der Norm gerechnet (Formel im Kommentar).
+// Grundlage: DIN EN 1992-4:2019-04, Gleichungsnummern je Fall. Toleranz 5e-4 relativ.
+const kwMech = () => ({ gInst: 1.0, kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: 16, NRkpUcr: 25, psic: "exp:0.5", spArt: "paare", sp1h: 160, sp1c: 160, k8: 2.0 });
+const berechnet = () => ({ Ns: { art: "k", Rk: 67, gM: 1.5 }, Np: { art: "b" }, Nc: { art: "b" }, Nsp: { art: "b" }, Vs: { art: "k", Rk: 34, gM: 1.25 }, Vcp: { art: "b" }, Vc: [] });
+const v2 = (anker, raender, lf, extra = {}) => Object.assign({ ...basis(), anker, lastfaelle: lf, widerstand: berechnet(), kw: kwMech(), bew: { reN: false, reV: false, spalt: false } }, extra,
+  { geo: Object.assign(basis().geo, { raender }, extra.geo || {}) });
+const N0c = (k1, fck, hef) => k1 * Math.sqrt(fck) * Math.pow(hef, 1.5) / 1000;   // Gl. (7.2) in kN
+
+// Fall V2-1: Einzelanker ohne Rand, C25/30 gerissen, h_ef = 80
+//   N⁰_Rk,c = 7,7·√25·80^1,5 = 27,548 kN (7.2); A/A⁰ = 1; ψ_s = 1; ψ_re,N = 0,5 + 80/200 = 0,9 (7.5); ψ_ec = 1; ψ_M,N = 1
+//   N_Rk,c = 24,794 kN; γ_Mc = 1,5·1,0 → N_Rd,c = 16,529 kN; N = 10 kN → β = 0,60499
+//   Herausziehen: N_Rk,p = 16·(25/20)^0,5 = 17,889 kN; γ_Mp = 1,5 → β = 10/11,926 = 0,83853
+//   Spalten: kein Rand → c = ∞ ≥ 1,0·c_cr,sp, h = 200 ≥ 160 → entfällt (7.2.1.7 (2) b) 1))
+test("V2-1: Einzelanker, N_Rk,c (7.1), N_Rk,p mit ψ_c, Spalten entfällt", () => {
+  const r = A.nachweis(v2([{ x: 0, y: 0 }], [], [{ name: "LK1", N: 10 }]));
+  assert.deepEqual([...r.fehler], []);
+  const L = r.lf[0], Nc = L.ber.Nc;
+  nah(Nc.N0, N0c(7.7, 25, 80), "N⁰_Rk,c"); nah(Nc.psiRe, 0.9, "ψ_re,N"); nah(Nc.Rk, N0c(7.7, 25, 80) * 0.9, "N_Rk,c");
+  nah(L.beta.Nc, 10 / (N0c(7.7, 25, 80) * 0.9 / 1.5), "β N,c");
+  nah(L.ber.Np.Rk, 16 * Math.sqrt(25 / 20), "N_Rk,p·ψ_c"); nah(L.beta.Np, 10 / (16 * Math.sqrt(1.25) / 1.5), "β N,p");
+  assert.equal(L.ber.Nsp.entfaellt, true); assert.equal(L.beta.Nsp, 0);
+});
+
+// Fall V2-2: Zweiergruppe s = 100 mm in x, Rand +y c = 60 mm, ψ_re,N = 1 (Bewehrung nach 7.2.1.4 (5) bestätigt)
+//   c_cr,N = 120, s_cr,N = 240; A_c,N = (120 + 100 + 120)·(120 + 60) = 61 200 mm² (Bild 7.4); A⁰ = 240² = 57 600 mm² (7.3)
+//   ψ_s,N = 0,7 + 0,3·60/120 = 0,85 (7.4)
+//   a) zentrisch N = 10 kN: N_Rk,c = 27,548·61 200/57 600·0,85 = 24,880 kN
+//   b) M_y = 0,2 kNm: N₁ = 3, N₂ = 7 kN, e_N = 20 mm → ψ_ec,N = 1/(1 + 2·20/240) = 0,857143 (7.6) → N_Rk,c = 21,325 kN
+test("V2-2: Zweiergruppe am Rand, A_c,N nach Bild 7.4, ψ_s,N, ψ_ec,N", () => {
+  const e = v2([{ x: -50, y: 0 }, { x: 50, y: 0 }], [{ richtung: "+y", c: 60 }], [{ name: "a", N: 10 }, { name: "b", N: 10, My: 0.2 }], { bew: { reN: true } });
+  e.mindest.smin = 60;
+  const r = A.nachweis(e);
+  assert.deepEqual([...r.fehler], []);
+  const a = r.lf[0].ber.Nc, b = r.lf[1].ber.Nc;
+  nah(a.Ac, 61200, "A_c,N"); nah(a.A0, 57600, "A⁰_c,N"); nah(a.psiS, 0.85, "ψ_s,N"); nah(a.psiRe, 1, "ψ_re,N");
+  nah(a.Rk, N0c(7.7, 25, 80) * 61200 / 57600 * 0.85, "N_Rk,c zentrisch");
+  nah(b.e.x, 20, "e_N"); nah(b.psiEc, 1 / (1 + 40 / 240), "ψ_ec,N"); nah(b.Rk, N0c(7.7, 25, 80) * 61200 / 57600 * 0.85 / (1 + 40 / 240), "N_Rk,c exzentrisch");
+});
+
+// Fall V2-3: Spalten nach Gl. (7.23)/(7.24), Einzelanker, Rand +y c = 100 mm, c_cr,sp = 160 mm bei h_min = 160 mm, h = 200 mm
+//   b) 1) nicht erfüllt (100 < 160). N⁰_Rk,sp = min{N_Rk,p; N⁰_Rk,c} = min{17,889; 27,548} = 17,889 kN
+//   A_c,N = 320·(160 + 100) = 83 200; A⁰ = 320² = 102 400; ψ_s = 0,7 + 0,3·100/160 = 0,8875; ψ_re = 0,9
+//   ψ_h,sp = min{(200/160)^(2/3) = 1,16040; max[1; ((80 + 1,5·100)/160)^(2/3) = 1,27377]; 2} = 1,16040
+//   N_Rk,sp = 17,889·0,8125·0,8875·0,9·1,16040
+test("V2-3: Spalten mit ψ_h,sp (7.24)", () => {
+  const r = A.nachweis(v2([{ x: 0, y: 0 }], [{ richtung: "+y", c: 100 }], [{ name: "LK1", N: 5 }]));
+  assert.deepEqual([...r.fehler], []);
+  const s = r.lf[0].ber.Nsp, p = 16 * Math.sqrt(1.25), psiH = Math.min(Math.pow(200 / 160, 2 / 3), Math.max(1, Math.pow(230 / 160, 2 / 3)), 2);
+  nah(s.N0, p, "N⁰_Rk,sp"); nah(s.Ac, 83200, "A_c,N (c_cr,sp)"); nah(s.psiS, 0.8875, "ψ_s,N"); nah(s.psiH, psiH, "ψ_h,sp");
+  nah(s.Rk, p * 83200 / 102400 * 0.8875 * 0.9 * psiH, "N_Rk,sp");
+  assert.ok(r.ungeprueft.some(u => u.key === "psiHsp"));
+});
+
+// Fall V2-4: Betonkantenbruch (7.40)–(7.48), Einzelanker, Rand +y c₁ = 100, d_nom = 12, l_f = h_ef = 80, gerissen (k₉ = 1,7)
+//   α = 0,1·(80/100)^0,5; β = 0,1·(12/100)^0,2; V⁰ = 1,7·12^α·80^β·√25·100^1,5
+//   a) h = 200, V_y = 5 kN senkrecht: A_c,V = 300·150 = A⁰ = 4,5·100² → V_Rk,c = V⁰
+//   b) zusätzlich Rand +x c₂ = 100: A_c,V = (150 + 100)·150; ψ_s,V = 0,7 + 0,3·100/150 = 0,9
+//   c) h = 100: Tiefe 100, ψ_h,V = (150/100)^0,5 = 1,22474
+//   d) Last unter 30° zur Randnormalen: ψ_α,V = (1/(cos²30° + 0,25·sin²30°))^0,5 = 1,10940
+const V0c = (dnom, lf, c1, fck, k9) => k9 * Math.pow(dnom, 0.1 * Math.sqrt(lf / c1)) * Math.pow(lf, 0.1 * Math.pow(dnom / c1, 0.2)) * Math.sqrt(fck) * Math.pow(c1, 1.5) / 1000;
+test("V2-4: Betonkantenbruch V_Rk,c mit ψ_s,V, ψ_h,V, ψ_α,V", () => {
+  const V0 = V0c(12, 80, 100, 25, 1.7);
+  const lauf = (raender, h, Vx, Vy) => { const e = v2([{ x: 0, y: 0 }], raender, [{ name: "LK", N: 0, Vx, Vy }], { geo: { h } }); e.widerstand.Vc = raender.map(() => ({ art: "b" })); e.mindest.hmin = 100; const r = A.nachweis(e); assert.deepEqual([...r.fehler], []); return r.lf[0].kante.find(k => k.richtung === "+y").Rd; };
+  const a = lauf([{ richtung: "+y", c: 100 }], 200, 0, 5);
+  nah(a.V0, V0, "V⁰_Rk,c"); nah(a.Ac / a.A0, 1, "A_c,V/A⁰_c,V"); nah(a.Rk, V0, "V_Rk,c a)"); nah(a.gM, 1.5, "γ_Mc Querlast");
+  const b = lauf([{ richtung: "+y", c: 100 }, { richtung: "+x", c: 100 }], 200, 0, 5);
+  nah(b.Ac, 250 * 150, "A_c,V b)"); nah(b.psiS, 0.9, "ψ_s,V"); nah(b.Rk, V0 * 250 / 300 * 0.9, "V_Rk,c b)");
+  const c = lauf([{ richtung: "+y", c: 100 }], 100, 0, 5);
+  nah(c.psiH, Math.sqrt(1.5), "ψ_h,V"); nah(c.Rk, V0 * (300 * 100) / 45000 * Math.sqrt(1.5), "V_Rk,c c)");
+  const d = lauf([{ richtung: "+y", c: 100 }], 200, 5 * Math.sin(Math.PI / 6), 5 * Math.cos(Math.PI / 6));
+  nah(d.alphaV, 30, "α_V"); nah(d.psiA, Math.sqrt(1 / (0.75 + 0.0625)), "ψ_α,V"); nah(d.Rk, V0 * Math.sqrt(1 / 0.8125), "V_Rk,c d)");
+});
+
+// Fall V2-5: Verbunddübel d = 12, h_ef = 100, C25/30, τ_Rk,ucr = 18, τ_Rk,cr = 7,5 N/mm² (C20/25), ψ_c = (f_ck/20)^0,1, ψ⁰_sus = 0,8
+//   a) ungerissen, Einzelanker, α_sus = 0,6 ≤ 0,8 → ψ_sus = 1 (7.14a); τ = 18·1,25^0,1
+//      N⁰_Rk,p = 1·τ·π·12·100 (7.14); s_cr,Np = min{7,3·12·(1·18)^0,5 = 371,7; 3·100 = 300} = 300 (7.15)
+//   b) α_sus = 0,9 → ψ_sus = 0,8 + 1 − 0,9 = 0,9 (7.14b); s_cr,Np = min{7,3·12·(0,9·18)^0,5 = 352,6; 300} = 300
+//   c) gerissen, zwei Anker s = 100: τ = 7,5·1,25^0,1; τ_Rk,c = 7,7/(π·12)·(100·25)^0,5 (7.19)
+//      ψ⁰_g = √2 − (√2 − 1)·(τ/τ_Rk,c)^1,5 (7.18); ψ_g = ψ⁰_g − (100/300)^0,5·(ψ⁰_g − 1) (7.17)
+//      A_p,N = (300 + 100)·300; A⁰ = 300² → 4/3
+test("V2-5: Verbunddübel N_Rk,p (7.13)–(7.19) mit ψ_sus und ψ_g,Np", () => {
+  const kw = () => Object.assign(kwMech(), { tauCr: 7.5, tauUcr: 18, psi0sus: 0.8, psic: "exp:0.1", spArt: "ead" });
+  const geoV = { typ: "verbund", hef: 100, zustand: "ungerissen" };
+  const pc = Math.pow(1.25, 0.1);
+  let e = v2([{ x: 0, y: 0 }], [], [{ name: "LK", N: 10 }], { geo: geoV, kw: kw(), alphaSus: 0.6 });
+  let r = A.nachweis(e); assert.deepEqual([...r.fehler], []);
+  let p = r.lf[0].ber.Np;
+  nah(p.psiSus, 1, "ψ_sus a)"); nah(p.N0, 18 * pc * Math.PI * 1200 / 1000, "N⁰_Rk,p a)"); nah(p.scrNp, 300, "s_cr,Np"); nah(p.Rk, 18 * pc * Math.PI * 1.2, "N_Rk,p a)");
+  e = v2([{ x: 0, y: 0 }], [], [{ name: "LK", N: 10 }], { geo: geoV, kw: kw(), alphaSus: 0.9 });
+  r = A.nachweis(e); p = r.lf[0].ber.Np;
+  nah(p.psiSus, 0.9, "ψ_sus b)"); nah(p.Rk, 0.9 * 18 * pc * Math.PI * 1.2, "N_Rk,p b)");
+  e = v2([{ x: -50, y: 0 }, { x: 50, y: 0 }], [], [{ name: "LK", N: 10 }], { geo: { typ: "verbund", hef: 100, zustand: "gerissen" }, kw: kw(), alphaSus: 0.6 });
+  e.mindest.smin = 60;
+  r = A.nachweis(e); assert.deepEqual([...r.fehler], []); p = r.lf[0].ber.Np;
+  const tau = 7.5 * pc, tauC = 7.7 / (Math.PI * 12) * Math.sqrt(2500), g0 = Math.SQRT2 - (Math.SQRT2 - 1) * Math.pow(tau / tauC, 1.5), gg = g0 - Math.sqrt(1 / 3) * (g0 - 1);
+  nah(p.tauC, tauC, "τ_Rk,c"); nah(p.psiG0, g0, "ψ⁰_g,Np"); nah(p.psiG, gg, "ψ_g,Np"); nah(p.Ac / p.A0, 4 / 3, "A_p,N/A⁰_p,N");
+  nah(p.Rk, tau * Math.PI * 1.2 * 4 / 3 * gg, "N_Rk,p c)");
+});
+
+// Fall V2-6: Betonausbruch auf der lastabgewandten Seite (7.39a), Zweiergruppe s = 100, kein Rand
+//   a) V_x = 6 kN gleichmäßig: N_Rk,c der querbelasteten Anker: A = (240 + 100)·240 / 240² = 1,41667; ψ_re = 0,9
+//      V_Rk,cp = 2,0·27,548·1,41667·0,9; γ_Mc = 1,5 (γ_inst = 1,0 bei Querlast, Tab. 4.1)
+//   b) reine Torsion T = 0,3 kNm → entgegengesetzte Querkräfte → höchstbelasteter Anker allein, virtueller Rand bei 0,5·s = 50 mm
+//      A = (120 + 50)·240 = 40 800; ψ_s,N = 0,7 + 0,3·50/120 = 0,825 (virtueller Rand, ungeprüft)
+test("V2-6: V_Rk,cp (7.39a), virtueller Rand nach 7.2.2.4 (4)", () => {
+  const e = v2([{ x: -50, y: 0 }, { x: 50, y: 0 }], [], [{ name: "a", N: 0, Vx: 6 }, { name: "b", N: 0, T: 0.3 }]);
+  e.mindest.smin = 60;
+  const r = A.nachweis(e); assert.deepEqual([...r.fehler], []);
+  const a = r.lf[0].ber.Vcp, b = r.lf[1].ber.Vcp, n0 = N0c(7.7, 25, 80);
+  nah(a.nc.Ac / a.nc.A0, 340 / 240, "A/A⁰ a)"); nah(a.Rk, 2 * n0 * 340 / 240 * 0.9, "V_Rk,cp a)"); nah(a.gM, 1.5, "γ_Mc");
+  assert.equal(b.virt, true); nah(b.nc.Ac, 170 * 240, "A_c,N b)"); nah(b.nc.psiS, 0.825, "ψ_s,N b)"); nah(b.Rk, 2 * n0 * 170 / 240 * 0.825 * 0.9, "V_Rk,cp b)");
+  assert.ok(r.ungeprueft.some(u => u.key === "vcpVirt"));
+});
+
+test("V2-7: fehlende Kennwerte, Beton außerhalb der ETA, ψ_c-Tabelle", () => {
+  const e = v2([{ x: 0, y: 0 }], [], [{ name: "LK", N: 5 }]); delete e.kw.kcr;
+  assert.ok(A.nachweis(e).fehler.some(t => /k_cr,N/.test(t)));
+  const e2 = v2([{ x: 0, y: 0 }], [], [{ name: "LK", N: 5 }], { geo: { beton: "C16/20" } });
+  assert.ok(A.nachweis(e2).fehler.some(t => /außerhalb des Geltungsbereichs/.test(t)));
+  nah(A.psiC("C30/37=1,22; C40/50=1,41; C50/60=1,58", "C35/45").psi, 1.22, "ψ_c Zwischenklasse → nächstniedrigere");
+  nah(A.psiC("C30/37=1,22", "C25/30").psi, 1, "ψ_c unter Tabellenbeginn → C20/25");
+  nah(A.psiC("exp:0,5", "C40/50").psi, Math.sqrt(2), "ψ_c = (40/20)^0,5");
+  assert.equal(A.psiC("Unsinn", "C25/30"), null);
+});
