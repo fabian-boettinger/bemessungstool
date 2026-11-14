@@ -54,6 +54,7 @@ svg text{font-family:inherit}
 .prot .ref{color:#555;font-size:10.5px;border-left:1px solid #bbb;padding-left:6px}
 .prot .eq{margin:2px 0 2px 10px}
 .prot table th,.prot table td{font-size:11.5px}
+.prot .nwk{border:1.5px solid #333;padding:4px 8px;margin:4px 0 6px 10px;font-weight:600;display:flex;justify-content:space-between;gap:12px}
 .prot .res{border:1.5px solid #333;padding:5px 8px;margin:8px 0;font-weight:600}
 .phead{display:none}
 @media print{
@@ -78,6 +79,7 @@ svg text{font-family:inherit}
  <label>Position<input id="m_pos" placeholder="z. B. 108.101"></label>
  <label>Bezeichnung<input id="m_bez" style="width:220px"></label>
  <label>Bearbeiter<input id="m_bea" style="width:110px"></label>
+ <label>Protokoll<select id="m_prot"><option value="kurz">Kurz</option><option value="standard">Standard</option><option value="detailliert">Detailliert</option></select></label>
  <div class="btns">
   <button id="bSave" title="Stand als JSON speichern (Dateiname = Position)">Speichern</button>
   <button id="bLoad">Laden</button><input type="file" id="fLoad" accept=".json" class="hide">
@@ -458,6 +460,7 @@ const PRESETS = {
 };
 
 let st = {
+  prot: "standard",   // Protokollumfang: kurz | standard | detailliert
   meta: { proj: "", pos: "", bez: "", bea: "" },
   wd: { geo: "WaD", tWa: 200, hDe: 80, lWand: 1000, av: 120, hWaTief: 120, phi: 35, n: 6, nkl: "1", prod: "assy", d: 8, L: 240,
         My: 23, ft: 22, fax: 11, d1: 5, rho1: 350, rho2: 350, rhom: 420, alpha1: 90, alpha2: 90, fhM1: "blass", fhM2: "eta", fh1m: 7, fh2m: 15,
@@ -490,6 +493,7 @@ function flagsFor(m) {
 }
 function syncToForm() {
   for (const k of ["proj", "pos", "bez", "bea"]) $("m_" + k).value = st.meta[k] || "";
+  $("m_prot").value = stufe();
   for (const m of ["wd", "ds"]) {
     const s = st[m];
     $(m + "_d").innerHTML = Object.keys(LIB[s.prod].d).map(d => `<option>${d}</option>`).join("");
@@ -501,6 +505,7 @@ function syncToForm() {
 }
 function bindForm() {
   for (const k of ["proj", "pos", "bez", "bea"]) $("m_" + k).addEventListener("input", e => { st.meta[k] = e.target.value; calc(); });
+  $("m_prot").addEventListener("change", e => { st.prot = e.target.value; calc(); });
   for (const m of ["wd", "ds"]) {
     for (const k in st[m]) { const el = $(`${m}_${k}`); if (!el || k === "lc" || k === "layers") continue;
       el.addEventListener(el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input", e => {
@@ -596,6 +601,58 @@ function bkLines(s, bk, P, rho, alpha) {
    + line(`N<sub>ki,k</sub> = √(c<sub>h</sub>·E<sub>s</sub>·I<sub>s</sub>) = ${fmt(bk.Nki / 1000, 2)} kN · λ̄<sub>k</sub> = ${fmt(bk.lam, 3)} · κ<sub>c</sub> = ${fmt(bk.kc, 3)} → κ<sub>c</sub>·N<sub>pl,k</sub> = <b>${fmt(bk.NRk / 1000, 2)} kN</b>, /γ<sub>M1</sub> = ${fmt(s.gM1, 2)}`, "");
 }
 
+// ------------------------------------------------------------- Protokollumfang: kurz | standard | detailliert
+// Kurz: System, Tragfähigkeiten als Ergebnis, Nachweistabelle. Standard: zusätzlich Herleitung und die maßgebende Kombination
+// mit eingesetzten Werten und Nachweiskasten. Detailliert: Einsetzung für jede Kombination. Gerechnet wird immer dasselbe.
+const STUFEN = { kurz: "Kurz", standard: "Standard", detailliert: "Detailliert" };
+const stufe = () => STUFEN[st.prot] ? st.prot : "standard";
+const kasten = (f, eta, r) => line(`<div class="nwk"><span>${f}</span><span>η = ${fmt(eta, 2)} ${eta <= 1 + 1e-9 ? "≤ 1 – erfüllt" : "> 1 – NICHT erfüllt"}</span></div>`, r);
+const sq = x => `(${x})²`;
+// Kurz: Herleitungsabschnitte (nach Überschrift) weglassen, dafür eine Ergebniszeile vor den Nachweisen
+function umfang(html, weg, kurzinfo) {
+  const fuss = `<div class="mut" style="font-size:11px">Protokollumfang: ${STUFEN[stufe()]}</div>`;
+  if (stufe() !== "kurz") return html + fuss;
+  return html.split(/(?=<h3>)/).filter(t => !weg.some(w => t.startsWith("<h3>" + w))).join("").replace("<h3>Nachweise GZT</h3>", kurzinfo + "<h3>Nachweise GZT</h3>") + fuss;
+}
+const kombis = rows => { if (stufe() === "kurz" || !rows.length) return []; const mx = rows.reduce((m, x) => x.eta > m.eta ? x : m, rows[0]); return stufe() === "detailliert" ? [mx].concat(rows.filter(x => x !== mx)) : [mx]; };
+// Wand–Decke: Einsetzung je Kombination (Formeln wie in calcWD)
+function nwWD(s, r) {
+  const c = Math.cos(s.phi * Math.PI / 180), sn = Math.sin(s.phi * Math.PI / 180), ls = kombis(r.rows);
+  return ls.map((x, i) => {
+    const Ft = x.Ft || 0, zug = x.Fax >= 0;
+    let h = `<h3>Nachweis Kombination ${x.name}${i === 0 && r.rows.length > 1 ? " (maßgebend)" : ""}</h3>`;
+    h += line(`k<sub>mod</sub> = ${fmt(x.kmod, 2)} (KLED ${x.kled}, NKL ${s.nkl}) · γ<sub>M</sub> = ${fmt(s.gM, 2)}`, "DIN EN 1995-1-1, Tab. 3.1");
+    h += s.phi > 0.1
+      ? line(`F<sub>v,Ed</sub> = |F<sub>s,y,d</sub>|/n = ${fmt(Math.abs(x.Fy), 2)}/${s.n} = <b>${fmt(x.Fv, 2)} kN</b>`, "je Schraube")
+        + line(`F<sub>ax,Ed</sub> = F<sub>p,z,d</sub>/(n·sin φ) + F<sub>t,d</sub>/(n·cos φ) = ${fmt(x.Fz, 2)}/(${s.n}·${fmt(sn, 3)}) + ${fmt(Ft, 2)}/(${s.n}·${fmt(c, 3)}) = <b>${fmt(x.Fax, 2)} kN</b> (${zug ? "Zug" : "Druck"})`, "Fachwerkwirkung")
+      : line(`F<sub>v,Ed</sub> = √(F<sub>s,y,d</sub>² + F<sub>p,z,d</sub>²)/n = √(${fmt(x.Fy, 2)}² + ${fmt(x.Fz, 2)}²)/${s.n} = <b>${fmt(x.Fv, 2)} kN</b>`, "je Schraube")
+        + line(`F<sub>ax,Ed</sub> = F<sub>t,d</sub>/n = ${fmt(Ft, 2)}/${s.n} = <b>${fmt(x.Fax, 2)} kN</b> (${zug ? "Zug" : "Druck"})`, "");
+    h += line(`F<sub>v,Rd</sub> = k<sub>mod</sub>·F<sub>v,Rk</sub>/γ<sub>M</sub> = ${fmt(x.kmod, 2)}·${fmt(r.Jo.R / 1000, 2)}/${fmt(s.gM, 2)} = <b>${fmt(x.Rv, 2)} kN</b>`, "Abscheren");
+    h += zug
+      ? line(`F<sub>ax,Rd</sub> = k<sub>mod</sub>·F<sub>ax,Rk</sub>·(n<sub>ef</sub>/n)/γ<sub>M</sub> = ${fmt(x.kmod, 2)}·${fmt(r.RaxRk / 1000, 2)}·${fmt(r.nef / s.n, 3)}/${fmt(s.gM, 2)} = <b>${fmt(x.Rax, 2)} kN</b>`, "Zug")
+      : line(`F<sub>ax,Rd</sub> = min(k<sub>mod</sub>·min(F<sub>ax,Rk,1</sub>; F<sub>ax,Rk,2</sub>)·(n<sub>ef</sub>/n)/γ<sub>M</sub>; κ<sub>c</sub>·N<sub>pl,k</sub>/γ<sub>M1</sub>) = min(${fmt(x.kmod, 2)}·${fmt(Math.min(r.A1.R, r.A2.R) / 1000, 2)}·${fmt(r.nef / s.n, 3)}/${fmt(s.gM, 2)}; ${fmt(r.bk.NRk / 1000, 2)}/${fmt(s.gM1, 2)}) = <b>${fmt(x.Rax, 2)} kN</b>`, "Druck: Eindrücken bzw. Knicken");
+    return h + kasten(`√(${sq("F<sub>ax,Ed</sub>/F<sub>ax,Rd</sub>")} + ${sq("F<sub>v,Ed</sub>/F<sub>v,Rd</sub>")}) = √(${sq(fmt(x.Fax, 2) + "/" + fmt(x.Rax, 2))} + ${sq(fmt(x.Fv, 2) + "/" + fmt(x.Rv, 2))})`, x.eta, "DIN EN 1995-1-1, Gl. (8.28)");
+  }).join("");
+}
+// Deckenstoß: Einsetzung je Kombination (Formeln wie in calcDS)
+function nwDS(s, r) {
+  const c = Math.cos(s.phi * Math.PI / 180), sn = Math.sin(s.phi * Math.PI / 180), ax = s.ax / 1000, ls = kombis(r.rows);
+  return ls.map((x, i) => {
+    const N = x.ny * ax, V = x.vz * ax, Vx = x.vx * ax;
+    let h = `<h3>Nachweis Kombination ${x.name}${i === 0 && r.rows.length > 1 ? " (maßgebend)" : ""}</h3>`;
+    h += line(`k<sub>mod</sub> = ${fmt(x.kmod, 2)} (KLED ${x.kled}, NKL ${s.nkl}) · γ<sub>M</sub> = ${fmt(s.gM, 2)} · a<sub>x</sub> = ${fmt(ax, 3)} m`, "DIN EN 1995-1-1, Tab. 3.1");
+    h += line(`V<sub>x</sub> = v<sub>x,d</sub>·a<sub>x</sub> = ${fmt(x.vx, 2)}·${fmt(ax, 3)} = ${fmt(Vx, 2)} kN → F<sub>la,Ed</sub> = |V<sub>x</sub>|/2 = <b>${fmt(x.Fla, 2)} kN</b>`, "je Schraube des Paars");
+    h += line(`N = n<sub>y,d</sub>·a<sub>x</sub> = ${fmt(x.ny, 2)}·${fmt(ax, 3)} = ${fmt(N, 2)} kN · V = v<sub>z,d</sub>·a<sub>x</sub> = ${fmt(x.vz, 2)}·${fmt(ax, 3)} = ${fmt(V, 2)} kN`, "je Paar");
+    h += line(`T<sub>1,Ed</sub> = ½·(N/cos φ + V/sin φ) = ½·(${fmt(N, 2)}/${fmt(c, 3)} + ${fmt(V, 2)}/${fmt(sn, 3)}) = <b>${fmt(x.T1, 2)} kN</b> (${x.T1 >= 0 ? "Zug" : "Druck"})`, "Gleichgewicht");
+    h += line(`T<sub>2,Ed</sub> = ½·(N/cos φ − V/sin φ) = ½·(${fmt(N, 2)}/${fmt(c, 3)} − ${fmt(V, 2)}/${fmt(sn, 3)}) = <b>${fmt(x.T2, 2)} kN</b> (${x.T2 >= 0 ? "Zug" : "Druck"})`, "");
+    h += line(`F<sub>la,Rd</sub> = k<sub>mod</sub>·F<sub>la,Rk</sub>/γ<sub>M</sub> = ${fmt(x.kmod, 2)}·${fmt(r.Jo.R / 1000, 2)}/${fmt(s.gM, 2)} = <b>${fmt(x.Rla, 2)} kN</b>`, "Abscheren");
+    h += line(`Zug: F<sub>ax,Rd</sub> = k<sub>mod</sub>·F<sub>ax,Rk</sub>/γ<sub>M</sub> = ${fmt(x.kmod, 2)}·${fmt(r.RaxRk / 1000, 2)}/${fmt(s.gM, 2)} = <b>${fmt(x.RaxT, 2)} kN</b>`, "");
+    if (x.T1 < 0 || x.T2 < 0) h += line(`Druck: F<sub>ax,Rd</sub> = min(k<sub>mod</sub>·min(Σ Kopfseite; Σ Spitzenseite)/γ<sub>M</sub>; κ<sub>c</sub>·N<sub>pl,k</sub>/γ<sub>M1</sub>) = min(${fmt(x.kmod, 2)}·${fmt(Math.min(r.R1, r.R2) / 1000, 2)}/${fmt(s.gM, 2)}; ${fmt(r.bk.NRk / 1000, 2)}/${fmt(s.gM1, 2)}) = <b>${fmt(x.RaxC, 2)} kN</b>`, "Eindrücken bzw. Knicken");
+    const k = (j, T, eta) => kasten(`Schraube ${j}: √(${sq("T<sub>" + j + ",Ed</sub>/F<sub>ax,Rd</sub>")} + ${sq("F<sub>la,Ed</sub>/F<sub>la,Rd</sub>")}) = √(${sq(fmt(T, 2) + "/" + fmt(T >= 0 ? x.RaxT : x.RaxC, 2))} + ${sq(fmt(x.Fla, 2) + "/" + fmt(x.Rla, 2))})`, eta, j === 1 ? "DIN EN 1995-1-1, Gl. (8.28)" : "");
+    return h + k(1, x.T1, x.eta1) + k(2, x.T2, x.eta2);
+  }).join("");
+}
+
 // ------------------------------------------------------------- Protokoll Wand–Decke
 function protWD(s, r) {
   $("wd_eta").innerHTML = etaTag(r.etaMax); warnBox("wd_warn", r, r.chk);
@@ -606,7 +663,7 @@ function protWD(s, r) {
   const kserM = r.kserLat * s.n / (s.lWand / 1000);
   const nefTxt = s.nefM === "n" ? "n<sub>ef</sub> = n (Schubverbindung Wandscheibe/Diaphragma)" : (P.model === "R" ? "n<sub>ef</sub> = max(n<sup>0,9</sup>; 0,9·n)" : "n<sub>ef</sub> = n für n ≤ 10, sonst 0,9·n");
   const anyC = r.rows.some(x => x.comp);
-  $("wd_prot").innerHTML = `<h3>System</h3>
+  const html = `<h3>System</h3>
    ${line(`${geoTxt}<br>Wand t<sub>Wa</sub> = ${s.tWa} mm, Decke h<sub>De</sub> = ${s.hDe} mm, Wandlänge l = ${fmt(s.lWand / 1000, 2)} m, NKL ${s.nkl}`, "Eingabe")}
    ${line(`<b>${s.n} × ${prodTxt(s)}</b>, φ = ${s.phi}° zur Wandachse${s.geo === "WaD" ? `, a<sub>v</sub> = ${s.av} mm` : ""}`, P.eta)}
    ${line(`M<sub>y,k</sub> = ${fmt(s.My, 1)} Nm · f<sub>tens,k</sub> = ${fmt(s.ft, 1)} kN · f<sub>ax,k</sub> = ${fmt(s.fax, 1)} N/mm² (ρ<sub>a</sub> = 350 kg/m³) · d<sub>1</sub> = ${fmt(s.d1, 1)} mm`, P.eta + ", Kennwerte")}
@@ -640,11 +697,14 @@ function protWD(s, r) {
    <tr class="mut"><td></td><td></td><td>[-]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[-]</td></tr>
    ${r.rows.map(x => `<tr><td>${x.name}</td><td>${x.kled}</td><td>${fmt(x.kmod, 2)}</td><td>${fmt(x.Fy, 2)}</td><td>${fmt(x.Fz, 2)}</td><td>${fmt(x.Fv, 2)}</td><td>${fmt(x.Rv, 2)}</td><td>${fmt(x.Fax, 2)}</td><td>${fmt(x.Rax, 2)}${x.comp ? " (D)" : ""}</td><td>${etaTag(x.eta)}</td></tr>`).join("")}
    </table>
+   ${nwWD(s, r)}
    <h3>Mindestabstände und -dicken BSP</h3>
    ${line(chkTable(r.chk), "ETA-11/0190 Tab. A.2.17/A.2.18<br>= ETA-11/0030, 3.4 BSP")}
    <div class="res">Schubschrauben ${s.n} × ${prodTxt(s)}: η<sub>max</sub> = ${fmt(r.etaMax, 2)} ${r.etaMax <= 1 ? "≤ 1,0 ✓" : "> 1,0 ✗"}</div>
    ${r.warn.map(w => `<div class="note err">${w}</div>`).join("")}
    <div class="mut" style="font-size:11px">(D) = Druck. Kontaktpressung in der Fuge nicht nachgewiesen. Randabstände zu Wandenden/Öffnungen am Bauteil prüfen.</div>`;
+  $("wd_prot").innerHTML = umfang(html, ["Einbindelängen", "Tragfähigkeit Herausziehen je Schraube", "Tragfähigkeit Abscheren je Schraube", "Federsteifigkeit", "Schraubenkräfte"],
+    `<h3>Tragfähigkeiten je Schraube</h3>` + line(`F<sub>ax,Rk</sub> = <b>${fmt(r.RaxRk / 1000, 2)} kN</b> (${r.axGov}) · n<sub>ef</sub> = ${fmt(r.nef, 2)} · F<sub>v,Rk</sub> = <b>${fmt(r.Jo.R / 1000, 2)} kN</b> (Versagensart ${r.Jo.mode})`, P.eta + "<br>Herleitung: Umfang Standard"));
 }
 
 // ------------------------------------------------------------- Protokoll Deckenstoß
@@ -654,7 +714,7 @@ function protDS(s, r) {
   const segT = (seg, nm) => seg.map((g, j) => `<tr><td>${j ? "" : nm}</td><td>${g.i}</td><td>${g.o === "par" ? "∥" : "⟂"}</td><td>${fmt(g.alpha, 1)}</td><td>${fmt(g.lef, 1)}</td><td>${fmt(g.k, 3)}</td><td>${fmt(g.R / 1000, 2)}</td></tr>`).join("");
   const anyC = r.rows.some(x => x.T1 < 0 || x.T2 < 0);
   const outerA = (s.layers[0] || {}).o === "par" ? 90 : s.phi;
-  $("ds_prot").innerHTML = `<h3>System</h3>
+  const html = `<h3>System</h3>
    ${line(`Stumpfer Deckenstoß BSP, h = ${r.h} mm (${s.layers.map(l => l.t + (l.o === "par" ? "∥" : "⟂")).join(" / ")}), NKL ${s.nkl}`, "Eingabe")}
    ${line(`Gekreuzte Schraubenpaare <b>${prodTxt(s)}</b>, φ = ${s.phi}° zur Plattenebene, e = ${s.e} mm, a<sub>x</sub> = ${s.ax} mm`, P.eta)}
    ${line(`M<sub>y,k</sub> = ${fmt(s.My, 1)} Nm · f<sub>tens,k</sub> = ${fmt(s.ft, 1)} kN · f<sub>ax,k</sub> = ${fmt(s.fax, 1)} N/mm² · d<sub>1</sub> = ${fmt(s.d1, 1)} mm · ρ<sub>k</sub> = ${s.rho} kg/m³`, P.eta + ", Kennwerte")}
@@ -680,12 +740,15 @@ function protDS(s, r) {
    <tr class="mut"><td></td><td></td><td>[-]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[-]</td><td>[-]</td></tr>
    ${r.rows.map(x => `<tr><td>${x.name}</td><td>${x.kled}</td><td>${fmt(x.kmod, 2)}</td><td>${fmt(x.Fla, 2)}</td><td>${fmt(x.Rla, 2)}</td><td>${fmt(x.T1, 2)}</td><td>${fmt(x.T2, 2)}</td><td>${fmt(x.RaxT, 2)} / ${fmt(x.RaxC, 2)}</td><td>${etaTag(x.eta1)}</td><td>${etaTag(x.eta2)}</td></tr>`).join("")}
    </table>
+   ${nwDS(s, r)}
    <h3>Mindestabstände und Brandschutz</h3>
    ${line(chkTable(r.chk), "ETA-11/0190 Tab. A.2.18<br>Seitenfläche a<sub>1</sub> = 4·d")}
    ${line(s.ax <= 250 ? `Schraubenabstand a<sub>x</sub> = ${s.ax} mm ≤ 250 mm: stumpfe Elementfuge mit diagonalen VG-Schrauben erfüllt E/I ohne Dichtband <span class="ok">✓</span>` : `<span class="wrn">a<sub>x</sub> = ${s.ax} mm > 250 mm: Raumabschluss E/I der stumpfen Fuge nach ETA-14/0349 nicht abgedeckt (Dichtband oder a<sub>x</sub> ≤ 250 mm)</span>`, "ETA-14/0349, Anhang 4")}
    <div class="res">Deckenstoß ${prodTxt(s)}, a<sub>x</sub> = ${s.ax} mm: η<sub>max</sub> = ${fmt(r.etaMax, 2)} ${r.etaMax <= 1 && r.chk.every(([, v, e]) => v >= e - 1e-9) ? "≤ 1,0 ✓" : "✗"}</div>
    ${r.warn.map(w => `<div class="note err">${w}</div>`).join("")}
    <div class="mut" style="font-size:11px">T &gt; 0 = Zug, T &lt; 0 = Druck. Weitere Rand-/Achsabstände nach ETA am Bauteil prüfen.</div>`;
+  $("ds_prot").innerHTML = umfang(html, ["Geometrie", "Herausziehen lagenweise", "Abscheren je Schraube", "Schraubenkräfte je Paar"],
+    `<h3>Tragfähigkeiten je Schraube</h3>` + line(`F<sub>ax,Rk</sub> = <b>${fmt(r.RaxRk / 1000, 2)} kN</b> (${r.axGov}) · F<sub>la,Rk</sub> = <b>${fmt(r.Jo.R / 1000, 2)} kN</b> (Versagensart ${r.Jo.mode})`, P.eta + "<br>Herleitung: Umfang Standard"));
 }
 
 // ------------------------------------------------------------- Skizzen

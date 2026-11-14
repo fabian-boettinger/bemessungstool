@@ -26,6 +26,9 @@ Normbezug in der Randspalte) und Nachweiskasten mit η. Der Umfang wird im Reite
 gespeichert: **Kurz** (Eingaben, Ergebnistabelle, Ergebnis; ohne Herleitung), **Standard** (Herleitung der maßgebenden
 Kombination), **Detailliert** (jede Kombination, jeder Anker, ETA-Kennwerte mit Fundstelle, projizierte Flächen mit Maßen
 und Skizze, Erläuterung der Beiwerte). Gerechnet wird in allen Stufen dasselbe.
+Denselben Schalter haben `rothoblaas/index.html` (Standard: je Kraftrichtung Einwirkung, Widerstände je Versagensart und
+Nachweiskasten für die maßgebende Kombination; Detailliert: jede Kombination) und `bsp/index.html` (Auswahl „Protokoll“ im Kopf;
+Standard: Herleitung und maßgebende Kombination mit eingesetzten Werten; Detailliert: jede Kombination).
 
 ## Direktlinks
 
