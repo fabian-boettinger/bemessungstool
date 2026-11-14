@@ -144,6 +144,7 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(-
 table.lib{border-collapse:collapse;font-size:12.5px;min-width:1500px}
 table.lib th{font-size:11px;color:var(--mute);font-weight:500;text-align:left;padding:0 3px 4px;vertical-align:bottom;white-space:nowrap}
 table.lib td{padding:2px 3px;border-top:1px solid var(--line);vertical-align:middle}
+table.lib tr.werk td{white-space:nowrap;padding:3px 5px;font-size:12px}
 table.lib input,table.lib select{height:30px;padding:4px 5px;font-size:12.5px}
 table.lib input[type=number]{width:64px;text-align:right}
 table.lib select{min-width:118px}
@@ -611,7 +612,10 @@ function NRkpVerbund(c, idx, e, K) {
     Rk: N0 * f.Ac / f.A0 * psiG * f.psiS * c.psiRe * f.psiEc };
 }
 // Charakteristischer Randabstand für Spalten aus der ETA: Wertepaare (h_min; c_cr,sp) oder Ansatz nach h/h_ef
-function ccrSpVarianten(kw, h, hef) {
+function ccrSpVarianten(kw, h, hef, hminETA) {
+  if (kw.spArt === "faktor") {   // c_cr,sp = Faktor·h_ef, zugehörige Mindestdicke = h_min der ETA
+    return num(kw.sp1c) && kw.sp1c > 0 && num(hminETA) && h >= hminETA - 1e-9 ? [{ ccr: kw.sp1c * hef, hmin: hminETA, text: `c_cr,sp = ${fmtz(kw.sp1c)}·h_ef, h_min = ${fmtz(hminETA)} mm` }] : [];
+  }
   if (kw.spArt === "ead") {
     const r = h / hef, ccr = r >= 2 ? hef : r > 1.3 ? 4.6 * hef - 1.8 * h : 2.26 * hef;
     return [{ ccr, hmin: h, text: r >= 2 ? "h/h_ef ≥ 2,0: c_cr,sp = 1,0·h_ef" : r > 1.3 ? "2,0 > h/h_ef > 1,3: c_cr,sp = 4,6·h_ef − 1,8·h" : "h/h_ef ≤ 1,3: c_cr,sp = 2,26·h_ef", abhH: true }];
@@ -689,7 +693,7 @@ function kennwertePruefen(e, keys, fehler) {
   if (keys.includes("Np") || (verbund && keys.some(k => k === "Vcp" || k === "Nsp")) || (!verbund && keys.includes("Nsp") && !num(kw.N0Rksp))) {
     if (!psiC(kw.psic, g.beton)) fehlt.push("ψ_c (Angabe unlesbar)");
   }
-  if (keys.includes("Nsp")) brauch(kw.spArt !== "ead" && !(num(kw.sp1h) && num(kw.sp1c)), "c_cr,sp mit h_min");
+  if (keys.includes("Nsp")) brauch(kw.spArt === "faktor" ? !num(kw.sp1c) : kw.spArt !== "ead" && !(num(kw.sp1h) && num(kw.sp1c)), kw.spArt === "faktor" ? "c_cr,sp/h_ef" : "c_cr,sp mit h_min");
   if (keys.includes("Vcp")) brauch(!num(kw.k8) || kw.k8 <= 0, "k₈");
   if (keys.includes("Vc")) brauch(!num(g.dnom) && !num(g.d), "d_nom");
   if (fehlt.length) fehler.push(`Für die Berechnung fehlen ETA-Kennwerte: ${fehlt.join(", ")}.`);
@@ -714,7 +718,9 @@ function betonKontext(e, A, raender, dnom) {
     psiSus: num(psi0) && num(aS) ? (aS <= psi0 ? 1 : psi0 + 1 - aS) : NaN, psi0sus: psi0, alphaSus: aS,
     NRkp: ger ? kw.NRkpCr : kw.NRkpUcr, k8: kw.k8,
     lf: Math.min(lfE, lfCap), lfCap, lfETA: num(kw.lf) && kw.lf > 0, psiReV: ger && bew.reV ? 1.4 : 1,
-    spV: ccrSpVarianten(kw, g.h, g.hef), N0RkspETA: num(kw.N0Rksp) && kw.N0Rksp > 0 ? kw.N0Rksp : null, spBew: !!bew.spalt && ger,
+    spV: ccrSpVarianten(kw, g.h, g.hef, (e.mindest || {}).hmin),
+    N0RkspETA: num(kw.N0Rksp) && kw.N0Rksp > 0 && !ger ? kw.N0Rksp : null,   // ETA-Wert gilt für ungerissenen Beton; gerissen: Anm. zu 7.2.1.7 (2)
+    spBew: !!bew.spalt && ger,
   };
   return c;
 }
@@ -1261,6 +1267,29 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       notiz: `Temperaturbereich I (24/40 °C), 50 Jahre, trockener/feuchter Beton, Hammer-/Hohlbohren; d₀ = ${d0[i]} mm; d_f Vorsteckmontage; V_Rk,s = ${w.k6}·N_Rk,s` }));
     return out;
   })(),
+
+  // ---- Hilti HST3 / HST3-R (Metallspreizanker), ETA-98/0001 vom 20.07.2023, Verankerungstiefe h_ef,2
+  // Anhang C3 (PDF-S. 35): N_Rk,s, γ_Ms, N_Rk,p (C20/25), γ_inst; C4 (S. 36): ψ_c, k_cr/ucr,N, N⁰_Rk,sp (ungerissen), c_cr,N, c_cr,sp;
+  // C7 (S. 39): V⁰_Rk,s ohne Verfüll-Set, γ_Ms; C8 (S. 40): M⁰_Rk,s, k₈, l_f = h_ef, d_nom.
+  // s_min, c_min, h_min hängen von h_ef ab (Anhang B10–B12, gekoppelte Werte): je Position aus der ETA eintragen.
+  ...(() => {
+    const G = [8, 10, 12, 16, 20, 24], hmi = [47, 60, 70, 85, 101, 125], hma = [90, 100, 125, 160, 180, 125],
+      Pu = [12.0, 22.0, 25.0, 38.6, 49.9, 60.0], k8 = [2.62, 2.67, 2.78, 3.41, 3.20, 2.50], sp = [1.5, 1.5, 1.5, 1.5, 1.9, 1.5];
+    const P = { "HST3": { N: [19.7, 32.5, 45.1, 76.0, 124.2, 127.0], gN: [1.40, 1.40, 1.40, 1.40, 1.40, 1.41], Pc: [8.0, 15.0, 20.0, 27.0, 35.0, 40.0],
+                          V: [13.8, 23.6, 35.4, 55.3, 83.9, 94.0], gV: [1.25, 1.25, 1.25, 1.25, 1.25, 1.50], M: [30, 60, 105, 240, 457, 595] },
+                "HST3-R": { N: [17.7, 28.7, 42.5, 69.4, 115.8, 156.0], gN: [1.40, 1.40, 1.40, 1.40, 1.40, 1.56], Pc: [8.5, 15.0, 20.0, 27.0, 35.0, 40.0],
+                          V: [15.7, 25.3, 36.7, 63.6, 97.2, 115.0], gV: [1.25, 1.25, 1.25, 1.25, 1.25, 1.30], M: [27, 53, 93, 216, 425, 730] } };
+    const out = [];
+    for (const [pr, w] of Object.entries(P)) G.forEach((d, i) => out.push({ id: `eta980001-${pr}-m${d}`, hersteller: "Hilti", produkt: `${pr} M${d}`,
+      eta: "ETA-98/0001", etaDatum: "20.07.2023", typ: "mechanisch", d, dnom: d, hef: hmi[i] === hma[i] ? hmi[i] : "", hefMin: hmi[i], hefMax: hma[i], fuk: "", schraube: false,
+      smin: "", cmin: "", hmin: "", dfETA: "",
+      NRks: w.N[i], gMs: w.gN[i], VRks: w.V[i], gMsV: w.gV[i], M0Rks: w.M[i],
+      gInst: 1.0, kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: w.Pc[i], NRkpUcr: Pu[i], psic: "C30/37=1,22; C40/50=1,41; C50/60=1,55", tauCr: "", tauUcr: "", psi0sus: "",
+      spArt: "faktor", sp1h: "", sp1c: sp[i], sp2h: "", sp2c: "", N0Rksp: Pu[i], k8: k8[i], lf: "", betonMin: "C20/25", betonMax: "C50/60",
+      quelle: "ETA-98/0001: Anh. C3 (S. 35), C4 (S. 36), C7 (S. 39), C8 (S. 40)",
+      notiz: "h_ef,2-Bereich; s_min, c_min, h_min je h_ef nach Anh. B10–B12 eintragen; V_Rk,s ohne Verfüll-Set; d_f nach Tab. 6.1" }));
+    return out;
+  })(),
   /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
 const clone = o => JSON.parse(JSON.stringify(o));
 const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); return true; } catch (er) { return null; } };
@@ -1277,7 +1306,7 @@ function libSauber(x) {
     else if (a === "np") e[k] = Z.npWert(v) === "nm" ? "nm" : (v === "" || v == null || !isFinite(Number(v))) ? "" : Number(v);
     else if (a === "b") e[k] = v === true;
     else if (a === "typ") e[k] = v === "verbund" ? "verbund" : "mechanisch";
-    else if (a === "sp") e[k] = v === "ead" ? "ead" : "paare";
+    else if (a === "sp") e[k] = v === "ead" || v === "faktor" ? v : "paare";
     else if (a === "hm") e[k] = (v === "" || v == null) ? "" : isFinite(Number(v)) ? Number(v) : String(v).slice(0, 30);
     else if (a === "bk") e[k] = K.BETON[v] ? v : (k === "betonMin" ? "C20/25" : "C50/60");
     else e[k] = String(v == null ? "" : v).slice(0, 200);
@@ -1402,9 +1431,10 @@ function baue() {
     ${d.typ === "verbund" ? fld(sub("τ", "Rk,cr") + " C20/25 [N/mm²]", "dub.tauCr") + fld(sub("τ", "Rk,ucr") + " C20/25 [N/mm²]", "dub.tauUcr") + fld(sup(sub("ψ", "sus"), "0"), "dub.psi0sus")
       : fld(sub("N", "Rk,p") + " gerissen [kN]", "dub.NRkpCr", { text: true, fh: "„nm“ = laut ETA nicht maßgebend" }) + fld(sub("N", "Rk,p") + " ungerissen [kN]", "dub.NRkpUcr", { text: true, fh: "„nm“ = nicht maßgebend" })}
     ${fld(sub("ψ", "c") + " Betonfestigkeit", "dub.psic", { text: true, ph: "exp:0,5 oder C30/37=1,22; C40/50=1,41", fh: "leer = 1,0" })}
-    ${fld(sub("c", "cr,sp") + " Angabe", "dub.spArt", { sel: [["paare", "Wertepaare h<sub>min</sub> / c<sub>cr,sp</sub>"], ["ead", "nach h/h<sub>ef</sub> (1,0·h<sub>ef</sub> … 2,26·h<sub>ef</sub>)"]], rb: true })}
-    ${d.spArt === "ead" ? "" : fld(sub("h", "min,1") + " [mm]", "dub.sp1h") + fld(sub("c", "cr,sp,1") + " [mm]", "dub.sp1c") + fld(sub("h", "min,2") + " [mm] (optional)", "dub.sp2h") + fld(sub("c", "cr,sp,2") + " [mm]", "dub.sp2c")}
-    ${fld(sup(sub("N", "Rk,sp"), "0") + " [kN] (optional)", "dub.N0Rksp", { fh: "leer: Anm. zu 7.2.1.7 (2)" })}
+    ${fld(sub("c", "cr,sp") + " Angabe", "dub.spArt", { sel: [["paare", "Wertepaare h<sub>min</sub> / c<sub>cr,sp</sub>"], ["faktor", "Faktor · h<sub>ef</sub> (bei h<sub>min</sub> der ETA)"], ["ead", "nach h/h<sub>ef</sub> (1,0·h<sub>ef</sub> … 2,26·h<sub>ef</sub>)"]], rb: true })}
+    ${d.spArt === "faktor" ? fld(sub("c", "cr,sp") + " / " + sub("h", "ef"), "dub.sp1c") : ""}
+    ${d.spArt === "ead" || d.spArt === "faktor" ? "" : fld(sub("h", "min,1") + " [mm]", "dub.sp1h") + fld(sub("c", "cr,sp,1") + " [mm]", "dub.sp1c") + fld(sub("h", "min,2") + " [mm] (optional)", "dub.sp2h") + fld(sub("c", "cr,sp,2") + " [mm]", "dub.sp2c")}
+    ${fld(sup(sub("N", "Rk,sp"), "0") + " ungerissen [kN] (optional)", "dub.N0Rksp", { fh: "gerissen bzw. leer: Anm. zu 7.2.1.7 (2)" })}
     ${fld(sub("k", "8") + " lastabgewandte Seite", "dub.k8")}
     ${fld(sub("l", "f") + " [mm] (optional)", "dub.lf", { fh: "leer: l<sub>f</sub> = h<sub>ef</sub> ≤ 12·d<sub>nom</sub>" })}
     ${fld("Beton laut ETA von", "dub.betonMin", { sel: Object.keys(K.BETON).map(k => [k, k]) })}${fld("bis", "dub.betonMax", { sel: Object.keys(K.BETON).map(k => [k, k]) })}
@@ -2055,7 +2085,7 @@ function baueLib() {
       const v = e[k], dp = ` data-lib="${i}.${k}"${ro}`;
       if (a === "typ") return `<td><select${dp}><option value="mechanisch"${v === "mechanisch" ? " selected" : ""}>mechanisch</option><option value="verbund"${v === "verbund" ? " selected" : ""}>Verbund</option></select></td>`;
       if (a === "b") return `<td><input type="checkbox"${dp}${v ? " checked" : ""}></td>`;
-      if (a === "sp") return `<td><select${dp}><option value="paare"${v !== "ead" ? " selected" : ""}>Wertepaare</option><option value="ead"${v === "ead" ? " selected" : ""}>nach h/h<sub>ef</sub></option></select></td>`;
+      if (a === "sp") return `<td><select${dp}><option value="paare"${v !== "ead" ? " selected" : ""}>Wertepaare</option><option value="faktor"${v === "faktor" ? " selected" : ""}>Faktor·h<sub>ef</sub></option><option value="ead"${v === "ead" ? " selected" : ""}>nach h/h<sub>ef</sub></option></select></td>`;
       if (a === "bk") return `<td><select${dp}>${Object.keys(K.BETON).map(b => `<option${b === v ? " selected" : ""}>${b}</option>`).join("")}</select></td>`;
       if (a === "n") return `<td><input type="number" step="any" value="${esc(v)}"${dp}></td>`;
       return `<td><input type="text" class="${a}" value="${esc(v)}"${dp}></td>`;

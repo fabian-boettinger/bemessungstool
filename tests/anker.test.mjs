@@ -590,3 +590,17 @@ test("ETA-19/0601 HIT-HY 200: Stichproben und Rechenlauf", () => {
   assert.deepEqual([...R.fehler], []); assert.ok(R.etaMax > 0 && R.etaMax < 5);
   nah(R.lf[0].ber.Np.tau, 9.5 * Math.pow(25 / 20, 0.1), "τ_Rk,cr·ψ_c");
 });
+
+test("ETA-98/0001 HST3: Stichproben, c_cr,sp = Faktor·h_ef, N⁰_Rk,sp nur ungerissen", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-98/0001").length, 12);
+  const e = etaEintrag("eta980001-HST3-m12");
+  assert.equal(e.NRks, 45.1); assert.equal(e.NRkpCr, 20.0); assert.equal(e.NRkpUcr, 25.0); assert.equal(e.k8, 2.78); assert.equal(e.M0Rks, 105);
+  assert.equal(etaEintrag("eta980001-HST3-m20").sp1c, 1.9); assert.equal(etaEintrag("eta980001-HST3-R-m8").NRkpCr, 8.5);
+  const s = zustandAusEintrag(e, 70); Object.assign(s.dub, { smin: 60, cmin: 60, hmin: 140 }); s.geo.zustand = "ungerissen"; s.geo.h = 160; s.geo.rand = { "+x": "", "-x": "", "+y": 80, "-y": "" };
+  s.lf = [{ name: "LK", N: 6, Vx: 0, Vy: 0, Mx: 0, My: 0, T: 0, je: [] }];
+  const R = A.nachweis(Z.kernEingabe(s));
+  assert.deepEqual([...R.fehler], []);
+  const sp = R.lf[0].ber.Nsp;   // c = 80 < 1,2·1,5·70 → Gl. (7.23); N⁰_Rk,sp = 25,0 (ETA, ungerissen); c_cr,sp = 105, h_min = 140
+  nah(sp.ccr, 105, "c_cr,sp = 1,5·70"); nah(sp.N0, 25.0, "N⁰_Rk,sp ETA"); nah(sp.hmin, 140, "h_min");
+  nah(R.lf[0].ber.Np.Rk, 25.0, "N_Rk,p ungerissen C25/30: Tabelle ab C30/37 → ψ_c = 1,0");
+});
