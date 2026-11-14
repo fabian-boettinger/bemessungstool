@@ -29,12 +29,18 @@ Oberfläche und Protokoll als „ungeprüft“.
   - `xy=x1,y1;x2,y2;…` Lochbild in mm (optional `n=` Ankeranzahl zur Kontrolle)
   - `lc=LK1~N1,V1x,V1y;N2,V2x,V2y|LK2~…` Kräfte je Anker in kN (Zug positiv) **oder**
     `lcg=LK1~N,Vx,Vy,Mx,My,T|…` Schnittgrößen am Gruppenschwerpunkt in kN bzw. kNm
-  - `hb=` Zwischenschicht H<sub>B</sub> in mm (Querlast mit Hebelarm, e₁ = H<sub>B</sub> + t<sub>fix</sub>/2), `tfix=` Blechdicke in mm
-  - `von=rb&prod=…&typ=…` Herkunft (Rothoblaas-Werkzeug), erscheint im Protokoll
+  - `ue=` Überstand des Anbauteils über den äußersten Anker in mm (Anker in einer Reihe: vereinfachte Neuverteilung bei gedrückten Ankern)
+  - `hb=` Zwischenschicht unter dem Anbauteil in mm (Querlast mit Hebelarm), `zw=moertel|sonstige`, `tfix=` Blechdicke in mm;
+    e₁ = H<sub>B</sub> + t<sub>fix</sub>/2, bei Mörtelbett e₁ = t<sub>fix</sub>/2 (Bild 6.6)
+  - `von=rb&prod=…&typ=…&ausg=…` Herkunft (Rothoblaas-Werkzeug, Datenblatt-Ausgabe), erscheint im Protokoll
 
   Betonwiderstände kommen nie über den Link; sie gehören zur Position und werden geleert. Ist eine Projektdatei geladen
   oder gibt es ungespeicherte Änderungen, fragt das Werkzeug vor dem Überschreiben.
   Beispiel: `anker/index.html#pos=108.101&xy=-75,0;75,0&lcg=LK1~10,0,6,0,0.2,0.15`
+- Im Rothoblaas-Werkzeug öffnet bei Holz–Beton (TITAN N/S/F, NINO) der Knopf „Betonseite nachweisen“ das Anker-Werkzeug mit
+  Lochbild und den Schnittgrößen der Ankergruppe je Winkel nach den Datenblättern („Prüfung der Anker“: N<sub>Sd,z</sub> mit k<sub>t</sub>,
+  V<sub>Sd,x</sub>, V<sub>Sd,y</sub>, M<sub>Sd,z</sub>, M<sub>Sd,y</sub>). Die Kopplungsfunktionen stehen zwischen `ANKER-KOPPLUNG-START` und `-ENDE`
+  und werden in `tests/anker.test.mjs` geprüft.
 
 Links immer mit `index.html` schreiben: Beim Öffnen per Doppelklick (file://) lädt der Browser für einen Ordner keine index.html.
 

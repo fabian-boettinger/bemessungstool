@@ -78,7 +78,8 @@ test("Fall 2: Zweiergruppe am Rand mit Zug, Querkraft und Torsion", () => {
   nah(L.beta.Vs, 0.3125, "β V,s"); nah(L.beta.Vcp, 0.3, "β V,cp"); nah(L.beta.Vc, 0.5, "β V,c");
   nah(L.int.s, 0.220156, "Interaktion Stahl"); assert.equal(L.int.sAnker, 2);
   nah(L.int.c, 0.957235, "Interaktion Beton"); assert.equal(L.massgebend, "intC"); assert.equal(r.ok, true);
-  assert.ok(r.ungeprueft.some(u => u.key === "bild12"), "randnahe Gruppe mit Lochspiel als ungeprüft gekennzeichnet");
+  assert.equal(r.bild12.mussB, true, "Lochspiel, kleiner Randabstand, Querlast → Bild 1.2 b)"); assert.equal(r.bild12.b, true, "2 Anker in einer Reihe nach Bild 1.2 b)");
+  assert.equal(r.ungeprueft.length, 0, "keine ungeprüften Annahmen");
 });
 
 // Fall 2b – Quelle: Handrechnung. Wie Fall 2, ohne Rand, Stahl mit Hebelarm:
@@ -328,4 +329,112 @@ test("Direktlink: Position, Lochbild, Lastfälle; Betonwiderstände geleert", ()
   assert.ok(A.leseHash("#xy=0,0&lc=A~1,0,0&lcg=B~1").fehler.length > 0, "lc und lcg zugleich");
   assert.ok(A.leseHash("#lcg=A~1,x").fehler.length > 0, "unlesbare Zahl");
   assert.equal(A.leseHash("#lib"), null);
+});
+
+// ---------------------------------------------------------------------------------------------- Bild 1.2, Bild 6.5, Bild 6.6
+// Quelle: DIN EN 1992-4, Bild 1.2 (Norm-Seite 10), ausgewertet am gerenderten Bild. Toleranz: exakt (Ja/Nein).
+//   a) Raster 1–3 je Richtung parallel zu den Rändern, auch 3 × 3 ohne Mitte; b) nur 1, 2 in einer Reihe, 2 × 2.
+test("Bild 1.2: zulässige Lochbilder", () => {
+  const g = (nx, ny, s = 100) => { const a = []; for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) a.push({ x: i * s, y: j * s }); return a; };
+  const B = A.rasterBild12;
+  for (const [nx, ny] of [[1, 1], [2, 1], [1, 2], [3, 1], [1, 3], [2, 2], [3, 2], [2, 3], [3, 3]]) assert.equal(B(g(nx, ny)).a, true, `${nx} × ${ny} nach a)`);
+  for (const [nx, ny] of [[1, 1], [2, 1], [1, 2], [2, 2]]) assert.equal(B(g(nx, ny)).b, true, `${nx} × ${ny} nach b)`);
+  for (const [nx, ny] of [[3, 1], [3, 2], [3, 3]]) assert.equal(B(g(nx, ny)).b, false, `${nx} × ${ny} nicht nach b)`);
+  assert.equal(B(g(3, 3).filter(p => !(p.x === 100 && p.y === 100))).a, true, "3 × 3 ohne mittleren Anker");
+  assert.equal(B(g(3, 3).filter(p => !(p.x === 0 && p.y === 0))).a, false, "3 × 3 ohne Eckanker");
+  assert.equal(B(g(4, 1)).a, false, "4 in einer Reihe");
+  assert.equal(B([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 50, y: 80 }]).a, false, "Dreieck");
+  assert.equal(B([{ x: 0, y: 0 }, { x: 70.7, y: 70.7 }, { x: -70.7, y: 70.7 }, { x: 0, y: 141.4 }]).a, false, "gedrehtes 2 × 2");
+  // im Gesamtnachweis: 3 × 2 mit Lochspiel am Rand und Querlast → abgelehnt; ohne Lochspiel zulässig
+  const e = fall2(); e.anker = g(3, 2, 100).map(p => ({ x: p.x - 100, y: p.y - 50 }));
+  assert.ok(A.nachweis(e).fehler.some(t => t.includes("Bild 1.2 b)")));
+  e.geo.lochspiel = "ohne"; assert.ok(!A.nachweis(e).fehler.some(t => t.includes("Bild 1.2")));
+  const e2 = fall2(); e2.anker = g(4, 1); assert.ok(A.nachweis(e2).fehler.some(t => t.includes("Bild 1.2 a)")));
+});
+
+// Quelle: DIN EN 1992-4, Bild 6.5 (Norm-Seite 42) und 7.2.2.5 (2); Handrechnung. Toleranz 0,5 ‰.
+//   a) 2 Anker senkrecht zum Rand (y = ±50, Rand +y, c = 80), V_x = 6 kN parallel zum Rand → je 3 kN; nur der randnahe zählt: V_E = 3 kN
+//   b) 2 × 2 (±50), Rand −y, c = 80, Lochspiel, V_y = −8 kN zum Rand → randnahe Reihe übernimmt alles: V_E = 8 kN
+//   c) wie b), V = (4; −6) kN → randnahe Anker: V_V = 6 senkrecht, V_H/4 = 1 je Anker parallel → V_E = |(2; −6)| = 6,3246 kN
+//   d) wie b), aber großer Randabstand c = 1000 > max{10·80; 60·12} = 800 → alle wirksam, je −2 kN; randnah 2 Anker: V_E = 4 kN
+//   e) wie b), V_y = +8 kN vom Rand weg → Anteil vom Rand weg vernachlässigt: V_E = 0
+test("Bild 6.5: Querkräfte für den Kantenbruch", () => {
+  const basisK = (anker, rand, c, lf) => ({ ...basis(), anker, geo: { ...basis().geo, raender: [{ richtung: rand, c }], lochspiel: "tab61", df: 14 }, lastfaelle: [lf],
+    widerstand: { Ns: { art: "d", Rd: 50 }, Np: { art: "d", Rd: 50 }, Nc: { art: "d", Rd: 50 }, Nsp: { art: "d", Rd: 50 }, Vs: { art: "d", Rd: 50 }, Vcp: { art: "d", Rd: 50 }, Vc: [{ art: "d", Rd: 20 }] } });
+  const q = [{ x: -50, y: -50 }, { x: 50, y: -50 }, { x: -50, y: 50 }, { x: 50, y: 50 }];
+  const VE = e => { const r = A.nachweis(e); assert.deepEqual([...r.fehler], []); return r.lf[0].kante[0]; };
+  const a = VE(basisK([{ x: 0, y: -50 }, { x: 0, y: 50 }], "+y", 80, { name: "a", Vx: 6 }));
+  nah(a.VE, 3, "6.5 a)"); assert.deepEqual([...a.anker], [2]);
+  const b = VE(basisK(q, "-y", 80, { name: "b", Vy: -8 }));
+  nah(b.VE, 8, "6.5 b)"); assert.deepEqual([...b.anker], [1, 2]); assert.equal(b.alleWirksam, false);
+  nah(VE(basisK(q, "-y", 80, { name: "c", Vx: 4, Vy: -6 })).VE, Math.hypot(2, 6), "6.5 c)");
+  const d = VE(basisK(q, "-y", 1000, { name: "d", Vy: -8 })); nah(d.VE, 4, "großer Randabstand"); assert.equal(d.alleWirksam, true);
+  nah(VE(basisK(q, "-y", 80, { name: "e", Vy: 8 })).VE + 1, 1, "Last vom Rand weg");
+});
+
+// Quelle: DIN EN 1992-4, 6.2.2.3 (3) und Bild 6.6 (Norm-Seite 44). Toleranz 1e-12.
+//   sonstige Zwischenschicht H_B = 10, t_fix = 3: e1 = 11,5 mm; Mörtelbett: e1 = 1,5 mm (Mörteldicke vernachlässigt)
+//   a3 = 0 bei Mörtel f_c ≥ 30 N/mm² und t_grout = 6 ≤ d/2 = 6 mm; bei t_grout = 7 mm: a3 = 0,5·d_nom
+test("Bild 6.6: e₁ und a₃ bei Zwischenschicht", () => {
+  nah(A.e1AusZwischenschicht(10, 3, "sonstige"), 11.5, "e₁ sonstige", 1e-12);
+  nah(A.e1AusZwischenschicht(10, 3, "moertel"), 1.5, "e₁ Mörtelbett", 1e-12);
+  const s = zustandFall2(); Object.assign(s.hebel, { mit: true, quelle: "hb", HB: 6, tfix: 3, zw: "moertel", mf: true });
+  assert.equal(Z.a3Null(s), true); nah(Z.e1(s), 1.5, "e₁", 1e-12);
+  s.hebel.HB = 7; assert.equal(Z.a3Null(s), false);
+  s.hebel.zw = "sonstige"; s.hebel.HB = 6; assert.equal(Z.a3Null(s), false); nah(Z.e1(s), 7.5, "e₁", 1e-12);
+});
+
+// Quelle: Vorgabe Nutzer (Anker in einer Reihe, Überstand > 0 → Neuverteilung automatisch) und Handrechnung wie Fall 4.
+test("Gedrückte Anker in einer Reihe: automatisch mit Überstand, sonst abgelehnt", () => {
+  const anker = [{ x: -100, y: 0 }, { x: 0, y: 0 }, { x: 100, y: 0 }], lf = { N: 6, My: 1.2 };
+  const r = A.aufteilen(anker, lf, { druck: "ablehnen", ueberstand: 40 });
+  assert.deepEqual([...r.fehler], []); nah(r.N[2], 7.2, "N₃"); nah(r.druck.C, 4.8, "C");
+  assert.equal(r.druck.auto, true); assert.equal(r.ungeprueft.length, 0, "begründet, nicht ungeprüft");
+  const r0 = A.aufteilen(anker, lf, { druck: "ablehnen", ueberstand: 0 });
+  assert.ok(r0.fehler.some(t => t.includes("Überstand")));
+  // zweiachsig bleibt abgelehnt, auch mit Überstand
+  const q = [{ x: -50, y: -40 }, { x: -50, y: 40 }, { x: 50, y: -40 }, { x: 50, y: 40 }];
+  assert.ok(A.aufteilen(q, { N: 0, My: 1.0 }, { druck: "ablehnen", ueberstand: 40 }).fehler.some(t => t.includes("zweiachsig")));
+});
+
+// ---------------------------------------------------------------------------------------------- Kopplung Rothoblaas
+// Lädt die reinen Kopplungsfunktionen aus rothoblaas/index.html (zwischen ANKER-KOPPLUNG-START und -ENDE).
+const rbHtml = readFileSync(new URL("../rothoblaas/index.html", import.meta.url), "utf8");
+const rbA = rbHtml.indexOf("/* ANKER-KOPPLUNG-START"), rbE = rbHtml.indexOf("/* ANKER-KOPPLUNG-ENDE */");
+assert.ok(rbA > 0 && rbE > rbA, "Kopplungsblock im Rothoblaas-Werkzeug nicht gefunden");
+const rbCtx = {}; vm.createContext(rbCtx);
+vm.runInContext(rbHtml.slice(rbA, rbE) + "\nglobalThis.RB = { ankerGruppe, ankerLuecken, ankerHash };", rbCtx);
+const RB = rbCtx.RB;
+
+// Quelle: Rothoblaas-Datenblatt TITAN N, Ausgabe 07-26, PDF-S. 10 (TCN240 + TCW240: e_y,IN = 39,5 mm, e_z,IN = 83,5 mm),
+// PDF-S. 12 (k_t// = 1,08), PDF-S. 15 (Formeln „Die Gruppe der Anker muss überprüft werden für …“); Lochbild TCN240 x = 39 / 201 mm.
+// Handrechnung, 1 Winkel, F2/3,d = 20 kN in +x:
+//   V_x = 20 kN; T = M_Sd,z = 20·39,5 = 790 kN·mm = 0,79 kNm; M_y = −M_Sd,y = −20·83,5 = −1670 kN·mm = −1,67 kNm
+//   Vorzeichen: F2/3 in +x greift e_z = 83,5 mm über dem Beton an → kippt um die +x-Kante → Zug im Anker auf der −x-Seite (x = 39).
+//   Schwerpunkt x = 120, Σx² = 2·81² = 13 122 mm²; elastisch N₁ = −1670·(−81)/13 122 = +10,309 kN, N₂ = −10,309 kN (gedrückt)
+//   Anker in einer Reihe, Überstand ü = 39 mm > 0 → Druckpunkt am Anker 2: N₁ = 1670/162 = 10,309 kN, C = 10,309 kN
+//   Querkraft: V₁ = (20/2; 790·(−81)/13 122) = (10; −4,8765) kN → |V₁| = 11,1257 kN
+//   mit F1,d = 10 kN zusätzlich: N_Sd,z = 2·1,08·10 = 21,6 kN → N₁ = 10,8 + 10,309 = 21,109 kN, N₂ = 0,491 kN
+test("Kopplung Rothoblaas: TCN240 mit TCW, Vorzeichen von M_y und höchstbelasteter Anker", () => {
+  const p = { art: "titan", prod: "TITAN N", typ: "TCN240", ausg: "07-26", n: 1, kt1: 1.08, ey: 39.5, ez: 83.5, q4: [0.5, 0], q5: [0.5, 0.48], q45: [0.43, 0.06], xy: [[39, 0], [201, 0]], ue: 39 };
+  const g = RB.ankerGruppe(p, { F1: 0, F23: 20, F4: 0, F5: 0 });
+  nah(g.Vx, 20, "V_x"); nah(g.T, 0.79, "T = M_Sd,z"); nah(g.My, -1.67, "M_y = −M_Sd,y"); nah(g.N + 1, 1, "N");
+  const h = RB.ankerHash(Object.assign({ pos: "108.101", bez: "Wand A", zeilen: [Object.assign({ name: "LK 1" }, g), Object.assign({ name: "LK2" }, RB.ankerGruppe(p, { F1: 10, F23: 20, F4: 0, F5: 0 }))] }, p));
+  const q = A.leseHash("#" + h);
+  assert.deepEqual([...q.fehler], []); assert.equal(q.modus, "starr"); assert.equal(q.ausg, "07-26"); assert.equal(q.ue, 39); assert.equal(q.lastfaelle[0].name, "LK 1");
+  const s = Z.hashAnwenden(zustandFall2(), q);
+  Object.assign(s.dub, { d: 16, dnom: 16 }); s.geo.df = 18;
+  const k = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Test", grund: "" });
+  Object.assign(s.w, { Nc: k(40, 1.5), Nsp: k(40, 1.5), Vcp: k(60, 1.5), Vc: { "+y": k(30, 1.5) } });
+  const R = A.nachweis(Z.kernEingabe(s));
+  assert.deepEqual([...R.fehler], []);
+  const L1 = R.lf[0], L2 = R.lf[1];
+  nah(L1.N[0], 10.308642, "N₁ (−x-Seite, x = 39)"); nah(L1.N[1] + 1, 1, "N₂"); assert.equal(L1.druck.auto, true); nah(L1.druck.C, 10.308642, "C");
+  nah(L1.V[0][0], 10, "V₁,x"); nah(L1.V[0][1], -4.876543, "V₁,y"); nah(L1.G.Vh, 11.125659, "V^h");
+  nah(L2.N[0], 21.108642, "N₁ mit F1"); nah(L2.N[1], 0.491358, "N₂ mit F1"); assert.equal(L2.druck, null);
+  assert.equal(R.ungeprueft.length, 0);
+  // NINO: N_Sd,z = k_t//·F1 ohne Faktor 2 (Datenblatt 10-24, PDF-S. 14); F4/F5 nicht übertragbar
+  const pn = { art: "nino", n: 2, kt1: 1.21, ey: 30, ez: 0 };
+  nah(RB.ankerGruppe(pn, { F1: 20, F23: 0, F4: 0, F5: 0 }).N, 12.1, "NINO N = 1,21·20/2");
+  assert.ok(RB.ankerLuecken(pn, { F1: 0, F23: 0, F4: 3, F5: 0 }).length === 1);
 });

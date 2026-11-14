@@ -206,6 +206,7 @@ body.drop::after{content:"Projektdatei (.html / .json) hier ablegen";position:fi
       <div class="bars" id="bars"></div>
     </div>
     <div class="warns" id="warns" style="margin-top:10px"></div>
+    <div id="ankerBox"></div>
   </div>
   <div class="card">
     <h2>Anwendungsgrenzen und konstruktive Bedingungen</h2>
@@ -624,7 +625,7 @@ const XYLOFON = {
 };
 
 /* ===== Grundlagen, Hilfsfunktionen, Rechenkern ===== */
-const TOOL = {ver:"3.2", stand:"12.11.2026", kat:"Rothoblaas Katalog „Holzbauverbinder“ (24-holzbauverbinder-de)"};
+const TOOL = {ver:"3.3", stand:"14.11.2026", kat:"Rothoblaas Katalog „Holzbauverbinder“ (24-holzbauverbinder-de)"};
 const GAMMA = {M:1.30, M2:1.25, M0:1.00, M1:1.10};   // gamma_M1 Aluminium (Stabilität, EN 1999-1-1) für N_b,Rk nach ETA-09/0361 Gl. (B.12)   // DIN EN 1995-1-1/NA (Verbindungen); gamma_M2 Stahl/Alu nach Katalog; gamma_M0 Stahlversagen TITAN (Katalog, EN 1993-1-1 mit NA)
 
 // DIN EN 1995-1-1/NA: kmod für Vollholz, Brettschichtholz, Brettsperrholz; [NKL 1, NKL 2, NKL 3]
@@ -891,6 +892,7 @@ function mkNino(xyl){ return {
       ["Verbindungsmittellänge",sub("k","F")+" = "+fmt(kF)+((!hb&&c.vgs)?"; VGS: L/140 = "+fmt(kV)+"; für "+sub("F","1")+" maßgebend "+sub("k","red,1")+" = min("+sub("k","F")+"; L/140) = "+fmt(kr1):"; "+sub("k","red,1")+" = "+fmt(kr1))]
     ];
     const C={
+      anker: hb ? Object.assign({art:"nino", prod:"NINO", typ, ausg:"10-24", n, kt1:kt, ey, ez, kt1Quelle:"Datenblatt"}, ninoAnkerGeo(typ)) : null,
       head:"Winkelverbinder "+typ+(xOn?" mit XYLOFON PLATE":""), eta:"ETA-22/0089"+(xOn?"; ETA-23/0061 (XYLOFON)":""),
       intro:"Nachweis der Tragfähigkeit nach ETA-22/0089 (Rotho Blaas NINO, ETA-Danmark) und DIN EN 1995-1-1 mit NA. Charakteristische Tragfähigkeiten aus dem Rothoblaas-Katalog „Holzbauverbinder“, Kapitel NINO, S. 196–215"+(xOn?"; Werte mit Schalldämmprofil XYLOFON PLATE unter dem horizontalen Schenkel. Angaben zum Schallschutz im letzten Abschnitt.":"."),
       rkNote:"Werte gelten für "+sub("ρ","k")+" = 350 kg/m³ und decken das kombinierte Versagen auf Holz- und Stahlseite ab (Katalog S. 215, ETA-22/0089 Anhang B). Sie gelten je Winkel.",
@@ -1610,6 +1612,11 @@ function mkTitan(ser,xyl){
     ];
     const X={typ,ser,pat:String(s.pat),c,hb,wOn,xOn,n,apos,cv,bsp,fi,top,w};
     const C={
+      anker: hb ? {art:"titan", prod:TSER[ser].name, typ, ausg:(ser==="N"||ser==="F")?"07-26":"", n,
+        kt1: wOn ? (top.F1w&&top.F1w.kt) : (top.F1&&top.F1.kt), kt1Quelle: wOn ? "Datenblatt" : "ETA-11/0496, Tab. B.1",
+        ey: TDIM[typ].ey[apos==="OUT"?1:0], ez: wOn ? TCON[typ].ez : 0,
+        q4: c.R4&&c.R4.kt, q5: c.R5&&c.R5.kt, q45: c.R45&&c.R45.kt,
+        xy: TDIM[typ].ax.map(x=>[x,0]), ue: Math.min(TDIM[typ].ax[0], TDIM[typ].B-TDIM[typ].ax[1])} : null,
       head:"Winkelverbinder "+typ+(xOn?" mit XYLOFON PLATE":""), eta:"ETA-11/0496 (07.05.2024)"+(xOn?"; ETA-23/0061 (XYLOFON)":""),
       intro:"Nachweis der Tragfähigkeit nach ETA-11/0496 vom 07.05.2024 (Rotho Blaas TITAN, ETA-Danmark) und DIN EN 1995-1-1 mit NA. Charakteristische Tragfähigkeiten aus dem Rothoblaas-Katalog „Holzbauverbinder“, Kapitel "+T.name+", S. "+T.pages+"; wo der Katalog keine Werte angibt, aus ETA-11/0496, Anhang B (Quelle je Wert angegeben).",
       rkNote:"Werte je Winkel für "+sub("ρ","k")+" = 350 kg/m³. Holzseite "+sub("R","k,timber")+" mit "+sub("k","mod")+"/"+sub("γ","M")+", Stahlseite "+sub("R","k,steel")+" mit "+sub("γ","M0")+" (Katalog S. "+(ser==="F"?249:ser==="S"?241:ser==="V"?253:230)+": R<sub>d</sub> = min(R<sub>k,timber</sub> · k<sub>mod</sub>/γ<sub>M</sub> ; R<sub>k,steel</sub>/γ<sub>M0</sub> ; R<sub>d,concrete</sub>)).",
@@ -2265,6 +2272,62 @@ function syncInputs(){
 
 /* ---------- Ergebnisanzeige ---------- */
 function limState(L){ return L.ok===true?["ok","eingehalten"]:L.ok===false?["bad","nicht eingehalten"]:["nb","bauseits einhalten"]; }
+/* ANKER-KOPPLUNG-START – reine Funktionen ohne DOM, getestet in tests/anker.test.mjs
+   Schnittgrößen der Ankergruppe je Winkel nach den Rothoblaas-Datenblättern, Abschnitt „Prüfung der Anker“
+   („Die Gruppe der Anker muss überprüft werden für …“):
+     TITAN N/F, Ausgabe 07-26 (TITAN N PDF-S. 8 und 15, TITAN F PDF-S. 6 und 7):
+       N_Sd,z = 2·k_t//·F1,d (mit TCW) · V_Sd,x = F2/3,d · M_Sd,z = F2/3,d·e_y · mit TCW M_Sd,y = F2/3,d·e_z
+       V_Sd,y = 2·k_t⊥·F4|5,d · N_Sd,z = 2·k_t//·F5,d bzw. F4/5,d
+     NINO, Ausgabe 10-24 (PDF-S. 14 und 19): N_Sd,z = k_t//·F1,d (k_t// bezogen auf die Gruppe) · V_Sd,x, M_Sd,z, M_Sd,y wie TITAN;
+       für F4/F5 nennt das Datenblatt keine Ankerkräfte.
+   Lasten je Anschluss mit n Winkeln → je Winkel F/n (wie Abschnitt Betonseite); F4/5 mit zwei Winkeln je Anschluss.
+   Übergabe an anker/index.html als Schnittgrößen der Gruppe (lcg); Koordinaten: x längs des Winkels, y vom Wandanschluss
+   weg (Wand bei y = −e_y). F2/3 in +x → T = +V_x·e_y, M_y = −V_x·e_z (Zug auf der −x-Seite); F4 → +y, F5 → −y. */
+function ankerGruppe(p, F){
+  const f1 = p.art==="titan" ? 2 : 1;
+  let N = p.kt1 ? f1*p.kt1*F.F1/p.n : 0, Vy = 0;
+  const Vx = F.F23/p.n;
+  if(p.art==="titan"){
+    if(p.n===2 && p.q45){ const Fq=Math.max(F.F4,F.F5); if(Fq>0){ Vy=(F.F5>F.F4?-1:1)*2*p.q45[0]*Fq; N+=2*p.q45[1]*Fq; } }
+    else { if(F.F4>0&&p.q4) Vy+=2*p.q4[0]*F.F4; if(F.F5>0&&p.q5){ Vy-=2*p.q5[0]*F.F5; N+=2*p.q5[1]*F.F5; } }
+  }
+  return {N, Vx, Vy, Mx:0, My:-Vx*(p.ez||0)/1000, T:Vx*p.ey/1000};
+}
+// Was die Übergabe nicht abdeckt (Hinweise neben dem Knopf)
+function ankerLuecken(p, F){
+  const l=[];
+  if(F.F1>0&&!p.kt1) l.push("F1 (kein k<sub>t//</sub> für diese Ausführung)");
+  if(p.art==="nino"&&(F.F4>0||F.F5>0)) l.push("F4/F5 (Datenblatt NINO nennt keine Ankerkräfte)");
+  if(p.art==="titan"){
+    if(p.n===2){ if((F.F4>0||F.F5>0)&&!p.q45) l.push("F4/5 (kein k<sub>t</sub> für dieses Befestigungsschema)"); }
+    else { if(F.F4>0&&!p.q4) l.push("F4 (kein k<sub>t</sub> für dieses Befestigungsschema)"); if(F.F5>0&&!p.q5) l.push("F5 (kein k<sub>t</sub> für dieses Befestigungsschema)"); }
+  }
+  return l;
+}
+function ankerHash(o){
+  const enc=encodeURIComponent, z=x=>String(Math.round(x*1000)/1000), nm=t=>enc(String(t||"").replace(/[~|,;&#]/g," "));
+  const lcg=o.zeilen.map(r=>nm(r.name)+"~"+[r.N,r.Vx,r.Vy,r.Mx,r.My,r.T].map(z).join(",")).join("|");
+  return "von=rb&prod="+enc(o.prod)+"&typ="+enc(o.typ)+(o.ausg?"&ausg="+enc(o.ausg):"")+(o.pos?"&pos="+enc(o.pos):"")+(o.bez?"&bez="+enc(o.bez):"")
+    +"&n="+o.xy.length+"&xy="+o.xy.map(q=>q.map(z).join(",")).join(";")+(o.ue!=null?"&ue="+z(o.ue):"")+"&lcg="+lcg;
+}
+/* ANKER-KOPPLUNG-ENDE */
+function ninoAnkerGeo(typ){
+  const g=NGEO[typ], d=NDIM[typ], h=g.holesH.filter(x=>x[2]===13), y0=Math.min(...h.map(x=>x[1]));
+  const r=h.filter(x=>x[1]-y0<1).sort((a,b)=>a[0]-b[0]);
+  return {xy:r.map(x=>[x[0],0]), ue:Math.min(r[0][0], d.B-r[r.length-1][0])};
+}
+// Knopf „Betonseite nachweisen“: öffnet anker/index.html mit Lochbild und Schnittgrößen der Ankergruppe je Kombination
+function ankerKnopf(R){
+  const p=R.C.anker; if(!p) return "";
+  const F=r=>({F1:LV(r,"F1"),F23:LV(r,"F23"),F4:LV(r,"F4"),F5:LV(r,"F5")});
+  const zeilen=R.rows.map(r=>Object.assign({name:r.l.name},ankerGruppe(p,F(r))));
+  const luecken=[...new Set(R.rows.flatMap(r=>ankerLuecken(p,F(r))))];
+  const href="../anker/index.html#"+ankerHash(Object.assign({pos:S.pos,bez:S.bez,zeilen},p));
+  return '<div class="info" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><a class="btn" target="_blank" rel="noopener" href="'+esc(href)+'">Betonseite nachweisen</a>'
+    +'<span>Öffnet „Verankerung in Beton“ mit Lochbild und Schnittgrößen der Ankergruppe je Winkel ('+esc(p.prod)+(p.ausg?", Datenblatt "+esc(p.ausg):"")+'). Rand- und Achsabstände, Bauteildicke, Beton und Betonwiderstände dort eintragen.'
+    +(p.kt1&&p.kt1Quelle!=="Datenblatt"&&R.rows.some(r=>LV(r,"F1")>0)?" k<sub>t//</sub> für F1 ohne Unterlegscheibe aus "+esc(p.kt1Quelle)+".":"")
+    +(luecken.length?' <b>Nicht übergeben: '+luecken.join("; ")+' – separat nachweisen.</b>':"")+'</span></div>';
+}
 function render(){
   if(autoApply()) setProd();
   const R=evaluate(), g=R.g, C=R.C, M=R.M, s=R.s;
@@ -2279,6 +2342,7 @@ function render(){
   if(g.interOn) b+=bar("Interaktion Σ η²",g.inter);
   $("bars").innerHTML=b;
   $("warns").innerHTML=R.errs.map(t=>'<div class="err">'+t+'</div>').join("")+R.msgs.map(t=>'<div>'+t+'</div>').join("");
+  $("ankerBox").innerHTML=ankerKnopf(R);
   $("limT").innerHTML='<tr><th>Bedingung</th><th>vorhanden</th><th>Status</th></tr>'+C.limits.map(L=>{ const st=limState(L); return '<tr class="'+st[0]+'"><td>'+L.t+'</td><td>'+(L.v||"")+'</td><td><span class="dot"></span>'+st[1]+'</td></tr>'; }).join("");
   const D=M.draw(R);
   $("viz").innerHTML=D.map(d=>'<figure><div>'+d.svg+'</div><figcaption>'+d.cap+'</figcaption></figure>').join("");
