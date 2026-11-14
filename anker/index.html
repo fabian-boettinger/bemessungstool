@@ -2083,14 +2083,16 @@ function sumsRel(A) {
 function report(E, R, L) {
   const d = S.dub, g = E.geo, A = E.anker, n = A.length, H = E.hebel;
   let k = 0; const H2 = t => `<h2>${++k} ${t}</h2>`;
+  const ku = stufe() === "kurz";   // Kurz: Eingaben, Ergebnistabelle und Ergebnis ohne Herleitung
   const bsp = beispielAktiv(S), fe = libFehlt(d), dn = [d.lib && d.lib.beispiel ? "" : d.hersteller, d.produkt].filter(Boolean).join(" ") || "(Dübel ohne Bezeichnung)";
   const etaT = d.eta ? esc(d.eta) + (d.etaDatum ? " vom " + esc(d.etaDatum) : "") : "";
   let h = "";   // Vermerk BEISPIELWERTE setzt paginate() auf jede Seite
   h += `<h1>${S.pos ? "Pos. " + esc(S.pos) + " – " : ""}${S.bez ? esc(S.bez) + ": " : ""}Verankerung in Beton nach DIN EN 1992-4</h1>`;
   h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(dn)}${etaT ? " (" + etaT + ")" : ""}. Stahlwiderstände aus der ETA; Betonwiderstände ${R.beton ? "nach DIN EN 1992-4 aus den ETA-Kennwerten berechnet" : ""}${R.beton && Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && !Array.isArray(w) && w.art && w.art !== "b") ? " bzw. " : ""}${Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && !Array.isArray(w) && w.art && w.art !== "b") ? "aus ETA bzw. Herstellersoftware eingegeben" : ""}; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
   // 1 System
-  h += H2("System und Annahmen") + `<figure class="figs">${skizze(E, R, L)}<figcaption>Grundriss der Ankergruppe mit Rändern; Kräfte der maßgebenden Kombination</figcaption></figure>`;
   const iso = isometrie(E, R, L);
+  h += H2("System und Annahmen");
+  if (!ku || !iso) h += `<figure class="figs">${skizze(E, R, L)}<figcaption>Grundriss der Ankergruppe mit Rändern; Kräfte der maßgebenden Kombination</figcaption></figure>`;
   if (iso) h += `<figure class="figs">${iso}<figcaption>Isometrie: Betonbauteil, ${S.herkunft && S.herkunft.von === "rb" && isFinite(S.herkunft.wy) ? "Winkel an der Holzwand, " : "Anbauteil, "}Anker bis h<sub>ef</sub>, Schnittgrößen der maßgebenden Kombination; höchstbelasteter Anker rot</figcaption></figure>`;
   const rd = g.raender.length ? g.raender.map(r => `${r.richtung}: c = ${fmtA(r.c)} mm`).join("; ") : "keine Ränder (große Randabstände)";
   h += `<table class="kv">
@@ -2106,8 +2108,11 @@ function report(E, R, L) {
   h += zl(fx(K.TEXT.starr), "6.2.1 (1)", true);
   if (E.modus === "jeAnker") h += zl(fx(K.TEXT.jeAnker), "Übergabe", true);
   // 2 Grenzen
-  h += H2("Anwendungsgrenzen und Mindestwerte") + `<table class="g"><tr><th>Bedingung</th><th class="r">vorhanden</th><th class="r">Grenze</th><th>Bewertung</th><th>Normbezug</th></tr>`
-    + grenzen(E, R).map(x => `<tr><td>${x.t}</td><td class="r">${x.v}</td><td class="r">${x.g}</td><td class="${x.ok === false ? "nok" : ""}">${x.ok === true ? "erfüllt" : x.ok === false ? "nicht erfüllt" : (x.s || "")}</td><td>${x.ref || ""}</td></tr>`).join("") + "</table>";
+  const GR = grenzen(E, R), grK = ku ? GR.filter(x => x.ok !== true) : GR;
+  h += H2("Anwendungsgrenzen und Mindestwerte");
+  if (ku) h += `<p>${GR.length} Bedingungen geprüft (Geltungsbereich der Norm, Mindestwerte der ETA, Lochbild, Durchgangsloch): ${GR.filter(x => x.ok === true).length} erfüllt, <b>${GR.filter(x => x.ok === false).length} nicht erfüllt</b>${grK.length ? "; nicht erfüllte Bedingungen und Einstufungen:" : "."}</p>`;
+  if (grK.length) h += `<table class="g"><tr><th>Bedingung</th><th class="r">vorhanden</th><th class="r">Grenze</th><th>Bewertung</th><th>Normbezug</th></tr>`
+    + grK.map(x => `<tr><td>${x.t}</td><td class="r">${x.v}</td><td class="r">${x.g}</td><td class="${x.ok === false ? "nok" : ""}">${x.ok === true ? "erfüllt" : x.ok === false ? "nicht erfüllt" : (x.s || "")}</td><td>${x.ref || ""}</td></tr>`).join("") + "</table>";
   // 3 Einwirkungen
   h += H2("Einwirkungen (Bemessungswerte)");
   if (E.modus === "jeAnker") h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th></tr>` + E.lastfaelle.map(l => l.je.map((a, j) => `<tr><td>${j ? "" : esc(l.name)}</td><td>${j + 1}</td><td class="r">${fmt(a.N)}</td><td class="r">${fmt(a.Vx)}</td><td class="r">${fmt(a.Vy)}</td></tr>`).join("")).join("") + "</table>";
@@ -2117,6 +2122,13 @@ function report(E, R, L) {
     h += H2("Ergebnis") + `<div class="res nok"><span>Nachweis nicht geführt</span><span>Eingaben unvollständig oder außerhalb des Anwendungsbereichs</span></div><ul>${R.fehler.map(t => `<li><b>${fx(t)}</b></li>`).join("")}</ul>`;
     return h + fuss();
   }
+  if (ku) {
+    const G = L.G;
+    h += H2(`Nachweise – maßgebende Kombination ${esc(L.name)}`);
+    h += zl(`Ankerkräfte ${E.modus === "jeAnker" ? "je Anker übergeben" : "elastisch, starre Ankerplatte"}: ${NEDH} = <b>${fmt(G.Nh)} kN</b>; ${NEDG} = <b>${fmt(G.Ng)} kN</b>; ${VEDH} = <b>${fmt(G.Vh)} kN</b>; ${VEDG} = <b>${fmt(G.Vg)} kN</b>`, "6.2.1, 6.2.2; Tab. 7.1, 7.2");
+    h += zl(`Stahlwiderstände aus der ETA${R.beton ? "; Betonwiderstände nach DIN EN 1992-4, 7.2.1 und 7.2.2 aus den ETA-Kennwerten berechnet" : ""}. Herleitung im Protokollumfang „Standard“ bzw. „Detailliert“.`, "", true);
+    h += zusammenstellung(E, R, L);
+  } else {
   // 4 Ankerkräfte
   h += H2("Ankerkräfte") + ankerkraefte(E, R, L);
   // 5 Grundlagen, 6–8 Nachweise je Versagensart (Einwirkung → Widerstand → Nachweiskasten), 9 Zusammenstellung
@@ -2126,12 +2138,14 @@ function report(E, R, L) {
   h += H2(`Nachweise Querbeanspruchung – Kombination ${esc(L.name)}`) + nachweisQuer(E, R, L, HL);
   h += H2(`Kombinierte Zug- und Querbeanspruchung – Kombination ${esc(L.name)}`) + nachweisInteraktion(E, R, L);
   h += H2("Zusammenstellung") + zusammenstellung(E, R, L);
+  }
   h += H2("Ergebnis");
   const mg = MNAME[L.massgebend] || L.massgebend;
   if (bsp) h += `<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div>`;
   h += `<div class="res${R.ok ? "" : " nok"}"><span>${n} × ${esc(dn)} · maßgebend ${esc(L.name)}: ${mg}</span><span>max η = ${etaTxt(R.etaMax)} ${R.ok ? "≤ 1 – Nachweis erfüllt" : "> 1 – Nachweis NICHT erfüllt"}</span></div>`;
   const hin = [...new Set([...R.hinweise, ...R.lf.flatMap(l => l.hinweise || [])])];
-  if (R.warn.length || hin.length) h += "<ul>" + R.warn.map(t => `<li><b>${fx(t)}</b></li>`).join("") + hin.map(t => `<li>${fx(t)}</li>`).join("") + "</ul>";
+  if (R.warn.length || (hin.length && !ku)) h += "<ul>" + R.warn.map(t => `<li><b>${fx(t)}</b></li>`).join("") + (ku ? "" : hin.map(t => `<li>${fx(t)}</li>`).join("")) + "</ul>";
+  if (ku && hin.length) h += `<p>${hin.length} Hinweise und Annahmen zur Berechnung stehen im Protokollumfang „Standard“ bzw. „Detailliert“.</p>`;
   if (R.ungeprueft.length) h += `<h3>Ungeprüfte Annahmen ${UNG()}</h3><ul>${R.ungeprueft.map(u => `<li>${fx(u.text)}</li>`).join("")}</ul>`;
   h += `<h3>Nicht geführte Nachweise</h3><ul>
     <li>Ankerplatte bzw. Anbauteil (Steifigkeit, Biegung, Lochleibung) und Betonpressung unter dem Anbauteil</li>
