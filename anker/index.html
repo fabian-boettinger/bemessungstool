@@ -1352,6 +1352,25 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       notiz: `Temperaturbereich I (24/40 °C), 50 Jahre, trockener/feuchter Beton, Hammer- oder Pressluftbohren (HD, CD); d₀ = ${d0[i]} mm; ETA gilt bis C90/105, hier bis C50/60 hinterlegt` }));
     return out;
   })(),
+
+  // ---- Würth Fixanker W-FAZ (Stahl galvanisch verzinkt), Standardverankerungstiefe, ETA-99/0011 vom 02.10.2018
+  // Anhang B3 (PDF-S. 14): h_ef, d_f; B4 (S. 15): h_min,1, gekoppelte s_min/c_min (gerissen und ungerissen, ungünstigeres Paar);
+  // C1 (S. 22) gerissen und C3 (S. 24) ungerissen: N_Rk,s, γ_Ms, N_Rk,p, ψ_c, k_cr/ucr,N, Spalten Fall 1 (N⁰_Rk,sp, c_cr,sp = 1,5·h_ef bei h_min,1);
+  // C5 (S. 26): V⁰_Rk,s, M⁰_Rk,s, γ_Ms, k₈, l_f = h_ef, d_nom; Beton C20/25–C50/60 (S. 12)
+  ...(() => {
+    const G = [8, 10, 12, 16, 20, 24], hef = [46, 60, 70, 85, 100, 115], hmin = [100, 120, 140, 170, 200, 230], df = [9, 12, 14, 18, 22, 26],
+      cmin = [50, 50, 75, 80, 130, 100], sFc = [100, 100, 150, 180, 240, 220], sAlt = [40, 45, 60, 65, 95, 100], cAlt = [80, 70, 120, 120, 180, 180],
+      N = [16, 27, 40, 60, 86, 126], gN = [1.53, 1.53, 1.5, 1.5, 1.6, 1.5], Pc = [5, 9, 16, 25, "nm", "nm"], Pu = [12, 16, 25, 35, "nm", "nm"],
+      Nsp = [9, 12, 20, 30, 40, 62.3], V = [12.2, 20.1, 30, 55, 69, 114], gV = [1.25, 1.25, 1.25, 1.25, 1.33, 1.25], M = [23, 47, 82, 216, 363, 898], k8 = [2.4, 2.4, 2.4, 2.4, 2.8, 2.8];
+    return G.map((d, i) => ({ id: `eta990011-wfaz-m${d}`, hersteller: "Würth", produkt: `W-FAZ M${d} (verzinkt), Standardverankerungstiefe`,
+      eta: "ETA-99/0011", etaDatum: "02.10.2018", typ: "mechanisch", d, dnom: d, hef: hef[i], hefMin: "", hefMax: "", fuk: "", schraube: false,
+      smin: sFc[i], cmin: cmin[i], hmin: hmin[i], dfETA: df[i],
+      NRks: N[i], gMs: gN[i], VRks: V[i], gMsV: gV[i], M0Rks: M[i],
+      gInst: 1.0, kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: Pc[i], NRkpUcr: Pu[i], psic: "exp:0,5", tauCr: "", tauUcr: "", psi0sus: "",
+      spArt: "faktor", sp1h: "", sp1c: 1.5, sp2h: "", sp2c: "", N0Rksp: Nsp[i], k8: k8[i], lf: "", betonMin: "C20/25", betonMax: "C50/60",
+      quelle: "ETA-99/0011: Anh. B3 (S. 14), B4 (S. 15), C1 (S. 22), C3 (S. 24), C5 (S. 26)",
+      notiz: `c_min = ${cmin[i]} mm für s ≥ ${sFc[i]} mm (als s_min eingetragen); alternativ s_min = ${sAlt[i]} mm für c ≥ ${cAlt[i]} mm, Zwischenwerte nach Anh. B4 interpolierbar; Spalten Fall 1 der ETA (Fall 2 nicht genutzt), ψ_c auf N⁰_Rk,sp nicht angesetzt; c_cr,N in der ETA nicht genannt, 1,5·h_ef nach Anm. zu 7.2.1.4 (3)` }));
+  })(),
   /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
 const clone = o => JSON.parse(JSON.stringify(o));
 const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); return true; } catch (er) { return null; } };

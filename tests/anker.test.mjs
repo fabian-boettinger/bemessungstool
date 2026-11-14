@@ -645,3 +645,13 @@ test("ETA-19/0542 WIT-PE 1000: Stichproben", () => {
   const R = A.nachweis(Z.kernEingabe(zustandAusEintrag(e, 170)));
   assert.deepEqual([...R.fehler], []);
 });
+
+test("ETA-99/0011 W-FAZ: Stichproben", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-99/0011").length, 6);
+  const e = etaEintrag("eta990011-wfaz-m12");
+  assert.equal(e.hef, 70); assert.equal(e.NRkpCr, 16); assert.equal(e.NRkpUcr, 25); assert.equal(e.N0Rksp, 20); assert.equal(e.VRks, 30); assert.equal(e.M0Rks, 82); assert.equal(e.k8, 2.4);
+  assert.equal(etaEintrag("eta990011-wfaz-m20").NRkpCr, "nm"); assert.equal(etaEintrag("eta990011-wfaz-m20").gMsV, 1.33);
+  const s = zustandAusEintrag(e, 70); s.geo.h = 140; s.geo.rand = { "+x": "", "-x": "", "+y": 100, "-y": "" }; s.geo.vorlage = "2x"; s.geo.anker = Z.vorlageAnker("2x", 150, 0);
+  const R = A.nachweis(Z.kernEingabe(s));
+  assert.deepEqual([...R.fehler], []);
+});
