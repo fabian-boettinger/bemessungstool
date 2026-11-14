@@ -193,6 +193,21 @@ test("Gültigkeit: Hebelarm am Rand, Lochspiel, e₁ ohne Hebelarm, Anwendungsbe
   assert.ok(A.nachweis(e5).fehler.some(t => t.includes("20·d")));
 });
 
+// Quelle: Vorgabe Nutzer (14.11.2026): d_f,max laut ETA hat Vorrang vor Tab. 6.1; Ablehnung nur ohne beide Werte.
+//   d = 12: Tab. 6.1 → 14 mm. Mit ETA-Wert 16 mm ist d_f = 15 mm zulässig, ohne ETA-Wert nicht.
+//   d = 7 (nicht in Tab. 6.1): ohne ETA-Wert abgelehnt, mit ETA-Wert 8 mm und d_f = 8 mm zulässig.
+test("Lochspiel: d_f,max aus ETA hat Vorrang vor Tab. 6.1", () => {
+  const e = fall2(); e.geo.df = 15;
+  assert.ok(A.nachweis(e).fehler.some(t => t.includes("Tab. 6.1")));
+  e.geo.dfETA = 16;
+  const r = A.nachweis(e);
+  assert.deepEqual([...r.fehler], []); assert.equal(r.loch.quelle, "ETA"); assert.equal(r.loch.dm, 16);
+  const e2 = fall2(); e2.geo.d = 7; e2.geo.dnom = 7; e2.geo.df = 8;
+  assert.ok(A.nachweis(e2).fehler.some(t => t.includes("Weder ETA")));
+  e2.geo.dfETA = 8;
+  assert.deepEqual([...A.nachweis(e2).fehler], []);
+});
+
 test("Geometrieänderung nach Eingabe der Betonwiderstände wird gemeldet", () => {
   const e = fall2(); e.geoSchluessel = A.geoSchluessel(e);
   assert.equal(A.nachweis(e).geoAbweichung, undefined);

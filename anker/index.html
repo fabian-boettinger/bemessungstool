@@ -4,9 +4,169 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verankerung in Beton – DIN EN 1992-4</title>
+<style>
+:root{
+  --bg:#eef0f2; --card:#fff; --ink:#1b2430; --mute:#5d6875; --line:#d5dae0; --acc:#0b5a7a; --acc2:#e6f1f5;
+  --ok:#1f7a3d; --okbg:#e5f4ea; --bad:#b3261e; --badbg:#fbe9e7; --warn:#8a5a00; --warnbg:#fff4d6; --ung:#6a3d9a; --ungbg:#f1eafa;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Arial,sans-serif}
+header.app{background:var(--acc);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+header.app h1{font-size:17px;margin:0;font-weight:600;letter-spacing:.2px}
+header.app .sub{opacity:.85;font-size:12px}
+header.app .sp{flex:1}
+header.app a{color:#fff}
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:6px;padding:7px 12px}
+.btn:hover{border-color:var(--acc)}
+.btn.pri{background:#fff;color:var(--acc);font-weight:600;border-color:#fff}
+.btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.55)}
+.btn.sm{padding:3px 8px;font-size:12px}
+.wrap{display:grid;grid-template-columns:minmax(380px,500px) minmax(0,1fr);gap:16px;padding:16px 20px;max-width:1560px;margin:0 auto}
+@media (max-width:1020px){.wrap{grid-template-columns:minmax(0,1fr);padding:12px 16px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:14px}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--acc);margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.card h2 .n{background:var(--acc);color:#fff;border-radius:50%;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex:none}
+.card h3{font-size:12px;color:var(--mute);font-weight:600;margin:12px 0 6px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 10px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px 10px}
+@media (max-width:460px){.grid,.grid3{grid-template-columns:minmax(0,1fr)}}
+label.f{display:flex;flex-direction:column;justify-content:flex-end;min-width:0}
+label.f.wide{grid-column:1/-1}
+label.f>span:first-child{display:block;font-size:12px;color:var(--mute);margin-bottom:3px}
+label.c{display:flex;align-items:center;gap:6px;font-size:13px;grid-column:1/-1}
+input[type=text],input[type=number],select{width:100%;height:35px;font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);min-width:0}
+input:focus,select:focus{outline:2px solid var(--acc);outline-offset:-1px}
+input.bad,select.bad{border-color:var(--bad);background:var(--badbg)}
+input[readonly]{background:#f5f6f8;color:var(--mute)}
+.fh{display:block;font-size:11px;color:var(--mute);min-height:15px;margin-top:2px}
+.fh.bad{color:var(--bad);font-weight:600}
+.hint{font-size:12px;color:var(--mute)}
+.info{background:var(--acc2);border-radius:6px;padding:7px 10px;font-size:12px;margin-top:10px}
+.info.bsp{background:var(--warnbg);color:var(--warn);font-weight:600}
+.scroll{overflow-x:auto}
+table.lc{width:100%;border-collapse:collapse;min-width:330px}
+table.lc th{font-size:11px;color:var(--mute);font-weight:500;text-align:left;padding:0 3px 4px;white-space:nowrap;vertical-align:bottom}
+table.lc td{padding:2px 3px;vertical-align:middle}
+table.lc td.lab{font-size:12px;white-space:nowrap}
+table.lc input,table.lc select{padding:5px 4px;height:32px}
+table.lc input[type=number]{-moz-appearance:textfield;appearance:textfield;text-align:right;min-width:52px}
+table.lc input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+table.lc .x{border:0;background:none;color:var(--mute);font-size:16px;padding:2px 6px}
+table.lc .x:disabled{opacity:.3;cursor:default}
+table.lc tr.grp td{border-top:1px solid var(--line);padding-top:6px}
+table.wid td{border-top:1px solid var(--line);padding:5px 3px}
+table.wid td.lab small{display:block;color:var(--mute)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:#fff;color:var(--ink);padding:6px 12px;font-size:13px}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--acc);color:#fff;font-weight:600}
+.modus{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:10px}
+.modus>span{font-size:12px;color:var(--mute)}
+.ungtag{display:inline-block;font-size:10.5px;font-weight:700;color:var(--ung);background:var(--ungbg);border-radius:4px;padding:0 5px;margin-left:4px;vertical-align:1px;cursor:help}
+.status{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.badge{font-size:15px;font-weight:700;padding:8px 14px;border-radius:8px;background:#eef0f2;color:var(--mute)}
+.badge.ok{background:var(--okbg);color:var(--ok)} .badge.bad{background:var(--badbg);color:var(--bad)}
+.big{font-size:30px;font-weight:700;line-height:1}
+.bars{flex:1;min-width:260px}
+.bar{display:grid;grid-template-columns:minmax(120px,240px) 1fr 54px;gap:8px;align-items:center;font-size:12px;margin:4px 0}
+.bar .t{height:10px;background:#e6e9ed;border-radius:5px;overflow:hidden}
+.bar .t i{display:block;height:100%;background:var(--ok)}
+.bar.bad .t i{background:var(--bad)}
+.bar b{text-align:right;font-variant-numeric:tabular-nums}
+.warns div{background:var(--warnbg);color:var(--warn);border-radius:6px;padding:6px 10px;margin-bottom:6px;font-size:12.5px}
+.warns div.err{background:var(--badbg);color:var(--bad);font-weight:600}
+.warns div.ung{background:var(--ungbg);color:var(--ung)}
+.warns div.hin{background:var(--acc2);color:var(--ink)}
+table.limt{width:100%;border-collapse:collapse;font-size:12.5px}
+table.limt th{text-align:left;font-size:11px;color:var(--mute);font-weight:500;padding:0 6px 4px 0}
+table.limt td{padding:5px 8px 5px 0;border-top:1px solid var(--line);vertical-align:top}
+table.limt td:nth-child(2),table.limt td:nth-child(3){white-space:nowrap}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:#9aa3ab}
+tr.ok .dot{background:var(--ok)} tr.bad .dot{background:var(--bad)} tr.bad td{color:var(--bad);font-weight:600}
+svg{max-width:100%;height:auto;display:block;margin:0 auto}
+#viz svg{max-height:440px}
+.sheetwrap{background:#8d949c;border-radius:10px;padding:18px;overflow:auto}
+.sheetbar{display:flex;justify-content:space-between;align-items:center;color:#fff;margin-bottom:10px;font-size:13px;gap:10px;flex-wrap:wrap}
+/* ---------- Ausdruck ---------- */
+#report{margin:0 auto;width:180mm}
+.rep{color:#000;font:9.5pt/1.35 Arial,Helvetica,sans-serif}
+.rep .sheet{background:#fff;width:180mm;min-height:250mm;box-shadow:0 2px 12px rgba(0,0,0,.35);display:flow-root}
+.rep h1{font-size:12.5pt;margin:0 0 1mm;border-bottom:1.2pt solid #000;padding-bottom:1mm}
+.rep h2{font-size:10.5pt;margin:4.5mm 0 1.5mm;border-bottom:.5pt solid #000;padding-bottom:.6mm;break-after:avoid}
+.rep h3{font-size:9.5pt;margin:2.5mm 0 .8mm;break-after:avoid}
+.rep p{margin:0 0 1.2mm}
+.rep table{border-collapse:collapse;width:100%;margin:1mm 0 2mm;font-size:9pt}
+.rep th,.rep td{padding:.7mm 1.5mm;text-align:left;vertical-align:top}
+.rep table.g th{border-bottom:.5pt solid #000;font-weight:bold}
+.rep table.g td{border-bottom:.25pt solid #999}
+.rep table.g tr{break-inside:avoid}
+.rep table.g td.r,.rep table.g th.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rep table.kv td:first-child{width:46mm}
+.rep .zl{display:grid;grid-template-columns:minmax(0,1fr) 38mm;gap:3mm;break-inside:avoid;margin:.5mm 0}
+.rep .zl>div:first-child{font-family:"Cambria Math",Cambria,"Times New Roman",serif;font-size:10pt;padding-left:4mm}
+.rep .zl.t>div:first-child{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;padding-left:0}
+.rep .zl .nb{font-size:7.5pt;color:#333;border-left:.4pt solid #888;padding-left:1.5mm;line-height:1.25}
+.rep .figs{break-inside:avoid;margin-bottom:2mm;text-align:center}
+.rep .figs svg{max-height:85mm}
+.rep .figs figcaption{font-size:7.5pt;text-align:center;margin-top:1mm}
+.rep .blk{break-inside:avoid}
+.rep .res{border:1pt solid #000;padding:1.5mm 2.5mm;margin:2mm 0;font-weight:bold;display:flex;justify-content:space-between;gap:6mm;break-inside:avoid}
+.rep .res.nok{border-width:1.6pt}
+.rep ul{margin:0 0 1mm;padding-left:5mm}
+.rep li{margin-bottom:.6mm}
+.rep .foot{margin-top:4mm;border-top:.5pt solid #000;padding-top:1mm;font-size:7.5pt;color:#333}
+.rep .nok{font-weight:bold}
+.rep .ungtag{color:#000;background:none;border:.4pt solid #000;font-size:7pt;padding:0 1mm}
+@page{size:A4;margin:20mm 15mm 25mm 15mm}
+@media print{
+  body{background:#fff}
+  header.app,.wrap>.left,.right>.card,.sheetbar{display:none!important}
+  .wrap{display:block;padding:0;max-width:none}
+  .sheetwrap{background:none;padding:0;border-radius:0;overflow:visible}
+  #report{width:180mm;margin:0}
+  .rep .sheet{box-shadow:none;min-height:0}
+}
+</style>
 </head>
 <body>
-<p>Werkzeug in Arbeit: Oberfläche folgt. Rechenkern siehe Quelltext (<code>script id="kern"</code>), Tests in <code>tests/anker.test.mjs</code>.</p>
+<header class="app">
+  <div><h1>Verankerung in Beton – Nachweis</h1><div class="sub">DIN EN 1992-4:2019-04 mit NA · Widerstände aus ETA bzw. Herstellersoftware · <a href="../index.html">Übersicht</a></div></div>
+  <div class="sp"></div>
+  <button class="btn ghost" id="bReset" title="Alle Eingaben auf die Beispielwerte zurücksetzen">Zurücksetzen</button>
+  <button class="btn pri" id="bPrint">Drucken / an VCmaster übergeben</button>
+</header>
+
+<div class="wrap">
+<div class="left" id="left">
+  <div class="card"><h2><span class="n">1</span>Position</h2><div class="grid" id="fPos"></div></div>
+  <div class="card"><h2><span class="n">2</span>Dübel – Kennwerte aus der ETA</h2><div id="fDub"></div></div>
+  <div class="card"><h2><span class="n">3</span>Ankerplatte und Lochbild</h2><div id="fLoch"></div></div>
+  <div class="card"><h2><span class="n">4</span>Betonbauteil und Ränder</h2><div id="fBeton"></div></div>
+  <div class="card"><h2><span class="n">5</span>Einwirkungen (Bemessungswerte)</h2><div id="fLast"></div></div>
+  <div class="card"><h2><span class="n">6</span>Querlast: mit oder ohne Hebelarm</h2><div id="fHebel"></div></div>
+  <div class="card"><h2><span class="n">7</span>Widerstände je Versagensart</h2><div id="fWid"></div></div>
+</div>
+
+<div class="right">
+  <div class="card">
+    <h2>Ergebnis</h2>
+    <div class="status">
+      <div><div class="hint">max. Ausnutzung</div><div class="big" id="etaBig">–</div></div>
+      <div class="badge" id="badge">–</div>
+      <div class="bars" id="bars"></div>
+    </div>
+    <div class="warns" id="warns" style="margin-top:10px"></div>
+  </div>
+  <div class="card"><h2>Anwendungsgrenzen und Mindestwerte</h2><div class="scroll"><table class="limt" id="limT"></table></div></div>
+  <div class="card"><h2>System (Grundriss, maßgebende Kombination)</h2><div id="viz"></div></div>
+  <div class="sheetwrap">
+    <div class="sheetbar"><span>Protokoll – Vorschau des Ausdrucks</span><button class="btn" id="bPrint2">Drucken</button></div>
+    <div id="report" class="rep"></div>
+  </div>
+</div>
+</div>
 
 <script id="kern">
 "use strict";
@@ -28,6 +188,13 @@ const PRUEFEN = {
   e1HB: "Hebelarm aus der Zwischenschicht: e₁ = H_B + t_fix/2 (Querlast in Mitte Winkelschenkel angesetzt; Bild 6.6 nicht ausgewertet).", // PRÜFEN
   kanteNah: "Kantenbruch, randnahe Anker: senkrechter Lastanteil der ganzen Gruppe auf die randnahen Anker, paralleler Anteil je Anker (Auslegung von 6.2.2.2 Anm. 2 und Bild 6.5).", // PRÜFEN
   bild12: "Anordnung randnaher Gruppen mit Lochspiel: Abdeckung durch Bild 1.2 b) nicht geprüft (Bild nicht ausgewertet).", // PRÜFEN
+};
+
+// Feste Protokolltexte
+const TEXT = {
+  starr: "Annahme starre Ankerplatte nach 6.2.1, Plattennachweis nicht enthalten.",
+  druck: "Vereinfacht: Druckpunkt im Schwerpunkt der äußersten gedrückten Anker, abweichend von 6.2.1 / Bild 6.2.",
+  jeAnker: "Ankerkräfte je Anker aus dem Verfahren des Herstellers übernommen (keine Aufteilung im Werkzeug).",
 };
 
 // Normbezüge für die Randspalte
@@ -164,7 +331,7 @@ function aufteilen(anker, lf, opt) {
     Ni = r.N; druck = { C: r.C, P: { x: r.P.x + S.x, y: r.P.y + S.y }, reihe: r.reihe.map(i => i + 1), elastisch: el.N.slice() };
     ungeprueft.push("druck"); if (r.zweiachsig) ungeprueft.push("druck2d");
   } else {
-    const ids = el.N.map((x, i) => x < -EPS ? `${i + 1} (N = ${x.toFixed(2)} kN)` : null).filter(Boolean).join(", ");
+    const ids = el.N.map((x, i) => x < -EPS ? `${i + 1} (N = ${x.toFixed(2).replace(".", ",")} kN)` : null).filter(Boolean).join(", ");
     fehler.push(`Anker ${ids} rechnerisch gedrückt. Druck unter dem Anbauteil ist noch nicht freigegeben; Fall abgelehnt.`);
     return { fehler, hinweise, ungeprueft, elastisch: el.N };
   }
@@ -220,7 +387,7 @@ function bemessungswert(key, w, fehler) {
 function quote(E, R, key, fehler) {
   if (E <= EPS) return 0;
   if (R.entfaellt) return 0;
-  if (R.fehlt) { fehler.push(`${NAME[key] || key}: Widerstand fehlt, Einwirkung ${E.toFixed(2)} kN.`); return NaN; }
+  if (R.fehlt) { fehler.push(`${NAME[key] || key}: Widerstand fehlt, Einwirkung ${E.toFixed(2).replace(".", ",")} kN.`); return NaN; }
   return E / R.Rd;
 }
 
@@ -296,10 +463,12 @@ function nachweis(e) {
   let mitLochspiel = false;
   if (hatQuer) {
     if (g.lochspiel === "tab61") {
-      const dm = dfMax(dnom);
-      if (dm == null) fehler.push(`Tab. 6.1 nennt für d = ${dnom} mm kein Lochspiel; Durchmesser prüfen oder „ohne Lochspiel“ wählen.`);
+      // d_f,max laut ETA hat Vorrang vor Tab. 6.1; abgelehnt wird nur, wenn keine der beiden Quellen einen Wert liefert
+      const eta = num(g.dfETA) && g.dfETA > 0, dm = eta ? g.dfETA : dfMax(dnom), q = eta ? "ETA" : "Tab. 6.1";
+      out.loch = { dm, quelle: q, df: g.df };
+      if (dm == null) fehler.push(`Weder ETA (d_f,max) noch Tab. 6.1 nennen für d = ${dnom} mm ein zulässiges Lochspiel; d_f,max aus der ETA eintragen oder „ohne Lochspiel“ wählen.`);
       else if (!num(g.df)) fehler.push("Durchmesser des Durchgangslochs d_f fehlt.");
-      else if (g.df > dm + 1e-9) fehler.push(`d_f = ${g.df} mm > ${dm} mm nach Tab. 6.1: Befestigungen mit größerem Lochspiel behandelt die Norm nicht (6.2.2.1).`);
+      else if (g.df > dm + 1e-9) fehler.push(`d_f = ${g.df} mm > d_f,max = ${dm} mm nach ${q}: Befestigungen mit größerem Lochspiel behandelt die Norm nicht (6.2.2.1).`);
       mitLochspiel = true;
     } else if (g.lochspiel !== "ohne") fehler.push("Angabe zum Lochspiel fehlt (ohne Lochspiel / nach Tab. 6.1).");
   }
@@ -325,6 +494,7 @@ function nachweis(e) {
   for (const k of ["Ns", "Np", "Nc", "Nsp", "Vcp"]) Rd[k] = bemessungswert(k === "Np" && g.typ === "verbund" ? "Npv" : k, W[k], fehler);
   if (!H.mit) Rd.Vs = bemessungswert("Vs", W.Vs, fehler);
   const Vc = raender.map((r, k) => bemessungswert("Vc", (W.Vc || [])[k], fehler));
+  Object.assign(out, { raender, la, Rd, Vc, dnom, hatQuer, mitLochspiel });
   if (fehler.length) return fertig();
   const NRds = Rd.Ns.fehlt ? null : Rd.Ns.Rd;
   const kNp = g.typ === "verbund" ? "Npv" : "Np";
@@ -437,10 +607,513 @@ function leseHash(h) {
   return out;
 }
 
-return { VERSION, STAND, PRUEFEN, REF, NAME, BETON, TAB61, dfMax, gammaMsN, gammaMsV, gammaMc, hebelarm, e1AusZwischenschicht,
+return { VERSION, STAND, PRUEFEN, TEXT, REF, NAME, RICHTUNG, BETON, TAB61, dfMax, gammaMsN, gammaMsV, gammaMc, hebelarm, e1AusZwischenschicht,
   loese2, schwerpunkt, zugElastisch, zugNeuverteilt, aufteilen, gruppe, bemessungswert, geoSchluessel, nachweis, leseHash };
 })();
 if (typeof globalThis !== "undefined") globalThis.ANKER = ANKER;
+</script>
+
+<script id="app">
+"use strict";
+/* ===================================================================================================== App
+   Zustand S → Kerneingabe → ANKER.nachweis → Ergebnis, Skizze, Protokoll. Texte aus Eingaben immer über esc(). */
+const $ = id => document.getElementById(id);
+const K = ANKER;
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (x, n = 2) => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { minimumFractionDigits: n, maximumFractionDigits: n });
+const fmtA = x => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+const sub = (a, b) => a + "<sub>" + b + "</sub>";
+const sup = (a, b) => a + "<sup>" + b + "</sup>";
+const zahl = v => (v === "" || v == null) ? NaN : Number(v);
+const fin = v => isFinite(zahl(v));
+const DIRS = ["+x", "-x", "+y", "-y"];
+const UNG = t => `<span class="ungtag" title="${esc(t || "Annahme noch nicht am Normtext geprüft")}">ungeprüft</span>`;
+const VORL = [["1", "Einzelanker"], ["2x", "2 Anker in x-Richtung"], ["2y", "2 Anker in y-Richtung"], ["3x", "3 Anker in x-Richtung"],
+  ["2x2", "4 Anker (2 × 2)"], ["3x2", "6 Anker (3 in x × 2 in y)"], ["3x3", "9 Anker (3 × 3)"], ["frei", "frei (Koordinaten eingeben)"]];
+const VORL_N = { "1": [1, 1], "2x": [2, 1], "2y": [1, 2], "3x": [3, 1], "2x2": [2, 2], "3x2": [3, 2], "3x3": [3, 3] };
+function vorlageAnker(v, s1, s2) {
+  const nn = VORL_N[v]; if (!nn) return null;
+  const a = []; for (let j = 0; j < nn[1]; j++) for (let i = 0; i < nn[0]; i++) a.push({ x: (i - (nn[0] - 1) / 2) * s1, y: (j - (nn[1] - 1) / 2) * s2 });
+  return a;
+}
+const wk = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Beispielwert", grund: "" });
+
+function defState() {
+  const s = {
+    pos: "", bez: "",
+    dub: { name: "Beispieldübel M12 (keine ETA-Werte)", eta: "", typ: "mechanisch", d: 12, dnom: 12, hef: 80, fuk: "", schraube: false, smin: 60, cmin: 60, hmin: 120, dfETA: "" },
+    geo: { vorlage: "2x", s1: 150, s2: 100, anker: vorlageAnker("2x", 150, 100), h: 200, beton: "C25/30", zustand: "gerissen", lochspiel: "tab61", df: 14,
+           rand: { "+x": "", "-x": "", "+y": 100, "-y": "" } },
+    modus: "starr", druck: "ablehnen", interaktion: "7.55",
+    lf: [{ name: "LK1", N: 8, Vx: 0, Vy: 5, Mx: 0, My: 0, T: 0, je: [] }],
+    hebel: { mit: false, quelle: "e1", e1: 10, HB: 0, tfix: 3, a3Null: false, alphaM: 1, M0Rks: "", gMs: 1.25 },
+    w: { Ns: wk(30, 1.5), Np: wk(20, 1.5), Nc: wk(25, 1.5), Nsp: wk(25, 1.5), Vs: wk(18, 1.25), Vcp: wk(40, 1.5), Vc: { "+y": wk(15, 1.5) } },
+    geoSchluessel: null,
+  };
+  return s;
+}
+let S = defState();
+
+// ------------------------------------------------------------------ Zustand → Kerneingabe
+function wIn(w) {
+  if (!w) return null;
+  if (w.art === "k") return { art: "k", Rk: zahl(w.Rk), gM: zahl(w.gM), quelle: w.quelle };
+  if (w.art === "d") return { art: "d", Rd: zahl(w.Rd), quelle: w.quelle };
+  if (w.art === "entfaellt") return { art: "entfaellt", grund: w.grund };
+  return null;
+}
+function raenderAus() { return DIRS.filter(r => fin(S.geo.rand[r])).map(r => ({ richtung: r, c: zahl(S.geo.rand[r]) })); }
+function syncJe() {
+  const n = S.geo.anker.length;
+  S.lf.forEach(l => { l.je = l.je || []; while (l.je.length < n) l.je.push({ N: 0, Vx: 0, Vy: 0 }); l.je.length = n; });
+}
+function e1Wert() { const H = S.hebel; return H.quelle === "hb" ? K.e1AusZwischenschicht(zahl(H.HB), zahl(H.tfix)) : zahl(H.e1); }
+function kernEingabe() {
+  const d = S.dub, g = S.geo, H = S.hebel, R = raenderAus();
+  const W = {}; for (const k of ["Ns", "Np", "Nc", "Nsp", "Vs", "Vcp"]) W[k] = wIn(S.w[k]);
+  W.Vc = R.map(r => wIn(S.w.Vc[r.richtung]));
+  return {
+    anker: g.anker.map(p => ({ x: zahl(p.x), y: zahl(p.y) })), modus: S.modus, druck: S.druck, interaktion: S.interaktion,
+    geo: { h: zahl(g.h), hef: zahl(d.hef), d: zahl(d.d), dnom: zahl(d.dnom), beton: g.beton, zustand: g.zustand, typ: d.typ,
+           fuk: zahl(d.fuk), betonschraube: !!d.schraube, raender: R, lochspiel: g.lochspiel, df: zahl(g.df), dfETA: zahl(d.dfETA) },
+    mindest: { smin: zahl(d.smin), cmin: zahl(d.cmin), hmin: zahl(d.hmin) },
+    lastfaelle: S.lf.map(l => S.modus === "jeAnker"
+      ? { name: l.name, je: l.je.map(a => ({ N: zahl(a.N) || 0, Vx: zahl(a.Vx) || 0, Vy: zahl(a.Vy) || 0 })) }
+      : { name: l.name, N: zahl(l.N) || 0, Vx: zahl(l.Vx) || 0, Vy: zahl(l.Vy) || 0, Mx: zahl(l.Mx) || 0, My: zahl(l.My) || 0, T: zahl(l.T) || 0 }),
+    widerstand: W,
+    hebel: H.mit ? { mit: true, M0Rks: zahl(H.M0Rks), alphaM: zahl(H.alphaM), gMs: zahl(H.gMs), e1: e1Wert(), e1HB: H.quelle === "hb", a3Null: !!H.a3Null } : { mit: false },
+    geoSchluessel: S.geoSchluessel,
+  };
+}
+
+// ------------------------------------------------------------------ Formularbausteine
+const getP = p => p.split(".").reduce((o, k) => o == null ? undefined : o[k], S);
+function setP(p, v) { const ks = p.split("."); let o = S; for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; o[ks[ks.length - 1]] = v; }
+const hid = p => "h_" + p.replace(/[.+\-]/g, "_");
+function fld(lab, p, o = {}) {
+  const v = getP(p), at = (o.rb ? " data-rb" : "") + (o.st ? " data-st" : "");
+  let inp;
+  if (o.sel) inp = `<select data-p="${p}"${at}>${o.sel.map(([k, t]) => `<option value="${esc(k)}"${String(v) === String(k) ? " selected" : ""}>${t}</option>`).join("")}</select>`;
+  else inp = `<input type="${o.text ? "text" : "number"}" data-p="${p}" value="${esc(v)}"${o.text ? "" : ' step="any"'}${o.ph ? ` placeholder="${esc(o.ph)}"` : ""}${o.ro ? " readonly" : ""}${at}>`;
+  return `<label class="f${o.wide ? " wide" : ""}"><span>${lab}</span>${inp}<span class="fh" id="${hid(p)}">${o.fh || ""}</span></label>`;
+}
+const chk = (lab, p, rb) => `<label class="c"><input type="checkbox" data-p="${p}"${getP(p) ? " checked" : ""}${rb ? " data-rb" : ""}> ${lab}</label>`;
+const seg = (p, opts) => `<span class="seg">${opts.map(([k, t]) => `<button type="button" data-seg="${p}" data-v="${esc(k)}" aria-pressed="${String(getP(p)) === String(k)}">${t}</button>`).join("")}</span>`;
+
+const NAMEW = () => ({
+  Ns: [K.NAME.Ns, sub("N", "Ed") + "<sup>h</sup>", sub("N", "Rk,s"), sub("γ", "Ms")],
+  Np: S.dub.typ === "verbund" ? [K.NAME.Npv, sub("N", "Ed") + "<sup>g</sup>", sub("N", "Rk,p"), sub("γ", "Mp")] : [K.NAME.Np, sub("N", "Ed") + "<sup>h</sup>", sub("N", "Rk,p"), sub("γ", "Mp")],
+  Nc: [K.NAME.Nc, sub("N", "Ed") + "<sup>g</sup>", sub("N", "Rk,c"), sub("γ", "Mc")],
+  Nsp: [K.NAME.Nsp, sub("N", "Ed") + "<sup>g</sup>", sub("N", "Rk,sp"), sub("γ", "Msp")],
+  Vs: [K.NAME.Vs, sub("V", "Ed") + "<sup>h</sup>", sub("V", "Rk,s"), sub("γ", "Ms")],
+  Vcp: [K.NAME.Vcp, sub("V", "Ed") + "<sup>g</sup>", sub("V", "Rk,cp"), sub("γ", "Mc")],
+});
+const BETONW = new Set(["Nc", "Nsp", "Vcp"]);   // geometrieabhängig (Np nur beim Verbunddübel)
+
+function widZeile(p, nm, beton) {
+  const w = getP(p), st = beton ? " data-st" : "";
+  const art = `<select data-p="${p}.art" data-rb${st}>${[["k", "charakt. + γ"], ["d", "Bemessungswert"], ["entfaellt", "entfällt"]].map(([k, t]) => `<option value="${k}"${w.art === k ? " selected" : ""}>${t}</option>`).join("")}</select>`;
+  let wert;
+  if (w.art === "k") wert = `<td><input type="number" step="any" data-p="${p}.Rk" value="${esc(w.Rk)}" title="${nm[2]} [kN]"${st}></td><td><input type="number" step="any" data-p="${p}.gM" value="${esc(w.gM)}" title="${nm[3]}"${st}></td><td><input type="text" data-p="${p}.quelle" value="${esc(w.quelle)}" placeholder="Quelle"></td>`;
+  else if (w.art === "d") wert = `<td><input type="number" step="any" data-p="${p}.Rd" value="${esc(w.Rd)}" title="Bemessungswert [kN]"${st}></td><td></td><td><input type="text" data-p="${p}.quelle" value="${esc(w.quelle)}" placeholder="Quelle"></td>`;
+  else wert = `<td colspan="3"><input type="text" data-p="${p}.grund" value="${esc(w.grund)}" placeholder="Begründung (Pflicht)"></td>`;
+  return `<tr><td class="lab">${nm[0]}<small>${nm[1]}</small></td><td>${art}</td>${wert}</tr>`;
+}
+
+// ------------------------------------------------------------------ Formulare aufbauen
+function baue() {
+  syncJe();
+  const d = S.dub, g = S.geo, H = S.hebel;
+  $("fPos").innerHTML = fld("Position (Dateiname, Kopf des Ausdrucks)", "pos", { text: true }) + fld("Bezeichnung / Bauteil", "bez", { text: true, wide: true });
+  $("fDub").innerHTML = `<div class="grid">
+    ${fld("Produkt / Größe", "dub.name", { text: true, wide: true })}
+    ${fld("ETA (Nummer, Stand)", "dub.eta", { text: true, ph: "z. B. ETA-xx/xxxx vom …" })}
+    ${fld("Dübelart", "dub.typ", { sel: [["mechanisch", "mechanisch (Spreiz-, Hinterschnitt-, Schraubanker)"], ["verbund", "Verbunddübel"]], rb: true, st: true })}
+    ${fld(sub("d", "") + " Schaft/Gewinde [mm]", "dub.d")}
+    ${fld(sub("d", "nom") + " Außendurchmesser [mm]", "dub.dnom", { fh: "für Tab. 6.1, a₃, 60·d<sub>nom</sub>" })}
+    ${fld(sub("h", "ef") + " Verankerungstiefe [mm]", "dub.hef", { st: true })}
+    ${fld(sub("f", "uk") + " [N/mm²] (optional)", "dub.fuk", { fh: "Prüfung f<sub>uk</sub> ≤ 1000, 1.3 (3)" })}
+    ${chk("Betonschraube (Grenze f<sub>uk</sub> ≤ 1000 N/mm² gilt nicht)", "dub.schraube")}
+  </div><h3>Mindestwerte und Lochspiel laut ETA</h3><div class="grid">
+    ${fld(sub("s", "min") + " [mm]", "dub.smin")}${fld(sub("c", "min") + " [mm]", "dub.cmin")}
+    ${fld(sub("h", "min") + " [mm]", "dub.hmin")}${fld(sub("d", "f,max") + " laut ETA [mm] (optional)", "dub.dfETA", { fh: "hat Vorrang vor Tab. 6.1" })}
+  </div><div class="hint" style="margin-top:6px">Gekoppelte Mindestwerte (s<sub>min</sub> bei c ≥ …, Diagramme der ETA) bildet das Werkzeug nicht ab: zur Geometrie passendes Wertepaar eintragen.</div>`;
+
+  const frei = g.vorlage === "frei";
+  const rows = g.anker.map((p, i) => `<tr><td class="lab">Anker ${i + 1}</td><td><input type="number" step="any" data-p="geo.anker.${i}.x" value="${esc(p.x)}"${frei ? "" : " readonly"} data-st></td><td><input type="number" step="any" data-p="geo.anker.${i}.y" value="${esc(p.y)}"${frei ? "" : " readonly"} data-st></td><td>${frei ? `<button class="x" data-del-anker="${i}" ${g.anker.length < 2 ? "disabled" : ""} title="Anker entfernen">×</button>` : ""}</td></tr>`).join("");
+  const nn = VORL_N[g.vorlage];
+  $("fLoch").innerHTML = `<div class="grid">
+    ${fld("Lochbild", "geo.vorlage", { sel: VORL, rb: true, st: true, wide: true })}
+    ${!frei && nn && nn[0] > 1 ? fld(sub("s", "1") + " Achsabstand in x [mm]", "geo.s1", { rb: true, st: true }) : ""}
+    ${!frei && nn && nn[1] > 1 ? fld(sub("s", "2") + " Achsabstand in y [mm]", "geo.s2", { rb: true, st: true }) : ""}
+  </div>
+  <div class="scroll" style="margin-top:6px"><table class="lc"><tr><th></th><th>x [mm]</th><th>y [mm]</th><th></th></tr>${rows}</table></div>
+  ${frei ? `<button class="btn sm" id="bAnker" style="margin-top:6px" ${g.anker.length >= 12 ? "disabled" : ""}>+ Anker</button>` : `<div class="hint">Koordinaten aus der Vorlage; für eigene Lage „frei“ wählen.</div>`}
+  <h3>Lochspiel im Anbauteil</h3><div class="grid">
+    ${fld("Lochspiel", "geo.lochspiel", { sel: [["tab61", "mit Lochspiel (Durchgangsloch d<sub>f</sub>)"], ["ohne", "ohne Lochspiel (verschweißt, verfüllt, Tab. 6.1 Anm. 1)"]], rb: true, wide: true })}
+    ${g.lochspiel === "tab61" ? fld(sub("d", "f") + " Durchgangsloch [mm]", "geo.df") : ""}
+  </div>`;
+
+  $("fBeton").innerHTML = `<div class="grid">
+    ${fld("Betonfestigkeitsklasse", "geo.beton", { sel: Object.keys(K.BETON).map(k => [k, k]), st: true })}
+    ${fld("Zustand", "geo.zustand", { sel: [["gerissen", "gerissener Beton"], ["ungerissen", "ungerissener Beton"]], st: true })}
+    ${fld("Bauteildicke h [mm]", "geo.h", { st: true })}
+  </div><h3>Ränder: Abstand c vom nächstgelegenen Anker (leer = kein Rand)</h3><div class="grid">
+    ${DIRS.map(r => fld(`Rand in ${r}-Richtung, c [mm]`, "geo.rand." + r, { rb: true, st: true })).join("")}
+  </div><div class="hint">Koordinatensystem wie in der Skizze: x nach rechts, y nach oben. c<sub>1</sub> ist der Randabstand in Richtung der Querlast, c<sub>2</sub> der Abstand quer dazu.</div>`;
+
+  const starr = S.modus === "starr", n = g.anker.length;
+  let t;
+  if (starr) {
+    t = `<tr><th>Kombination</th><th>N<sub>Ed</sub><br>[kN]</th><th>V<sub>Ed,x</sub><br>[kN]</th><th>V<sub>Ed,y</sub><br>[kN]</th><th>M<sub>Ed,x</sub><br>[kNm]</th><th>M<sub>Ed,y</sub><br>[kNm]</th><th>T<sub>Ed</sub><br>[kNm]</th><th></th></tr>` +
+      S.lf.map((l, i) => `<tr><td><input type="text" data-p="lf.${i}.name" value="${esc(l.name)}"></td>${["N", "Vx", "Vy", "Mx", "My", "T"].map(k => `<td><input type="number" step="any" data-p="lf.${i}.${k}" value="${esc(l[k])}"></td>`).join("")}<td><button class="x" data-del-lf="${i}" ${S.lf.length < 2 ? "disabled" : ""} title="Kombination entfernen">×</button></td></tr>`).join("");
+  } else {
+    t = `<tr><th>Kombination</th><th>Anker</th><th>N<sub>Ed,i</sub> [kN]</th><th>V<sub>Ed,x,i</sub> [kN]</th><th>V<sub>Ed,y,i</sub> [kN]</th><th></th></tr>` +
+      S.lf.map((l, i) => l.je.map((a, j) => `<tr${j === 0 ? ' class="grp"' : ""}><td>${j === 0 ? `<input type="text" data-p="lf.${i}.name" value="${esc(l.name)}">` : ""}</td><td class="lab">${j + 1}</td>${["N", "Vx", "Vy"].map(k => `<td><input type="number" step="any" data-p="lf.${i}.je.${j}.${k}" value="${esc(a[k])}"></td>`).join("")}<td>${j === 0 ? `<button class="x" data-del-lf="${i}" ${S.lf.length < 2 ? "disabled" : ""} title="Kombination entfernen">×</button>` : ""}</td></tr>`).join("")).join("");
+  }
+  $("fLast").innerHTML = `<div class="modus"><span>Eingabe</span>${seg("modus", [["starr", "Schnittgrößen am Gruppenschwerpunkt"], ["jeAnker", "Kräfte je Anker"]])}</div>
+    ${starr ? `<div class="grid">${fld("Rechnerisch gedrückte Anker", "druck", { sel: [["ablehnen", "ablehnen (Vorgabe)"], ["neuverteilen", "vereinfacht neu verteilen (Druckpunkt äußerste gedrückte Anker)"]], wide: true })}</div>${S.druck === "neuverteilen" ? `<div class="info">${esc(K.TEXT.druck)} ${UNG(K.PRUEFEN.druck)}</div>` : ""}` : `<div class="info">${esc(K.TEXT.jeAnker)} Zug positiv; Druck je Anker ist nicht vorgesehen.</div>`}
+    <div class="scroll" style="margin-top:8px"><table class="lc">${t}</table></div>
+    <button class="btn" id="bLf" style="margin-top:8px">+ Kombination</button>
+    <div class="hint" style="margin-top:6px">${starr ? "Bezugspunkt: Schwerpunkt der Ankergruppe. M<sub>Ed,y</sub> > 0 erzeugt Zug auf der +x-Seite, M<sub>Ed,x</sub> > 0 auf der +y-Seite, T<sub>Ed</sub> gegen den Uhrzeigersinn positiv. Abstützkräfte (6.1 (4)) sind in den Einwirkungen zu erfassen." : `Kräfte je Anker in der Reihenfolge des Lochbilds (${n} Anker).`}</div>`;
+
+  $("fHebel").innerHTML = `<div class="modus">${seg("hebel.mit", [["false", "ohne Hebelarm"], ["true", "mit Hebelarm"]])}</div>` + (H.mit ? `<div class="grid">
+    ${fld(sub("e", "1") + " ermitteln aus", "hebel.quelle", { sel: [["e1", "Eingabe e<sub>1</sub>"], ["hb", "Zwischenschicht H<sub>B</sub> + t<sub>fix</sub>/2"]], rb: true, wide: true })}
+    ${H.quelle === "hb" ? fld(sub("H", "B") + " Zwischenschicht [mm]", "hebel.HB") + fld(sub("t", "fix") + " Anbauteil [mm]", "hebel.tfix") : fld(sub("e", "1") + " Abstand Querlast – Betonoberfläche [mm]", "hebel.e1")}
+    ${fld(sub("α", "M") + " Einspannung", "hebel.alphaM", { sel: [["1", "1,0 – frei verdrehbar (Vorgabe)"], ["2", "2,0 – volle Einspannung"]] })}
+    ${fld(sup(sub("M", "Rk,s"), "0") + " [Nm] laut ETA", "hebel.M0Rks")}
+    ${fld(sub("γ", "Ms") + " Querlast", "hebel.gMs")}
+    ${chk("a<sub>3</sub> = 0 (Scheibe und Mutter direkt gegen Beton gespannt bzw. Mörtel ≤ d/2)", "hebel.a3Null")}
+  </div>${H.quelle === "hb" ? `<div class="info">e<sub>1</sub> = H<sub>B</sub> + t<sub>fix</sub>/2 ${UNG(K.PRUEFEN.e1HB)}</div>` : ""}<div class="hint">l<sub>a</sub> = a<sub>3</sub> + e<sub>1</sub>, a<sub>3</sub> = 0,5·d<sub>nom</sub> (6.2.2.3 (3)). Bei Hebelarm entfällt die Stahl-Interaktion (Tab. 7.3, Fußnote a).</div>`
+    : `<div class="hint">Ohne Hebelarm nur, wenn alle Bedingungen von 6.2.2.3 (1) erfüllt sind: Anbauteil aus Metall, Kontakt zum Dübel über ≥ 0,5·t<sub>fix</sub>, direkt auf dem Beton oder auf Ausgleichsmörtel t<sub>grout</sub> ≤ 0,5·d. Sonst „mit Hebelarm“ wählen.</div>`);
+
+  const R = raenderAus(), NW = NAMEW();
+  R.forEach(r => { if (!S.w.Vc[r.richtung]) S.w.Vc[r.richtung] = { art: "k", Rk: "", gM: 1.5, Rd: "", quelle: "", grund: "" }; });
+  const zeilen = ["Ns", "Np", "Nc", "Nsp"].map(k => widZeile("w." + k, NW[k], BETONW.has(k) || (k === "Np" && d.typ === "verbund"))).join("")
+    + (H.mit ? `<tr><td class="lab">${K.NAME.VsM}<small>V<sub>Ed</sub><sup>h</sup></small></td><td colspan="4" class="hint">aus M<sup>0</sup><sub>Rk,s</sub>, α<sub>M</sub>, l<sub>a</sub> (Karte 6), Gl. (7.37)/(7.38)</td></tr>` : widZeile("w.Vs", NW.Vs, false))
+    + widZeile("w.Vcp", NW.Vcp, true)
+    + R.map(r => widZeile("w.Vc." + r.richtung, [`${K.NAME.Vc}, Rand ${r.richtung}`, `V<sub>Ed</sub> der wirksamen Anker, c = ${fmtA(r.c)} mm`, sub("V", "Rk,c"), sub("γ", "Mc")], true)).join("");
+  $("fWid").innerHTML = `<div class="info bsp">Die Widerstände für Betonausbruch, Spalten, lastabgewandte Seite und Kantenbruch gehören zur eingegebenen Geometrie (Rand- und Achsabstände, h, h<sub>ef</sub>, Beton) und zur Lastrichtung bzw. Exzentrizität. Bei Änderungen neu ermitteln.</div>
+    <div class="scroll" style="margin-top:8px"><table class="lc wid"><tr><th>Versagensart</th><th>Eingabe</th><th>R<sub>k</sub> bzw. R<sub>d</sub> [kN]</th><th>γ<sub>M</sub></th><th>Quelle / Begründung</th></tr>${zeilen}</table></div>
+    <div id="geoStempel"></div>
+    <h3>Interaktion Beton (Tab. 7.3, Zeile 2)</h3><div class="grid">${fld("Gleichung", "interaktion", { sel: [["7.55", "(7.55): β<sub>N</sub><sup>1,5</sup> + β<sub>V</sub><sup>1,5</sup> ≤ 1"], ["7.56", "(7.56): (β<sub>N</sub> + β<sub>V</sub>)/1,2 ≤ 1"]], wide: true })}</div>
+    <div class="hint">Teilsicherheitsbeiwerte nach ETA bzw. Tab. 4.1: γ<sub>Mc</sub> = 1,5·γ<sub>inst</sub>, γ<sub>Msp</sub> = γ<sub>Mp</sub> = γ<sub>Mc</sub>; γ<sub>Ms</sub> aus f<sub>uk</sub>/f<sub>yk</sub>. Der NA übernimmt die Empfehlungen (NDP zu 4.4.2.2 (2)).</div>`;
+  if (S.geoSchluessel == null) S.geoSchluessel = K.geoSchluessel(kernEingabe());
+  rechne();
+}
+
+// ------------------------------------------------------------------ Ereignisse
+function leseWert(el) {
+  if (el.type === "checkbox") return el.checked;
+  if (el.type === "number") return el.value === "" ? "" : Number(el.value);
+  return el.value;
+}
+function nachEingabe(el) {
+  const p = el.dataset.p;
+  setP(p, leseWert(el));
+  if (p === "geo.vorlage" || p === "geo.s1" || p === "geo.s2") {
+    if (S.geo.vorlage !== "frei") { const a = vorlageAnker(S.geo.vorlage, zahl(S.geo.s1) || 0, zahl(S.geo.s2) || 0); if (a) S.geo.anker = a; }
+  }
+  // Betonwiderstand eingegeben → Werte gelten ab jetzt für diese Geometrie
+  if (/^w\.(Nc|Nsp|Vcp|Vc\.)/.test(p) || (p.startsWith("w.Np") && S.dub.typ === "verbund")) S.geoSchluessel = K.geoSchluessel(kernEingabe());
+  if (el.hasAttribute("data-rb")) baue(); else rechne();
+}
+const L0 = $("left");
+L0.addEventListener("input", ev => { const el = ev.target; if (!el.dataset.p || el.tagName === "SELECT" || el.type === "checkbox") return; nachEingabe(el); });
+L0.addEventListener("change", ev => { const el = ev.target; if (!el.dataset.p || !(el.tagName === "SELECT" || el.type === "checkbox")) return; nachEingabe(el); });
+L0.addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.seg) { const p = b.dataset.seg, v = b.dataset.v; setP(p, v === "true" ? true : v === "false" ? false : v); baue(); return; }
+  if (b.id === "bLf") { const n = S.lf.length + 1; S.lf.push({ name: "LK" + n, N: 0, Vx: 0, Vy: 0, Mx: 0, My: 0, T: 0, je: [] }); baue(); return; }
+  if (b.dataset.delLf != null) { S.lf.splice(+b.dataset.delLf, 1); baue(); return; }
+  if (b.id === "bAnker") { const a = S.geo.anker, l = a[a.length - 1] || { x: 0, y: 0 }; a.push({ x: zahl(l.x) + 100, y: zahl(l.y) }); baue(); return; }
+  if (b.dataset.delAnker != null) { S.geo.anker.splice(+b.dataset.delAnker, 1); baue(); return; }
+  if (b.id === "bStempel") { S.geoSchluessel = K.geoSchluessel(kernEingabe()); rechne(); return; }
+});
+$("bReset").addEventListener("click", () => { if (confirm("Alle Eingaben auf die Beispielwerte zurücksetzen?")) { S = defState(); baue(); } });
+$("bPrint").addEventListener("click", () => window.print());
+$("bPrint2").addEventListener("click", () => window.print());
+
+// ------------------------------------------------------------------ Auswertung
+let LAST = null;
+function massgebend(R) { const lf = R.lf.filter(l => isFinite(l.eta)); return lf.length ? lf.reduce((m, l) => l.eta > m.eta ? l : m, lf[0]) : (R.lf.find(l => l.N) || null); }
+const etaTxt = x => x === Infinity ? "∞" : fmt(x, 3);
+const BAR = () => [["Ns", K.NAME.Ns], ["Np", S.dub.typ === "verbund" ? K.NAME.Npv : K.NAME.Np], ["Nc", K.NAME.Nc], ["Nsp", K.NAME.Nsp],
+  ["Vs", S.hebel.mit ? K.NAME.VsM : K.NAME.Vs], ["Vcp", K.NAME.Vcp], ["Vc", K.NAME.Vc]];
+const MNAME = { Ns: K.NAME.Ns, Np: K.NAME.Np, Npv: K.NAME.Npv, Nc: K.NAME.Nc, Nsp: K.NAME.Nsp, Vs: K.NAME.Vs, VsM: K.NAME.VsM, Vcp: K.NAME.Vcp, Vc: K.NAME.Vc, intS: "Interaktion Stahl", intC: "Interaktion Beton" };
+
+function rechne() {
+  const E = kernEingabe(), R = K.nachweis(E);
+  LAST = { E, R };
+  const ok = R.etaMax != null;
+  $("etaBig").textContent = ok ? etaTxt(R.etaMax) : "–";
+  const bd = $("badge");
+  bd.className = "badge" + (ok ? (R.ok ? " ok" : " bad") : " bad");
+  bd.textContent = ok ? (R.ok ? "Nachweis erfüllt" : "Nachweis nicht erfüllt") : "nicht nachweisbar";
+  // Balken: Höchstwert je Versagensart über alle Kombinationen
+  let b = "";
+  if (ok) {
+    const mx = k => Math.max(0, ...R.lf.map(l => l.beta ? l.beta[k] : 0));
+    const zeilen = BAR().map(([k, t]) => [t, mx(k)]);
+    zeilen.push(["Interaktion Beton (" + S.interaktion + ")", Math.max(0, ...R.lf.map(l => l.int ? l.int.c : 0))]);
+    if (!S.hebel.mit) zeilen.push(["Interaktion Stahl (7.54)", Math.max(0, ...R.lf.map(l => l.int ? l.int.s : 0))]);
+    b = zeilen.map(([t, v]) => `<div class="bar${v > 1 + 1e-9 ? " bad" : ""}"><span>${t}</span><span class="t"><i style="width:${Math.min(v, 1) * 100}%"></i></span><b>${etaTxt(v)}</b></div>`).join("");
+  }
+  $("bars").innerHTML = b;
+  const hin = [...new Set([...R.hinweise, ...R.lf.flatMap(l => l.hinweise || [])])];
+  $("warns").innerHTML = R.fehler.map(t => `<div class="err">${esc(t)}</div>`).join("") + R.warn.map(t => `<div>${esc(t)}</div>`).join("")
+    + hin.map(t => `<div class="hin">${esc(t)}</div>`).join("") + R.ungeprueft.map(u => `<div class="ung"><b>ungeprüft:</b> ${esc(u.text)}</div>`).join("");
+  $("limT").innerHTML = `<tr><th>Bedingung</th><th>vorhanden</th><th>Grenze</th><th>Status</th></tr>` + grenzen(E, R).map(g => `<tr class="${g.ok === true ? "ok" : g.ok === false ? "bad" : ""}"><td>${g.t}</td><td>${g.v}</td><td>${g.g}</td><td><span class="dot"></span>${g.ok === true ? "erfüllt" : g.ok === false ? "nicht erfüllt" : (g.s || "Hinweis")}</td></tr>`).join("");
+  const st = $("geoStempel");
+  if (st) st.innerHTML = R.geoAbweichung ? `<div class="warns" style="margin-top:8px"><div class="err">Die Betonwiderstände wurden für eine andere Geometrie eingegeben. Werte neu ermitteln und eintragen oder bestätigen: <button class="btn sm" id="bStempel">Werte gelten für die aktuelle Geometrie</button></div></div>` : "";
+  const L = massgebend(R);
+  $("viz").innerHTML = skizze(E, R, L);
+  $("report").innerHTML = `<div class="sheet">${report(E, R, L)}</div>`;
+}
+
+// Anwendungsgrenzen: Mindestwerte aus dem Kern und Geltungsbereich der Norm
+function grenzen(E, R) {
+  const g = E.geo, out = [];
+  out.push({ t: "Durchmesser d ≥ 6 mm (M6)", v: fmtA(g.d) + " mm", g: "≥ 6 mm", ok: g.d >= 6, ref: "1.3 (1)" });
+  out.push({ t: sub("h", "ef") + " ≥ 40 mm", v: fmtA(g.hef) + " mm", g: "≥ 40 mm", ok: g.hef >= 40, ref: "1.3 (2)" });
+  if (g.typ === "verbund") out.push({ t: "Verbunddübel " + sub("h", "ef") + " ≤ 20·d", v: fmtA(g.hef) + " mm", g: "≤ " + fmtA(20 * g.d) + " mm", ok: g.hef <= 20 * g.d, ref: "1.3 (2)" });
+  if (isFinite(g.fuk) && !g.betonschraube) out.push({ t: sub("f", "uk") + " ≤ 1000 N/mm²", v: fmtA(g.fuk), g: "≤ 1000", ok: g.fuk <= 1000, ref: "1.3 (3)" });
+  (R.mindest || []).forEach(m => out.push({ t: m.t.replace("h_min", sub("h", "min")).replace("c_min", sub("c", "min")).replace("s_min", sub("s", "min")), v: fmtA(m.ist) + " mm", g: "≥ " + fmtA(m.min) + " mm", ok: m.ok, ref: "ETA" }));
+  if (R.loch) out.push({ t: "Durchgangsloch " + sub("d", "f") + " ≤ " + sub("d", "f,max") + " (" + R.loch.quelle + ")", v: fmtA(R.loch.df) + " mm", g: R.loch.dm == null ? "kein Wert" : "≤ " + fmtA(R.loch.dm) + " mm", ok: R.loch.dm != null && R.loch.df <= R.loch.dm + 1e-9, ref: R.loch.quelle === "ETA" ? "ETA; 6.2.2.1" : "6.2.2.1, Tab. 6.1" });
+  (R.raender || []).forEach(r => out.push({ t: `Rand ${r.richtung}: c ≥ max{10·h<sub>ef</sub>; 60·d<sub>nom</sub>}`, v: fmtA(r.c) + " mm", g: fmtA(r.cgr) + " mm", ok: null,
+    s: r.gross ? "großer Randabstand: alle Anker wirksam" : (R.mitLochspiel ? "kleiner Randabstand: randnahe Anker" : "kleiner Randabstand, ohne Lochspiel: alle Anker"), ref: "6.2.2.2" }));
+  if (E.hebel.mit) {
+    (R.raender || []).forEach(r => { const gr = Math.max(10 * g.hef, 60 * g.d); out.push({ t: `Kantenbruch mit Hebelarm: c > max{10·h<sub>ef</sub>; 60·d} (Rand ${r.richtung})`, v: fmtA(r.c) + " mm", g: "> " + fmtA(gr) + " mm", ok: r.c > gr, ref: "7.2.2.5 (1)" }); });
+    if (R.la) out.push({ t: "Hebelarm " + sub("l", "a") + " = " + sub("a", "3") + " + " + sub("e", "1"), v: fmtA(R.la.la) + " mm", g: "", ok: null, s: "Gl. (6.2)", ref: "6.2.2.3 (3)" });
+  }
+  if (R.smin != null && (R.raender || []).some(r => !r.gross) && R.hatQuer) out.push({ t: "Kantenbruch Gruppe: s ≥ 4·" + sub("d", "nom"), v: fmtA(R.smin) + " mm", g: "≥ " + fmtA(4 * R.dnom) + " mm", ok: R.smin >= 4 * R.dnom - 1e-9, ref: "7.2.2.5 (4)" });
+  return out;
+}
+
+// ------------------------------------------------------------------ Skizze (Grundriss)
+function skizze(E, R, L) {
+  const A = E.anker.filter(p => isFinite(p.x) && isFinite(p.y));
+  if (!A.length) return "";
+  const W = 460, Hh = 330, pad = 34;
+  const xs = A.map(p => p.x), ys = A.map(p => p.y);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const span = Math.max(x1 - x0, y1 - y0, 100), rand = 0.15 * span + 25;
+  const pl = { x0: x0 - rand, x1: x1 + rand, y0: y0 - rand, y1: y1 + rand };
+  const dmax = 2.2 * span + 120;   // ferne Ränder verkürzt zeichnen
+  const kanten = (E.geo.raender || []).map(r => {
+    const dz = Math.min(r.c, dmax), kurz = r.c > dmax;
+    const pos = r.richtung === "+x" ? x1 + dz : r.richtung === "-x" ? x0 - dz : r.richtung === "+y" ? y1 + dz : y0 - dz;
+    return { ...r, pos, kurz };
+  });
+  let vx0 = pl.x0, vx1 = pl.x1, vy0 = pl.y0, vy1 = pl.y1;
+  kanten.forEach(k => { if (k.richtung === "+x") vx1 = Math.max(vx1, k.pos + 20); if (k.richtung === "-x") vx0 = Math.min(vx0, k.pos - 20); if (k.richtung === "+y") vy1 = Math.max(vy1, k.pos + 20); if (k.richtung === "-y") vy0 = Math.min(vy0, k.pos - 20); });
+  const sc = Math.min((W - 2 * pad) / (vx1 - vx0), (Hh - 2 * pad) / (vy1 - vy0));
+  const ox = (W - sc * (vx1 - vx0)) / 2, oy = (Hh - sc * (vy1 - vy0)) / 2;
+  const X = x => ox + (x - vx0) * sc, Y = y => Hh - oy - (y - vy0) * sc;
+  let s = `<svg viewBox="0 0 ${W} ${Hh}" width="${W}" height="${Hh}" xmlns="http://www.w3.org/2000/svg" font-family="Arial,Helvetica,sans-serif" font-size="11">`;
+  // Beton: begrenzt durch die Ränder
+  const bx0 = kanten.find(k => k.richtung === "-x"), bx1 = kanten.find(k => k.richtung === "+x"), by0 = kanten.find(k => k.richtung === "-y"), by1 = kanten.find(k => k.richtung === "+y");
+  const cx0 = bx0 ? X(bx0.pos) : 0, cx1 = bx1 ? X(bx1.pos) : W, cy0 = by1 ? Y(by1.pos) : 0, cy1 = by0 ? Y(by0.pos) : Hh;
+  s += `<rect x="${cx0}" y="${cy0}" width="${cx1 - cx0}" height="${cy1 - cy0}" fill="#e9ecef"/>`;
+  kanten.forEach(k => {
+    const vert = k.richtung.endsWith("x"), p = vert ? X(k.pos) : Y(k.pos), sgn = (k.richtung[0] === "+") ? 1 : -1;
+    if (vert) { s += `<line x1="${p}" y1="${cy0}" x2="${p}" y2="${cy1}" stroke="#1b2430" stroke-width="2"/>`; for (let yy = cy0 + 4; yy < cy1; yy += 9) s += `<line x1="${p}" y1="${yy}" x2="${p + sgn * 7}" y2="${yy - 6}" stroke="#1b2430" stroke-width=".8"/>`; }
+    else { const sy = -sgn; s += `<line x1="${cx0}" y1="${p}" x2="${cx1}" y2="${p}" stroke="#1b2430" stroke-width="2"/>`; for (let xx = cx0 + 4; xx < cx1; xx += 9) s += `<line x1="${xx}" y1="${p}" x2="${xx + 6}" y2="${p + sy * 7}" stroke="#1b2430" stroke-width=".8"/>`; }
+    // Bemaßung c vom nächstgelegenen Anker
+    const nv = K.RICHTUNG[k.richtung], proj = A.map(q => q.x * nv[0] + q.y * nv[1]), i = proj.indexOf(Math.max(...proj)), q = A[i];
+    const ax = X(q.x), ay = Y(q.y), ex = vert ? p : ax, ey = vert ? ay : p;
+    s += `<line x1="${ax}" y1="${ay}" x2="${ex}" y2="${ey}" stroke="#0b5a7a" stroke-dasharray="3 2"/>`;
+    s += `<text x="${(ax + ex) / 2 + (vert ? 0 : 6)}" y="${(ay + ey) / 2 + (vert ? -5 : 4)}" fill="#0b5a7a" text-anchor="${vert ? "middle" : "start"}">c = ${fmtA(k.c)}${k.kurz ? " (verkürzt)" : ""}</text>`;
+  });
+  s += `<rect x="${X(pl.x0)}" y="${Y(pl.y1)}" width="${(pl.x1 - pl.x0) * sc}" height="${(pl.y1 - pl.y0) * sc}" fill="#dbe9f0" stroke="#0b5a7a" stroke-width="1.3"/>`;
+  // Anker mit Kräften der maßgebenden Kombination
+  const N = L && L.N, V = L && L.V;
+  const iN = N ? N.indexOf(Math.max(...N)) : -1, iV = V ? V.map(v => Math.hypot(v[0], v[1])).reduce((m, v, i, a) => v > a[m] ? i : m, 0) : -1;
+  A.forEach((p, i) => {
+    const x = X(p.x), y = Y(p.y), hoch = i === iN && N[i] > 1e-9;
+    s += `<circle cx="${x}" cy="${y}" r="7" fill="#fff" stroke="${hoch ? "#b3261e" : "#1b2430"}" stroke-width="${hoch ? 2.4 : 1.4}"/><text x="${x}" y="${y + 3.8}" text-anchor="middle" font-size="10" font-weight="bold">${i + 1}</text>`;
+    if (N) s += `<text x="${x}" y="${y + 20}" text-anchor="middle" font-size="10" fill="${hoch ? "#b3261e" : "#1b2430"}">N = ${fmt(N[i], 1)}</text>`;
+    if (V) { const vv = V[i], m = Math.hypot(vv[0], vv[1]); if (m > 1e-9) { const vmax = Math.max(...V.map(v => Math.hypot(v[0], v[1]))), l = 14 + 22 * m / vmax, ux = vv[0] / m, uy = -vv[1] / m, ex = x + ux * (8 + l), ey = y + uy * (8 + l);
+      s += `<line x1="${x + ux * 8}" y1="${y + uy * 8}" x2="${ex}" y2="${ey}" stroke="${i === iV ? "#b3261e" : "#5d6875"}" stroke-width="1.6"/><polygon points="${ex},${ey} ${ex - ux * 7 - uy * 3.5},${ey - uy * 7 + ux * 3.5} ${ex - ux * 7 + uy * 3.5},${ey - uy * 7 - ux * 3.5}" fill="${i === iV ? "#b3261e" : "#5d6875"}"/>`; } }
+  });
+  if (L && L.druck) { const P = L.druck.P; s += `<path d="M${X(P.x) - 6},${Y(P.y) - 6} l12,12 m0,-12 l-12,12" stroke="#8a5a00" stroke-width="2"/><text x="${X(P.x) - 9}" y="${Y(P.y) - 9}" text-anchor="end" fill="#8a5a00" font-size="10">C = ${fmt(L.druck.C, 1)}</text>`; }
+  // Achsen
+  s += `<g transform="translate(14,${Hh - 14})" stroke="#1b2430" fill="#1b2430"><line x1="0" y1="0" x2="26" y2="0"/><polygon points="26,0 20,-3 20,3"/><line x1="0" y1="0" x2="0" y2="-26"/><polygon points="0,-26 -3,-20 3,-20"/><text x="30" y="4" stroke="none">x</text><text x="-3" y="-30" stroke="none">y</text></g>`;
+  s += `<text x="${W - 6}" y="${Hh - 6}" text-anchor="end" font-size="10" fill="#5d6875">${L ? "Kombination " + esc(L.name) + " · N, V in kN · Maße in mm" : "Maße in mm"}</text>`;
+  return s + "</svg>";
+}
+
+// ------------------------------------------------------------------ Protokoll
+const zl = (inhalt, nb, text) => `<div class="zl${text ? " t" : ""}"><div>${inhalt}</div><div class="nb">${nb || ""}</div></div>`;
+const kurzRef = r => String(r || "").replace(/^DIN EN 1992-4, /, "");
+function sumsRel(A) {
+  const S0 = K.schwerpunkt(A); let sxx = 0, syy = 0, sxy = 0;
+  A.forEach(p => { const x = p.x - S0.x, y = p.y - S0.y; sxx += x * x; syy += y * y; sxy += x * y; });
+  return { S0, sxx, syy, sxy, sr2: sxx + syy };
+}
+function report(E, R, L) {
+  const d = S.dub, g = E.geo, A = E.anker, n = A.length, H = E.hebel;
+  let k = 0; const H2 = t => `<h2>${++k} ${t}</h2>`;
+  let h = `<h1>${S.pos ? "Pos. " + esc(S.pos) + " – " : ""}${S.bez ? esc(S.bez) + ": " : ""}Verankerung in Beton nach DIN EN 1992-4</h1>`;
+  h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(d.name)}${d.eta ? " (" + esc(d.eta) + ")" : ""}. Widerstände je Versagensart aus ETA bzw. Herstellersoftware; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
+  // 1 System
+  h += H2("System und Annahmen") + `<figure class="figs">${skizze(E, R, L)}<figcaption>Grundriss der Ankergruppe mit Rändern; Kräfte der maßgebenden Kombination</figcaption></figure>`;
+  const rd = g.raender.length ? g.raender.map(r => `${r.richtung}: c = ${fmtA(r.c)} mm`).join("; ") : "keine Ränder (große Randabstände)";
+  h += `<table class="kv">
+    <tr><td>Dübel</td><td>${esc(d.name)}${d.eta ? ", " + esc(d.eta) : ""}; ${d.typ === "verbund" ? "Verbunddübel" : "mechanischer Dübel"}</td></tr>
+    <tr><td>Abmessungen</td><td>d = ${fmtA(g.d)} mm, d<sub>nom</sub> = ${fmtA(g.dnom || g.d)} mm, h<sub>ef</sub> = ${fmtA(g.hef)} mm${isFinite(g.fuk) ? ", f<sub>uk</sub> = " + fmtA(g.fuk) + " N/mm²" : ""}</td></tr>
+    <tr><td>Lochbild</td><td>${A.map((p, i) => `${i + 1}: (${fmtA(p.x)}; ${fmtA(p.y)})`).join(" · ")} mm</td></tr>
+    <tr><td>Lochspiel</td><td>${g.lochspiel === "ohne" ? "ohne Lochspiel (Tab. 6.1, Anm. 1)" : "Durchgangsloch d<sub>f</sub> = " + fmtA(g.df) + " mm"}</td></tr>
+    <tr><td>Betonbauteil</td><td>${esc(g.beton)}, ${g.zustand === "gerissen" ? "gerissen" : "ungerissen"}, h = ${fmtA(g.h)} mm</td></tr>
+    <tr><td>Ränder</td><td>${rd}</td></tr>
+    <tr><td>Ankerkräfte</td><td>${E.modus === "jeAnker" ? "je Anker übergeben" : "aus Schnittgrößen am Gruppenschwerpunkt, elastisch"}</td></tr>
+    <tr><td>Querlast</td><td>${H.mit ? "mit Hebelarm" : "ohne Hebelarm (Bedingungen 6.2.2.3 (1))"}</td></tr></table>`;
+  h += zl(esc(K.TEXT.starr), "6.2.1 (1)", true);
+  if (E.modus === "jeAnker") h += zl(esc(K.TEXT.jeAnker), "Übergabe", true);
+  // 2 Grenzen
+  h += H2("Anwendungsgrenzen und Mindestwerte") + `<table class="g"><tr><th>Bedingung</th><th class="r">vorhanden</th><th class="r">Grenze</th><th>Bewertung</th><th>Normbezug</th></tr>`
+    + grenzen(E, R).map(x => `<tr><td>${x.t}</td><td class="r">${x.v}</td><td class="r">${x.g}</td><td class="${x.ok === false ? "nok" : ""}">${x.ok === true ? "erfüllt" : x.ok === false ? "nicht erfüllt" : (x.s || "")}</td><td>${x.ref || ""}</td></tr>`).join("") + "</table>";
+  // 3 Einwirkungen
+  h += H2("Einwirkungen (Bemessungswerte)");
+  if (E.modus === "jeAnker") h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th></tr>` + E.lastfaelle.map(l => l.je.map((a, j) => `<tr><td>${j ? "" : esc(l.name)}</td><td>${j + 1}</td><td class="r">${fmt(a.N)}</td><td class="r">${fmt(a.Vx)}</td><td class="r">${fmt(a.Vy)}</td></tr>`).join("")).join("") + "</table>";
+  else h += `<table class="g"><tr><th>Kombination</th><th class="r">N<sub>Ed</sub> [kN]</th><th class="r">V<sub>Ed,x</sub> [kN]</th><th class="r">V<sub>Ed,y</sub> [kN]</th><th class="r">M<sub>Ed,x</sub> [kNm]</th><th class="r">M<sub>Ed,y</sub> [kNm]</th><th class="r">T<sub>Ed</sub> [kNm]</th></tr>` + E.lastfaelle.map(l => `<tr><td>${esc(l.name)}</td>${["N", "Vx", "Vy", "Mx", "My", "T"].map(x => `<td class="r">${fmt(l[x], ["Mx", "My", "T"].includes(x) ? 3 : 2)}</td>`).join("")}</tr>`).join("") + "</table><p>Zug positiv. Bezugspunkt Schwerpunkt der Ankergruppe; M<sub>Ed,y</sub> > 0 erzeugt Zug auf der +x-Seite, M<sub>Ed,x</sub> > 0 auf der +y-Seite, T<sub>Ed</sub> gegen den Uhrzeigersinn.</p>";
+  if (R.etaMax == null) {
+    h += H2("Ergebnis") + `<div class="res nok"><span>Nachweis nicht geführt</span><span>Eingaben unvollständig oder außerhalb des Anwendungsbereichs</span></div><ul>${R.fehler.map(t => `<li><b>${esc(t)}</b></li>`).join("")}</ul>`;
+    return h + fuss();
+  }
+  // 4 Ankerkräfte
+  h += H2("Ankerkräfte") + ankerkraefte(E, R, L);
+  // 5 Widerstände
+  h += H2("Bemessungswerte der Widerstände") + widerstaende(E, R, L);
+  // 6 Nachweise
+  h += H2("Nachweise") + nachweise(E, R, L);
+  // 7 Ergebnis
+  h += H2("Ergebnis");
+  const mg = MNAME[L.massgebend] || L.massgebend;
+  h += `<div class="res${R.ok ? "" : " nok"}"><span>${n} × ${esc(d.name)} · maßgebend ${esc(L.name)}: ${mg}</span><span>max η = ${etaTxt(R.etaMax)} ${R.ok ? "≤ 1 – Nachweis erfüllt" : "> 1 – Nachweis NICHT erfüllt"}</span></div>`;
+  const hin = [...new Set([...R.hinweise, ...R.lf.flatMap(l => l.hinweise || [])])];
+  if (R.warn.length || hin.length) h += "<ul>" + R.warn.map(t => `<li><b>${esc(t)}</b></li>`).join("") + hin.map(t => `<li>${esc(t)}</li>`).join("") + "</ul>";
+  if (R.ungeprueft.length) h += `<h3>Ungeprüfte Annahmen ${UNG()}</h3><ul>${R.ungeprueft.map(u => `<li>${esc(u.text)}</li>`).join("")}</ul>`;
+  h += `<h3>Nicht geführte Nachweise</h3><ul>
+    <li>Ankerplatte bzw. Anbauteil (Steifigkeit, Biegung, Lochleibung) und Betonpressung unter dem Anbauteil</li>
+    <li>Berechnung der Betonwiderstände (Eingabe aus ETA bzw. Herstellersoftware), lokaler Betonausbruch (7.2.1.8), Rückhängebewehrung</li>
+    <li>Ermüdung, Erdbeben (C1/C2), Brand, außergewöhnliche Bemessungssituation; benachbarte Gruppen (7.1 (7))</li></ul>`;
+  return h + fuss();
+}
+const fuss = () => `<div class="foot">Werkzeug „Verankerung in Beton“ V ${K.VERSION} · Stand ${K.STAND} · DIN EN 1992-4:2019-04, DIN EN 1992-4/NA:2019-04 · Widerstände: ${esc(S.dub.eta || "Eingabe")}</div>`;
+
+function ankerkraefte(E, R, L) {
+  const A = E.anker, n = A.length; let h = "";
+  const Sm = sumsRel(A);
+  if (E.modus === "starr") {
+    const l = E.lastfaelle[R.lf.indexOf(L)] || E.lastfaelle[0];
+    if (Math.abs(Sm.sxy) < 1e-6) h += zl(`N<sub>i</sub> = N<sub>Ed</sub>/n + M<sub>Ed,y</sub>·x<sub>i</sub>/Σx<sub>i</sub>² + M<sub>Ed,x</sub>·y<sub>i</sub>/Σy<sub>i</sub>²; n = ${n}, Σx² = ${fmtA(Sm.sxx)} mm², Σy² = ${fmtA(Sm.syy)} mm²`, kurzRef(K.REF.zug) + ", lineare Dehnungsverteilung");
+    else h += zl(`N<sub>i</sub> = N<sub>Ed</sub>/n + a·x<sub>i</sub> + b·y<sub>i</sub> mit [Σx² Σxy; Σxy Σy²]·(a; b) = (M<sub>Ed,y</sub>; M<sub>Ed,x</sub>); Σx² = ${fmtA(Sm.sxx)}, Σxy = ${fmtA(Sm.sxy)}, Σy² = ${fmtA(Sm.syy)} mm²`, kurzRef(K.REF.zug));
+    h += zl(`V<sub>i</sub> = V<sub>Ed</sub>/n + T<sub>Ed</sub>·(−y<sub>i</sub>; x<sub>i</sub>)/Σr<sub>i</sub>²; Σr² = ${fmtA(Sm.sr2)} mm²`, kurzRef(K.REF.quer));
+    h += zl(`Koordinaten x<sub>i</sub>, y<sub>i</sub> bezogen auf den Schwerpunkt der Gruppe (${fmtA(Sm.S0.x)}; ${fmtA(Sm.S0.y)}) mm`, "", true);
+    if (L) {
+      const i = L.N.indexOf(Math.max(...L.N)), xi = A[i].x - Sm.S0.x, yi = A[i].y - Sm.S0.y;
+      if (!L.druck && Math.abs(Sm.sxy) < 1e-6) {
+        let t = `${esc(L.name)}: N<sub>${i + 1}</sub> = ${fmt(l.N)}/${n}`;
+        if (Sm.sxx > 0 && l.My) t += ` + ${fmtA(l.My * 1000)}·${fmtA(xi)}/${fmtA(Sm.sxx)}`;
+        if (Sm.syy > 0 && l.Mx) t += ` + ${fmtA(l.Mx * 1000)}·${fmtA(yi)}/${fmtA(Sm.syy)}`;
+        h += zl(t + ` = <b>${fmt(L.N[i])} kN</b> (höchstbeanspruchter Anker)`, "M in kN·mm");
+      }
+      if (L.druck) {
+        h += zl(`elastisch: ${L.druck.elastisch.map((x, j) => `N<sub>${j + 1}</sub> = ${fmt(x)}`).join(", ")} kN → Anker ${L.druck.elastisch.map((x, j) => x < -1e-9 ? j + 1 : 0).filter(Boolean).join(", ")} gedrückt`, kurzRef(K.REF.druck));
+        h += zl(`Druckresultierende C im Schwerpunkt der äußersten gedrückten Anker ${L.druck.reihe.join(", ")}: P = (${fmtA(L.druck.P.x)}; ${fmtA(L.druck.P.y)}) mm; Drehung der starren Platte um P, Zuganker N<sub>i</sub> ∝ Abstand von P; Gleichgewicht ΣN<sub>i</sub> − C = N<sub>Ed</sub>, Momente um P`, UNG(K.PRUEFEN.druck));
+        h += zl(`→ ${L.N.map((x, j) => `N<sub>${j + 1}</sub> = ${fmt(x)}`).join(", ")} kN; C = ${fmt(L.N.reduce((a, b) => a + b, 0))} − ${fmt(l.N)} = <b>${fmt(L.druck.C)} kN</b>`, "");
+        h += zl(esc(K.TEXT.druck), UNG(K.PRUEFEN.druck), true);
+      }
+      const iv = L.V.map(v => Math.hypot(v[0], v[1])), j = iv.indexOf(Math.max(...iv));
+      if (iv[j] > 1e-9 && n > 1) { const xj = A[j].x - Sm.S0.x, yj = A[j].y - Sm.S0.y, T = l.T * 1000;
+        const tx = T ? ` − ${fmtA(T)}·${fmtA(yj)}/${fmtA(Sm.sr2)}` : "", ty = T ? ` + ${fmtA(T)}·${fmtA(xj)}/${fmtA(Sm.sr2)}` : "";
+        h += zl(`${esc(L.name)}: V<sub>${j + 1},x</sub> = ${fmt(l.Vx)}/${n}${tx} = ${fmt(L.V[j][0])} kN; V<sub>${j + 1},y</sub> = ${fmt(l.Vy)}/${n}${ty} = ${fmt(L.V[j][1])} kN → |V<sub>${j + 1}</sub>| = <b>${fmt(iv[j])} kN</b>`, T ? "T in kN·mm" : ""); }
+    }
+  } else h += zl(esc(K.TEXT.jeAnker), "Übergabe", true);
+  // Tabelle je Kombination
+  h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">x [mm]</th><th class="r">y [mm]</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th><th class="r">|V<sub>Ed,i</sub>| [kN]</th></tr>`;
+  R.lf.forEach(lf => { if (!lf.N) return; A.forEach((p, i) => { h += `<tr><td>${i ? "" : esc(lf.name)}</td><td>${i + 1}</td><td class="r">${fmtA(p.x)}</td><td class="r">${fmtA(p.y)}</td><td class="r">${fmt(lf.N[i])}</td><td class="r">${fmt(lf.V[i][0])}</td><td class="r">${fmt(lf.V[i][1])}</td><td class="r">${fmt(Math.hypot(lf.V[i][0], lf.V[i][1]))}</td></tr>`; }); });
+  h += "</table>";
+  // Gruppengrößen der maßgebenden Kombination
+  if (L && L.G) { const G = L.G;
+    h += `<h3>Gruppengrößen, Kombination ${esc(L.name)}</h3>`;
+    h += zl(`N<sub>Ed</sub><sup>h</sup> = max N<sub>Ed,i</sub> = <b>${fmt(G.Nh)} kN</b>; N<sub>Ed</sub><sup>g</sup> = Σ N<sub>Ed,i</sub> (Zuganker) = <b>${fmt(G.Ng)} kN</b>`, "Tab. 7.1");
+    if (G.SZ) h += zl(`e<sub>N</sub> = Abstand der Zugresultierenden vom Schwerpunkt der Zuganker (${fmtA(G.SZ.x)}; ${fmtA(G.SZ.y)}): e<sub>N,x</sub> = ${fmt(G.eN.x, 1)} mm, e<sub>N,y</sub> = ${fmt(G.eN.y, 1)} mm`, kurzRef(K.REF.exz));
+    h += zl(`V<sub>Ed</sub><sup>h</sup> = max |V<sub>Ed,i</sub>| = <b>${fmt(G.Vh)} kN</b>; V<sub>Ed</sub><sup>g</sup> = |Σ V<sub>Ed,i</sub>| = <b>${fmt(G.Vg)} kN</b>; e<sub>V</sub> = T/V<sup>g</sup> = ${fmt(G.eV, 1)} mm`, "Tab. 7.2");
+    h += zl(`Die Exzentrizitäten e<sub>N</sub> und e<sub>V</sub> müssen in den eingegebenen Betonwiderständen (ψ<sub>ec,N</sub>, ψ<sub>ec,V</sub>) berücksichtigt sein.`, "7.2.1.4, 7.2.2.5", true);
+  }
+  return h;
+}
+
+function rdZeile(sym, r, ref, extra) {
+  if (!r || r.fehlt) return zl(`${sym}: kein Wert (keine Einwirkung)`, ref);
+  if (r.entfaellt) return zl(`${sym}: <b>entfällt</b> – ${esc(r.grund)}`, ref, true);
+  const q = r.quelle ? ` <span class="pl">(${esc(r.quelle)})</span>` : "";
+  if (r.art === "k") return zl(`${sym} = ${sym.replace("Rd", "Rk")}/γ<sub>M</sub> = ${fmt(r.Rk)}/${fmt(r.gM)} = <b>${fmt(r.Rd)} kN</b>${q}${extra || ""}`, ref);
+  return zl(`${sym} = <b>${fmt(r.Rd)} kN</b> (Bemessungswert)${q}${extra || ""}`, ref);
+}
+function widerstaende(E, R, L) {
+  const Rd = R.Rd, H = E.hebel; let h = "";
+  h += rdZeile(sub("N", "Rd,s"), Rd.Ns, kurzRef(K.REF.Ns));
+  h += rdZeile(sub("N", "Rd,p"), Rd.Np, kurzRef(E.geo.typ === "verbund" ? K.REF.Npv : K.REF.Np));
+  h += rdZeile(sub("N", "Rd,c"), Rd.Nc, kurzRef(K.REF.Nc));
+  h += rdZeile(sub("N", "Rd,sp"), Rd.Nsp, kurzRef(K.REF.Nsp));
+  if (!H.mit) h += rdZeile(sub("V", "Rd,s"), Rd.Vs, kurzRef(K.REF.Vs));
+  h += rdZeile(sub("V", "Rd,cp"), Rd.Vcp, kurzRef(K.REF.Vcp));
+  (R.raender || []).forEach((r, i) => { h += rdZeile(sub("V", "Rd,c") + " (Rand " + r.richtung + ")", R.Vc[i], kurzRef(K.REF.Vc)); });
+  h += zl("Teilsicherheitsbeiwerte aus der ETA bzw. Tab. 4.1; der NA übernimmt die Empfehlungen.", kurzRef(K.REF.gamma), true);
+  if (H.mit && R.la) {
+    h += `<h3>Stahlbruch mit Hebelarm</h3>`;
+    if (H.e1HB) h += zl(`e<sub>1</sub> = H<sub>B</sub> + t<sub>fix</sub>/2 = ${fmtA(zahl(S.hebel.HB))} + ${fmtA(zahl(S.hebel.tfix))}/2 = ${fmt(R.la.e1, 1)} mm ${UNG(K.PRUEFEN.e1HB)}`, "6.2.2.3 (3), Bild 6.6");
+    h += zl(`l<sub>a</sub> = a<sub>3</sub> + e<sub>1</sub> = ${H.a3Null ? "0" : "0,5·" + fmtA(R.dnom)} + ${fmt(R.la.e1, 1)} = <b>${fmt(R.la.la, 1)} mm</b>`, "6.2.2.3 (3), Gl. (6.2)");
+    h += zl(`α<sub>M</sub> = ${fmt(H.alphaM, 1)} (${H.alphaM === 2 ? "volle Einspannung" : "keine Einspannung, Anbauteil frei verdrehbar"}); M<sup>0</sup><sub>Rk,s</sub> = ${fmtA(H.M0Rks)} Nm; γ<sub>Ms</sub> = ${fmt(H.gMs)}`, "6.2.2.3 (3); ETA");
+  }
+  return h;
+}
+function beta(E, R, sym, Rsym, b, ref) {
+  if (!(E > 1e-9)) return zl(`${sym} = 0: kein Nachweis erforderlich`, ref);
+  if (R && R.entfaellt) return zl(`${sym} = ${fmt(E)} kN: Nachweis entfällt – ${esc(R.grund)}`, ref, true);
+  return zl(`${sym} / ${Rsym} = ${fmt(E)} / ${fmt(R.Rd)} = <b>${etaTxt(b)}</b> ${b <= 1 + 1e-9 ? "≤" : "&gt;"} 1`, ref);
+}
+function nachweise(E, R, L) {
+  const G = L.G, b = L.beta, Rd = R.Rd, H = E.hebel, verb = E.geo.typ === "verbund"; let h = "";
+  h += `<h3>Maßgebende Kombination ${esc(L.name)} – Zugbeanspruchung</h3>`;
+  h += beta(G.Nh, Rd.Ns, "N<sub>Ed</sub><sup>h</sup>", sub("N", "Rd,s"), b.Ns, kurzRef(K.REF.Ns));
+  h += beta(verb ? G.Ng : G.Nh, Rd.Np, verb ? "N<sub>Ed</sub><sup>g</sup>" : "N<sub>Ed</sub><sup>h</sup>", sub("N", "Rd,p"), b.Np, kurzRef(verb ? K.REF.Npv : K.REF.Np));
+  h += beta(G.Ng, Rd.Nc, "N<sub>Ed</sub><sup>g</sup>", sub("N", "Rd,c"), b.Nc, kurzRef(K.REF.Nc));
+  h += beta(G.Ng, Rd.Nsp, "N<sub>Ed</sub><sup>g</sup>", sub("N", "Rd,sp"), b.Nsp, kurzRef(K.REF.Nsp));
+  h += `<h3>Querbeanspruchung</h3>`;
+  if (H.mit) {
+    const a = L.anker.reduce((m, x) => (x.bV || 0) > (m.bV || 0) ? x : m, L.anker[0]);
+    if (a.V > 1e-9) {
+      h += zl(`Anker ${a.i + 1}: M<sub>Rk,s</sub> = M<sup>0</sup><sub>Rk,s</sub>·(1 − N<sub>Ed</sub>/N<sub>Rd,s</sub>) = ${fmtA(H.M0Rks)}·(1 − ${fmt(a.N)}/${fmt(Rd.Ns.Rd)}) = ${fmt(a.MRks, 1)} Nm`, "7.2.2.3.2, Gl. (7.38)");
+      h += zl(`V<sub>Rk,s,M</sub> = α<sub>M</sub>·M<sub>Rk,s</sub>/l<sub>a</sub> = ${fmt(H.alphaM, 1)}·${fmt(a.MRks, 1)}/${fmt(R.la.la, 1)} = ${fmt(a.VRksM)} kN; V<sub>Rd,s,M</sub> = ${fmt(a.VRksM)}/${fmt(H.gMs)} = ${fmt(a.VRdsM)} kN`, "7.2.2.3.2, Gl. (7.37)");
+      h += zl(`V<sub>Ed,${a.i + 1}</sub> / V<sub>Rd,s,M</sub> = ${fmt(a.V)} / ${fmt(a.VRdsM)} = <b>${etaTxt(a.bV)}</b> ${a.bV <= 1 + 1e-9 ? "≤" : "&gt;"} 1 (ungünstigster Anker)`, kurzRef(K.REF.VsM));
+    } else h += zl("V<sub>Ed</sub> = 0: kein Nachweis erforderlich", kurzRef(K.REF.VsM));
+  } else h += beta(G.Vh, Rd.Vs, "V<sub>Ed</sub><sup>h</sup>", sub("V", "Rd,s"), b.Vs, kurzRef(K.REF.Vs));
+  h += beta(L.VcpE, Rd.Vcp, G.gegen ? "V<sub>Ed</sub><sup>h</sup>" : "V<sub>Ed</sub><sup>g</sup>", sub("V", "Rd,cp"), b.Vcp, kurzRef(K.REF.Vcp) + (G.gegen ? "; 7.2.2.4 (4)" : ""));
+  L.kante.forEach(kt => {
+    const wirk = kt.alleWirksam ? "alle Anker wirksam" : `wirksam: randnahe Anker ${kt.anker.join(", ")}`;
+    h += zl(`Rand ${kt.richtung} (c = ${fmtA(kt.c)} mm), ${wirk}: V<sub>Ed</sub> = ${fmt(kt.VE)} kN${kt.zumRand < -1e-9 ? " (wirkt vom Rand weg)" : ""}`, "6.2.2.2; 7.2.2.5 (2), (3)" + (kt.alleWirksam ? "" : " " + UNG(K.PRUEFEN.kanteNah)));
+    h += beta(kt.VE, kt.Rd, "V<sub>Ed</sub>", sub("V", "Rd,c"), kt.beta, kurzRef(K.REF.Vc));
+  });
+  h += `<h3>Kombinierte Zug- und Querbeanspruchung</h3>`;
+  if (H.mit) h += zl("Stahlbruch: Interaktion nicht erforderlich, Gl. (7.37) berücksichtigt die Interaktion.", "Tab. 7.3, Fußnote a", true);
+  else { const a = L.anker[L.int.sAnker - 1];
+    h += zl(`Stahl, ungünstigster Anker ${L.int.sAnker}: (N<sub>Ed</sub>/N<sub>Rd,s</sub>)² + (V<sub>Ed</sub>/V<sub>Rd,s</sub>)² = ${fmt(a.bN, 3)}² + ${fmt(a.bV, 3)}² = <b>${etaTxt(L.int.s)}</b> ${L.int.s <= 1 + 1e-9 ? "≤" : "&gt;"} 1`, kurzRef(K.REF.intS)); }
+  const I = L.int;
+  h += zl(`β<sub>N</sub> = max(${fmt(b.Np, 3)}; ${fmt(b.Nc, 3)}; ${fmt(b.Nsp, 3)}) = ${fmt(I.bN, 3)}; β<sub>V</sub> = max(${fmt(b.Vcp, 3)}${L.kante.length ? "; " + L.kante.map(x => fmt(x.beta, 3)).join("; ") : ""}) = ${fmt(I.bV, 3)}`, "Tab. 7.3, Z. 2: größter Wert je Richtung");
+  if (I.gl === "7.56") h += zl(`(β<sub>N</sub> + β<sub>V</sub>)/1,2 = (${fmt(I.bN, 3)} + ${fmt(I.bV, 3)})/1,2 = <b>${etaTxt(I.c)}</b> ${I.c <= 1 + 1e-9 ? "≤" : "&gt;"} 1`, kurzRef(K.REF.intC12));
+  else h += zl(`β<sub>N</sub><sup>1,5</sup> + β<sub>V</sub><sup>1,5</sup> = ${fmt(I.bN, 3)}<sup>1,5</sup> + ${fmt(I.bV, 3)}<sup>1,5</sup> = <b>${etaTxt(I.c)}</b> ${I.c <= 1 + 1e-9 ? "≤" : "&gt;"} 1`, kurzRef(K.REF.intC));
+  // Übersicht aller Kombinationen
+  const sp = [["Ns", "N,s"], ["Np", "N,p"], ["Nc", "N,c"], ["Nsp", "N,sp"], ["Vs", H.mit ? "V,s,M" : "V,s"], ["Vcp", "V,cp"], ["Vc", "V,c"]];
+  h += `<h3>Übersicht aller Kombinationen</h3><table class="g"><tr><th>Kombination</th>${sp.map(([, t]) => `<th class="r">β<sub>${t}</sub></th>`).join("")}${H.mit ? "" : '<th class="r">Int. Stahl</th>'}<th class="r">Int. Beton</th><th class="r">η</th></tr>`;
+  R.lf.forEach(l => { if (!l.beta) return; h += `<tr><td>${esc(l.name)}</td>${sp.map(([kk]) => `<td class="r">${etaTxt(l.beta[kk])}</td>`).join("")}${H.mit ? "" : `<td class="r">${etaTxt(l.int.s)}</td>`}<td class="r">${etaTxt(l.int.c)}</td><td class="r ${l.ok ? "" : "nok"}"><b>${etaTxt(l.eta)}</b></td></tr>`; });
+  return h + "</table>";
+}
+
+baue();
 </script>
 </body>
 </html>
