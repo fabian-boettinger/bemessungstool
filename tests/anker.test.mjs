@@ -261,6 +261,7 @@ function zustandFall2() {
   const k = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Test", grund: "" });
   s.w = { Ns: k(30, 1.5), Np: k(25, 1.5), Nc: k(21, 1.5), Nsp: { art: "d", Rk: "", gM: "", Rd: 18, quelle: "Test", grund: "" }, Vs: k(18, 1.25), Vcp: k(30, 1.5), Vc: { "+y": k(18, 1.5) } };
   s.pos = "108.101"; s.bez = "Wand </script><b>Achse 3</b>";
+  s.hebel.ohne.metall = true;   // 6.2.2.3 (1) a) bestätigt, b) 1) direkt auf dem Beton
   return s;
 }
 
@@ -491,7 +492,7 @@ test("V2-3: Spalten mit ψ_h,sp (7.24)", () => {
   const s = r.lf[0].ber.Nsp, p = 16 * Math.sqrt(1.25), psiH = Math.min(Math.pow(200 / 160, 2 / 3), Math.max(1, Math.pow(230 / 160, 2 / 3)), 2);
   nah(s.N0, p, "N⁰_Rk,sp"); nah(s.Ac, 83200, "A_c,N (c_cr,sp)"); nah(s.psiS, 0.8875, "ψ_s,N"); nah(s.psiH, psiH, "ψ_h,sp");
   nah(s.Rk, p * 83200 / 102400 * 0.8875 * 0.9 * psiH, "N_Rk,sp");
-  assert.ok(r.ungeprueft.some(u => u.key === "psiHsp"));
+  assert.equal(s.c1A, 100); assert.equal(s.c1B, 100); assert.ok(r.lf[0].hinweise.some(t => /Gl. \(7.24\)/.test(t)), "Hinweis zur Auslegung von c₁");
 });
 
 // Fall V2-4: Betonkantenbruch (7.40)–(7.48), Einzelanker, Rand +y c₁ = 100, d_nom = 12, l_f = h_ef = 80, gerissen (k₉ = 1,7)
@@ -576,7 +577,7 @@ function zustandAusEintrag(e, hef) {
   Object.keys(s.dub).forEach(k => { if (e[k] !== undefined && k !== "lib") s.dub[k] = e[k]; });
   s.dub.hef = hef; s.geo.alphaSus = 0.6; s.geo.lochspiel = "ohne"; s.geo.h = 250;
   s.w.Ns = { art: "k", Rk: e.NRks, gM: e.gMs }; s.w.Vs = { art: "k", Rk: e.VRks, gM: e.gMsV };
-  s.w.Vc = { "+y": Z.wB() };
+  s.w.Vc = { "+y": Z.wB() }; s.hebel.ohne.metall = true;
   return s;
 }
 test("ETA-19/0601 HIT-HY 200: Stichproben und Rechenlauf", () => {
@@ -603,4 +604,21 @@ test("ETA-98/0001 HST3: Stichproben, c_cr,sp = Faktor·h_ef, N⁰_Rk,sp nur unge
   const sp = R.lf[0].ber.Nsp;   // c = 80 < 1,2·1,5·70 → Gl. (7.23); N⁰_Rk,sp = 25,0 (ETA, ungerissen); c_cr,sp = 105, h_min = 140
   nah(sp.ccr, 105, "c_cr,sp = 1,5·70"); nah(sp.N0, 25.0, "N⁰_Rk,sp ETA"); nah(sp.hmin, 140, "h_min");
   nah(R.lf[0].ber.Np.Rk, 25.0, "N_Rk,p ungerissen C25/30: Tabelle ab C30/37 → ψ_c = 1,0");
+});
+
+// Quelle: DIN EN 1992-4, 6.2.2.3 (1) a), b) 1), b) 2) – Bedingungen für Querlast ohne Hebelarm; Toleranz: exakt (Ja/Nein).
+test("6.2.2.3 (1): Querlast ohne Hebelarm nur mit allen Bedingungen", () => {
+  const s = zustandFall2(), fe = st => A.nachweis(Z.kernEingabe(st)).fehler.filter(t => /6\.2\.2\.3 \(1\)/.test(t));
+  assert.equal(fe(s).length, 0, "direkt auf Beton, Metall bestätigt");
+  s.hebel.ohne.metall = false; assert.equal(fe(s).length, 1, "a) nicht bestätigt");
+  s.hebel.ohne.metall = true; s.hebel.ohne.auflage = "nachgiebig"; assert.equal(fe(s).length, 1, "nachgiebige Zwischenschicht");
+  Object.assign(s.hebel.ohne, { auflage: "moertel", tgrout: 6, fest: true, rau: true }); assert.equal(fe(s).length, 0, "Mörtel 6 mm ≤ 0,5·12");
+  s.hebel.ohne.tgrout = 7; assert.ok(/t_grout ≤ 0,5·d = 6 mm/.test(fe(s)[0]), "Mörtel 7 mm > 6 mm");
+  // Verbund, 2 × 2 mit s = 100: ψ_g,Np mit dem größeren Mittelwert aller Achsabstände (Gl. 7.17, zwei Auslegungen)
+  const e = v2([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 0, y: 100 }, { x: 100, y: 100 }], [], [{ name: "LK", N: 20 }],
+    { geo: { typ: "verbund", hef: 100 }, kw: Object.assign(kwMech(), { tauCr: 7.5, tauUcr: 18, psi0sus: 0.8, psic: "exp:0.1", spArt: "ead" }), alphaSus: 0.6 });
+  e.mindest.smin = 60;
+  const p = A.nachweis(e).lf[0].ber.Np, sP = (4 * 100 + 2 * 100 * Math.SQRT2) / 6;
+  nah(p.sRaster, 100, "s Raster"); nah(p.sPaare, sP, "s alle Paare"); nah(p.psiG, p.psiG0 - Math.sqrt(sP / p.scrNp) * (p.psiG0 - 1), "ψ_g,Np mit größerem s");
+  assert.ok(p.psiGB <= p.psiGA);
 });

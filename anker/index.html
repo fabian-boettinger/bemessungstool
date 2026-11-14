@@ -256,8 +256,6 @@ const EPS = 1e-9;
 const PRUEFEN = {
   druck: "Gedrückte Anker: Druckresultierende an der äußeren gedrückten Ankerreihe, Gleichgewicht neu gelöst. Vereinfachter Ansatz auf der sicheren Seite statt Druckzone nach 6.2.1 (1) und Bild 6.2.", // PRÜFEN
   druck2d: "Gedrückte Anker bei zweiachsiger Biegung: Druckpunkt im Schwerpunkt der äußersten gedrückten Anker (Ecke).", // PRÜFEN
-  sMittel: "Gl. (7.17) bei ungleichen Achsabständen: Mittelwert der Abstände benachbarter Rasterlinien in x und y (die Norm sagt nur „Mittelwert der Achsabstände“).", // PRÜFEN
-  psiHsp: "Gl. (7.24): c₁ als kleinster Randabstand der Gruppe angesetzt (die Norm definiert c₁ an dieser Stelle nicht).", // PRÜFEN
   vcpEc: "V_Rk,cp: ψ_ec,N mit der Exzentrizität der Querkraft-Resultierenden (Beträge |V_i|) zum Schwerpunkt der querbelasteten Anker.", // PRÜFEN
   vcpVirt: "V_Rk,cp bei entgegengesetzten Querkräften: virtuelle Ränder (c = 0,5·s) auch in ψ_s,N angesetzt (auf der sicheren Seite); Bild 7.11 zeigt nur die Fläche.", // PRÜFEN
 };
@@ -267,6 +265,8 @@ const TEXT = {
   starr: "Annahme starre Ankerplatte nach 6.2.1, Plattennachweis nicht enthalten.",
   druck: "Vereinfacht: Druckpunkt im Schwerpunkt der äußersten gedrückten Anker, abweichend von 6.2.1 / Bild 6.2.",
   jeAnker: "Ankerkräfte je Anker aus dem Verfahren des Herstellers übernommen (keine Aufteilung im Werkzeug).",
+  sMittel: "Gl. (7.17), „Mittelwert der Achsabstände“: beide Auslegungen gerechnet – Mittel der Abstände benachbarter Rasterlinien und Mittel aller Achsabstände zwischen den Ankern –, maßgebend der kleinere Widerstand (größeres s, kleineres ψ_g,Np).",
+  psiHsp: "Gl. (7.24), c₁ in der Norm nicht definiert: beide Auslegungen gerechnet – kleinster Randabstand der zugbeanspruchten Anker und kleinster Randabstand der Gruppe –, maßgebend der kleinere Widerstand.",
   psiM: "ψ_M,N = 1,0 angesetzt: der günstige Einfluss einer Druckkraft unter dem Anbauteil (7.2.1.4 (7), Gl. 7.7) wird nicht genutzt – auf der sicheren Seite.",
   genauer: "Nicht genutzt (auf der sicheren Seite): h'_ef bei drei oder mehr Rändern (7.2.1.4 (8), 7.2.1.6 (8)) und c'₁ in schmalen dünnen Bauteilen (7.2.2.5 (14)).",
   abstand: "Vorausgesetzt nach 7.1 (7): Abstand zu benachbarten Ankern bzw. Gruppen a ≥ s_cr,N, bei Betonkantenbruch a ≥ 3·c₁.",
@@ -575,12 +575,14 @@ function exzentrizitaet(A, idx, w) {
   const cx = idx.reduce((s, i) => s + A[i].x, 0) / n, cy = idx.reduce((s, i) => s + A[i].y, 0) / n;
   return { x: idx.reduce((s, i) => s + w[i] * A[i].x, 0) / W - cx, y: idx.reduce((s, i) => s + w[i] * A[i].y, 0) / W - cy };
 }
-// Mittlerer Achsabstand für Gl. (7.17) – PRÜFEN (PRUEFEN.sMittel): Mittel der Abstände benachbarter Rasterlinien in x und y
+// Mittlerer Achsabstand für Gl. (7.17), zwei Auslegungen (TEXT.sMittel): s = Mittel der Abstände benachbarter Rasterlinien in x und y,
+// sPaare = Mittel aller Achsabstände zwischen den Ankern
 function achsabstandMittel(A, idx) {
   const lin = vs => { const u = []; [...vs].sort((a, b) => a - b).forEach(v => { if (!u.length || v - u[u.length - 1] > 1) u.push(v); }); return u; };
   const s = [];
   for (const l of [lin(idx.map(i => A[i].x)), lin(idx.map(i => A[i].y))]) for (let i = 0; i + 1 < l.length; i++) s.push(l[i + 1] - l[i]);
-  return { s: s.length ? s.reduce((a, b) => a + b, 0) / s.length : 0, gleich: s.every(x => Math.abs(x - s[0]) <= 1) };
+  const pa = []; for (let i = 0; i < idx.length; i++) for (let j = i + 1; j < idx.length; j++) pa.push(hyp(A[idx[i]].x - A[idx[j]].x, A[idx[i]].y - A[idx[j]].y));
+  return { s: s.length ? s.reduce((a, b) => a + b, 0) / s.length : 0, sPaare: pa.length ? pa.reduce((a, b) => a + b, 0) / pa.length : 0, gleich: s.every(x => Math.abs(x - s[0]) <= 1) };
 }
 
 // Gemeinsame Faktoren der Kegel-Gleichungen (7.1), (7.13), (7.23): A/A⁰, ψ_s (7.4/7.20), ψ_ec (7.6/7.21)
@@ -606,9 +608,10 @@ function NRkpVerbund(c, idx, e, K) {
   const f = kegelFaktoren(c.A, idx, scrNp / 2, K, e);
   const n = idx.length, k3 = c.gerissen ? 7.7 : 11.0, tauC = k3 / (Math.PI * c.d) * Math.sqrt(c.hef * c.fck);
   const psiG0 = Math.max(Math.sqrt(n) - (Math.sqrt(n) - 1) * Math.pow(c.tau / tauC, 1.5), 1);
-  const am = n > 1 ? achsabstandMittel(c.A, idx) : { s: 0, gleich: true }, s = am.s;
-  const psiG = n > 1 ? Math.max(psiG0 - Math.sqrt(Math.min(s / scrNp, 1)) * (psiG0 - 1), 1) : 1;
-  return { gl: "7.13", N0, psiSus: c.psiSus, tau: c.tau, scrNp, ...f, k3, tauC, psiG0, s, sGleich: am.gleich, psiG, psiRe: c.psiRe,
+  const am = n > 1 ? achsabstandMittel(c.A, idx) : { s: 0, sPaare: 0, gleich: true };
+  const gF = s => n > 1 ? Math.max(psiG0 - Math.sqrt(Math.min(s / scrNp, 1)) * (psiG0 - 1), 1) : 1;
+  const psiGA = gF(am.s), psiGB = gF(am.sPaare), psiG = Math.min(psiGA, psiGB), s = psiGB < psiGA ? am.sPaare : am.s;
+  return { gl: "7.13", N0, psiSus: c.psiSus, tau: c.tau, scrNp, ...f, k3, tauC, psiG0, s, sRaster: am.s, sPaare: am.sPaare, psiGA, psiGB, sGleich: am.gleich, psiG, psiRe: c.psiRe,
     Rk: N0 * f.Ac / f.A0 * psiG * f.psiS * c.psiRe * f.psiEc };
 }
 // Charakteristischer Randabstand für Spalten aus der ETA: Wertepaare (h_min; c_cr,sp) oder Ansatz nach h/h_ef
@@ -623,7 +626,7 @@ function ccrSpVarianten(kw, h, hef, hminETA) {
   const v = [[kw.sp1h, kw.sp1c], [kw.sp2h, kw.sp2c]].filter(([a, b]) => num(a) && num(b) && a > 0 && b > 0);
   return v.filter(([a]) => h >= a - 1e-9).map(([a, b]) => ({ ccr: b, hmin: a, text: `h_min = ${fmtz(a)} mm: c_cr,sp = ${fmtz(b)} mm` }));
 }
-// ψ_h,sp nach Gl. (7.24); c₁ = kleinster Randabstand der Gruppe – PRÜFEN (PRUEFEN.psiHsp)
+// ψ_h,sp nach Gl. (7.24); c₁ in zwei Auslegungen, der kleinere Wert ist maßgebend (TEXT.psiHsp)
 function psiHsp(h, hmin, hef, c1) {
   const a = Math.pow(h / hmin, 2 / 3), b = Math.max(1, Math.pow((hef + 1.5 * c1) / hmin, 2 / 3));
   return Math.min(a, b, 2);
@@ -632,9 +635,9 @@ function psiHsp(h, hmin, hef, c1) {
 function NRksp(c, idx, e, K, N0sp) {
   const best = c.spV.map(v => {
     const f = kegelFaktoren(c.A, idx, v.ccr, K, e);
-    const c1 = Math.min(...idx.map(i => randAbstand(c.A[i], K)));
-    const psiH = v.abhH ? 1 : psiHsp(c.h, v.hmin, c.hef, c1);
-    return { gl: "7.23", N0: N0sp.wert, N0text: N0sp.text, variante: v.text, hmin: v.hmin, c1, ...f, psiRe: c.psiRe, psiH, abhH: !!v.abhH,
+    const c1A = Math.min(...idx.map(i => randAbstand(c.A[i], K))), c1B = Math.min(...c.A.map(p => randAbstand(p, K))), c1 = Math.min(c1A, c1B);
+    const psiH = v.abhH ? 1 : psiHsp(c.h, v.hmin, c.hef, c1);   // ψ_h,sp steigt mit c₁ → kleinerer c₁ = kleinerer Widerstand
+    return { gl: "7.23", N0: N0sp.wert, N0text: N0sp.text, variante: v.text, hmin: v.hmin, c1, c1A, c1B, ...f, psiRe: c.psiRe, psiH, abhH: !!v.abhH,
       Rk: N0sp.wert * f.Ac / f.A0 * f.psiS * c.psiRe * f.psiEc * psiH };
   });
   return best.reduce((m, x) => !m || x.Rk > m.Rk ? x : m, null);
@@ -818,6 +821,18 @@ function nachweis(e) {
     if (!fehler.length) la = hebelarm(dnom, H.e1, !!H.a3Null);
     raender.forEach(r => { if (hatQuer && r.c <= Math.max(10 * g.hef, 60 * g.d)) fehler.push(`Betonkantenbruch bei Querlast mit Hebelarm nur für c > max{10·h_ef; 60·d} = ${fmtz(Math.max(10 * g.hef, 60 * g.d))} mm gültig (7.2.2.5 (1)); Rand ${r.k + 1}: c = ${fmtz(r.c)} mm.`); });
   }
+  // Querlast ohne Hebelarm nur unter allen Bedingungen von 6.2.2.3 (1); nachgiebige Zwischenschichten immer mit Hebelarm
+  if (!H.mit && H.ohne && hatQuer) {
+    const o = H.ohne, nicht = [];
+    if (!o.metall) nicht.push("a) Anbauteil aus Metall, berührt den Dübel über ≥ 0,5·t_fix");
+    if (o.auflage === "moertel") {
+      if (!(num(o.tgrout) && o.tgrout >= 0 && o.tgrout <= 0.5 * g.d + 1e-9)) nicht.push(`b) 2) Mörteldicke t_grout ≤ 0,5·d = ${fmtz(0.5 * g.d)} mm`);
+      if (!o.fest) nicht.push("b) 2) Mörteldruckfestigkeit ≥ Betonfestigkeit und ≥ 30 N/mm²");
+      if (!o.rau) nicht.push("b) 2) raue Betonoberfläche, Mörtel unter der ganzen Unterseite des Anbauteils");
+    } else if (o.auflage !== "direkt") nicht.push("b) Anbauteil direkt auf dem Beton oder auf Ausgleichsmörtel – nachgiebige Zwischenschichten (Holz, Elastomer z. B. XYLOFON) immer mit Hebelarm");
+    out.ohneHebel = { auflage: o.auflage, tgrout: o.tgrout, ok: !nicht.length, nicht };
+    if (nicht.length) fehler.push(`Querlast ohne Hebelarm nach 6.2.2.3 (1) nicht zulässig, nicht erfüllt: ${nicht.join("; ")}. Hebelarm ansetzen.`);
+  }
   if (num(H.e1) && H.e1 > 0 && !H.mit) fehler.push("Zwischenschicht bzw. Abstand e₁ > 0: Querlast ohne Hebelarm nur unter den Bedingungen von 6.2.2.3 (1) – Hebelarm ansetzen.");
   // Anordnung nach Bild 1.2
   const B12 = rasterBild12(A), b12 = mitLochspiel && hatQuer && raender.some(r => !r.gross);
@@ -883,7 +898,7 @@ function nachweis(e) {
     if (bc) {
       if (Rd.Nc.art === "b" && zugIdx.length) RdL.Nc = setze("Nc", NRkc(bc, zugIdx, G.eN, bc.K), bc.gMc);
       if (Rd.Np.art === "b") {
-        if (g.typ === "verbund") { if (zugIdx.length) { RdL.Np = setze("Np", NRkpVerbund(bc, zugIdx, G.eN, bc.K), bc.gMc); if (zugIdx.length > 1 && !ber.Np.sGleich) ung.add("sMittel"); } }
+        if (g.typ === "verbund") { if (zugIdx.length) { RdL.Np = setze("Np", NRkpVerbund(bc, zugIdx, G.eN, bc.K), bc.gMc); if (zugIdx.length > 1 && !L.hinweise.includes(TEXT.sMittel)) L.hinweise.push(TEXT.sMittel); } }
         else if (bc.NRkp === "nm") { RdL.Np = { entfaellt: true, grund: "Herausziehen laut ETA nicht maßgebend" }; ber.Np = { entfaellt: true, grund: RdL.Np.grund }; }
         else RdL.Np = setze("Np", { gl: "ETA", NRkp0: bc.NRkp, psiC: bc.psiC.psi, psiCtext: bc.psiC.text, Rk: bc.NRkp * bc.psiC.psi }, bc.gMc);
       }
@@ -899,7 +914,7 @@ function nachweis(e) {
           else if (bc.NRkp === "nm") N0 = { wert: n0c, text: "N⁰_Rk,sp = N⁰_Rk,c nach Gl. (7.2) (Herausziehen laut ETA nicht maßgebend; Anm. zu 7.2.1.7 (2))" };
           else { const p = bc.NRkp * bc.psiC.psi; N0 = { wert: Math.min(p, n0c), NRkp: p, N0c: n0c, text: "N⁰_Rk,sp = min{N_Rk,p; N⁰_Rk,c} (Anm. zu 7.2.1.7 (2))" }; }
           RdL.Nsp = setze("Nsp", NRksp(bc, zugIdx, G.eN, bc.K, N0), bc.gMc);
-          if (!ber.Nsp.abhH) ung.add("psiHsp");
+          if (!ber.Nsp.abhH && !L.hinweise.includes(TEXT.psiHsp)) L.hinweise.push(TEXT.psiHsp);
         }
       }
       if (Rd.Vcp.art === "b") {
@@ -1079,10 +1094,11 @@ function vorgabe() {
     pos: "", bez: "", herkunft: null,
     dub: Object.assign({ lib: null, hersteller: "", produkt: "", eta: "", etaDatum: "", typ: "mechanisch", d: "", dnom: "", hef: "", fuk: "", schraube: false, smin: "", cmin: "", hmin: "", dfETA: "" }, kwLeer()),
     geo: { vorlage: "2x", s1: 150, s2: 100, anker: vorlageAnker("2x", 150, 100), h: 200, beton: "C25/30", zustand: "gerissen", lochspiel: "tab61", df: 14,
-           rand: { "+x": "", "-x": "", "+y": 100, "-y": "" }, ueberstand: "", bew: { reN: false, reV: false, spalt: false }, alphaSus: "" },
+           rand: { "+x": "", "-x": "", "+y": 100, "-y": "" }, ueberstand: "", bew: { reN: false, reV: false, spalt: false }, alphaSus: 1 },
     modus: "starr", druck: "ablehnen", interaktion: "7.55",
     lf: [{ name: "LK1", N: 8, Vx: 0, Vy: 5, Mx: 0, My: 0, T: 0, je: [] }],
-    hebel: { mit: false, quelle: "e1", e1: 10, HB: 0, tfix: 3, zw: "sonstige", mf: false, a3Null: false, alphaM: 1, M0Rks: "", gMs: 1.25 },
+    hebel: { mit: false, quelle: "e1", e1: 10, HB: 0, tfix: 3, zw: "sonstige", mf: false, a3Null: false, alphaM: 1, M0Rks: "", gMs: 1.25,
+             ohne: { metall: false, auflage: "direkt", tgrout: "", fest: false, rau: false } },
     w: { Ns: wLeer(), Np: wB(), Nc: wB(), Nsp: wB(), Vs: wLeer(), Vcp: wB(), Vc: {} },
     geoSchluessel: null,
   };
@@ -1113,7 +1129,8 @@ function kernEingabe(s) {
       ? { name: l.name, je: (l.je || []).map(a => ({ N: zahl(a.N) || 0, Vx: zahl(a.Vx) || 0, Vy: zahl(a.Vy) || 0 })) }
       : { name: l.name, N: zahl(l.N) || 0, Vx: zahl(l.Vx) || 0, Vy: zahl(l.Vy) || 0, Mx: zahl(l.Mx) || 0, My: zahl(l.My) || 0, T: zahl(l.T) || 0 }),
     widerstand: W,
-    hebel: H.mit ? { mit: true, M0Rks: zahl(H.M0Rks), alphaM: zahl(H.alphaM), gMs: zahl(H.gMs), e1: e1(s), e1HB: H.quelle === "hb", zw: H.zw, a3Null: a3Null(s) } : { mit: false },
+    hebel: H.mit ? { mit: true, M0Rks: zahl(H.M0Rks), alphaM: zahl(H.alphaM), gMs: zahl(H.gMs), e1: e1(s), e1HB: H.quelle === "hb", zw: H.zw, a3Null: a3Null(s) }
+      : { mit: false, ohne: Object.assign({ metall: false, auflage: "direkt", tgrout: NaN, fest: false, rau: false }, H.ohne, { tgrout: zahl((H.ohne || {}).tgrout) }) },
     kw: Object.fromEntries(KWF.map(k => [k, KWTEXT.has(k) ? d[k] : k.startsWith("NRkp") ? npWert(d[k]) : zahl(d[k])])),
     bew: Object.assign({ reN: false, reV: false, spalt: false }, g.bew), alphaSus: zahl(g.alphaSus),
     geoSchluessel: s.geoSchluessel,
@@ -1468,8 +1485,8 @@ function baue() {
   <h3>Bewehrung (nur für berechnete Betonwiderstände; ohne Haken ungünstig)</h3><div class="grid">
     ${chk("Bewehrung Achsabstand ≥ 150 mm bzw. Ø ≤ 10 mm mit ≥ 100 mm, in beiden Richtungen → ψ<sub>re,N</sub> = 1,0 (7.2.1.4 (5))", "geo.bew.reN")}
     ${g.zustand === "gerissen" ? chk("Randbewehrung mit Bügeln bzw. Matten a ≤ 100 mm und ≤ 2·c<sub>1</sub>, h<sub>ef</sub> ≥ 2,5·Betondeckung → ψ<sub>re,V</sub> = 1,4 (7.2.2.5 (13))", "geo.bew.reV") : ""}
-    ${g.zustand === "gerissen" ? chk("Bewehrung nimmt Spaltkräfte auf und begrenzt w<sub>k</sub> ≤ 0,3 mm → kein Spaltnachweis (7.2.1.7 (2) b) 2)); A<sub>s,re</sub> nach Gl. (7.22) gesondert", "geo.bew.spalt") : ""}
-    ${d.typ === "verbund" ? fld(sub("α", "sus") + " Anteil Dauerlast (0 … 1)", "geo.alphaSus", { fh: "Dauerlast/Gesamtlast im GZT, 7.2.1.6 (2)" }) : ""}
+    ${g.zustand === "gerissen" ? chk("Bewehrung begrenzt Spaltrisse auf w<sub>k</sub> ≤ 0,3 mm (7.2.1.7 (2) b) 2) mit Anm.) → kein Spaltnachweis; Bewehrung nach Gl. (7.22) gesondert nachweisen. Ohne Haken wird Spalten nachgewiesen.", "geo.bew.spalt") : ""}
+    ${d.typ === "verbund" ? fld(sub("α", "sus") + " Anteil Dauerlast (0 … 1)", "geo.alphaSus", { fh: "Vorgabe 1,0: gesamte Last ständig (sichere Seite); Dauerlast/Gesamtlast im GZT, 7.2.1.6 (2)" }) : ""}
   </div>`;
 
   const starr = S.modus === "starr", n = g.anker.length;
@@ -1495,7 +1512,11 @@ function baue() {
     ${fld(sub("γ", "Ms") + " Querlast", "hebel.gMs")}
     ${chk("a<sub>3</sub> = 0 (Scheibe und Mutter direkt gegen Beton gespannt bzw. Mörtel ≤ d/2)", "hebel.a3Null")}
   </div>${H.quelle === "hb" ? `<div class="info">${H.zw === "moertel" ? "e<sub>1</sub> = t<sub>fix</sub>/2: Dicke des Mörtelbetts wird vernachlässigt" : "e<sub>1</sub> = H<sub>B</sub> + t<sub>fix</sub>/2"} (Bild 6.6: Querlast in der Mittelebene des Anbauteils)</div>` : ""}<div class="hint">l<sub>a</sub> = a<sub>3</sub> + e<sub>1</sub>, a<sub>3</sub> = 0,5·d<sub>nom</sub> (6.2.2.3 (3)). Bei Hebelarm entfällt die Stahl-Interaktion (Tab. 7.3, Fußnote a).</div>`
-    : `<div class="hint">Ohne Hebelarm nur, wenn alle Bedingungen von 6.2.2.3 (1) erfüllt sind: Anbauteil aus Metall, Kontakt zum Dübel über ≥ 0,5·t<sub>fix</sub>, direkt auf dem Beton oder auf Ausgleichsmörtel t<sub>grout</sub> ≤ 0,5·d. Sonst „mit Hebelarm“ wählen.</div>`);
+    : `<div class="hint" style="margin-bottom:6px">Ohne Hebelarm nur, wenn alle Bedingungen von 6.2.2.3 (1) erfüllt sind; sonst „mit Hebelarm“ wählen. Nachgiebige Zwischenschichten (Holz, Elastomer z. B. XYLOFON) immer mit Hebelarm.</div><div class="grid">
+    ${chk("a) Anbauteil aus Metall, berührt den Dübel über mindestens 0,5·t<sub>fix</sub>", "hebel.ohne.metall")}
+    ${fld("b) Auflage des Anbauteils", "hebel.ohne.auflage", { sel: [["direkt", "1) direkt auf dem Beton, ohne Zwischenschicht"], ["moertel", "2) auf Ausgleichsmörtel"], ["nachgiebig", "nachgiebige Zwischenschicht (Holz, Elastomer) – nicht zulässig"]], rb: true, wide: true })}
+    ${H.ohne.auflage === "moertel" ? fld(sub("t", "grout") + " [mm] (≤ 0,5·d)", "hebel.ohne.tgrout") + chk("Mörtel ≥ Betonfestigkeit und ≥ 30 N/mm²", "hebel.ohne.fest") + chk("raue Betonoberfläche (EN 1992-1-1, 6.2.5), Mörtel unter der ganzen Unterseite", "hebel.ohne.rau") : ""}
+  </div>`);
 
   const R = raenderAus(), NW = NAMEW();
   R.forEach(r => { if (!S.w.Vc[r.richtung]) S.w.Vc[r.richtung] = Z.wB(); });
@@ -1827,7 +1848,7 @@ function report(E, R, L) {
     <tr><td>Betonbauteil</td><td>${esc(g.beton)}, ${g.zustand === "gerissen" ? "gerissen" : "ungerissen"}, h = ${fmtA(g.h)} mm</td></tr>
     <tr><td>Ränder</td><td>${rd}</td></tr>
     <tr><td>Ankerkräfte</td><td>${E.modus === "jeAnker" ? "je Anker übergeben" : "aus Schnittgrößen am Gruppenschwerpunkt, elastisch"}${S.herkunft ? "; " + esc(herkunftText()) : ""}</td></tr>
-    <tr><td>Querlast</td><td>${H.mit ? "mit Hebelarm" : "ohne Hebelarm (Bedingungen 6.2.2.3 (1))"}</td></tr></table>`;
+    <tr><td>Querlast</td><td>${H.mit ? "mit Hebelarm" : R.ohneHebel ? `ohne Hebelarm nach 6.2.2.3 (1): a) Anbauteil aus Metall, Kontakt ≥ 0,5·t<sub>fix</sub>${R.ohneHebel.ok ? " – bestätigt" : ""}; b) ${R.ohneHebel.auflage === "moertel" ? `Ausgleichsmörtel t<sub>grout</sub> = ${fmtA(R.ohneHebel.tgrout)} mm ≤ 0,5·d = ${fmtA(0.5 * g.d)} mm, Festigkeit ≥ Beton und ≥ 30 N/mm², raue Oberfläche` : "direkt auf dem Beton"}${R.ohneHebel.ok ? "" : " – <b>nicht erfüllt</b>"}` : "ohne Hebelarm (keine Querlast)"}</td></tr></table>`;
   h += zl(fx(K.TEXT.starr), "6.2.1 (1)", true);
   if (E.modus === "jeAnker") h += zl(fx(K.TEXT.jeAnker), "Übergabe", true);
   // 2 Grenzen
@@ -1986,7 +2007,7 @@ function berechnetProtokoll(E, R, L) {
       if (zug.length > 1) {
         h += zl(`τ<sub>Rk,c</sub> = k<sub>3</sub>/(π·d)·(h<sub>ef</sub>·f<sub>ck</sub>)<sup>0,5</sup> = ${fmt(x.k3, 1)}/(π·${fmtA(g.d)})·(${fmtA(g.hef)}·${fmtA(B.fck)})<sup>0,5</sup> = ${fmt(x.tauC)} N/mm²`, "Gl. (7.19)");
         h += zl(`${sup(sub("ψ", "g,Np"), "0")} = √n − (√n − 1)·(τ<sub>Rk</sub>/τ<sub>Rk,c</sub>)<sup>1,5</sup> = √${zug.length} − (√${zug.length} − 1)·(${fmt(x.tau)}/${fmt(x.tauC)})<sup>1,5</sup> → ${f3(x.psiG0)} ≥ 1`, "Gl. (7.18)");
-        h += zl(`ψ<sub>g,Np</sub> = ψ⁰ − (s/s<sub>cr,Np</sub>)<sup>0,5</sup>·(ψ⁰ − 1) = ${f3(x.psiG0)} − (${f1(x.s)}/${f1(x.scrNp)})<sup>0,5</sup>·(${f3(x.psiG0)} − 1) → <b>${f3(x.psiG)}</b> ≥ 1`, "Gl. (7.17)" + (x.sGleich ? "" : " " + UNG(K.PRUEFEN.sMittel)));
+        h += zl(`ψ<sub>g,Np</sub> = ψ⁰ − (s/s<sub>cr,Np</sub>)<sup>0,5</sup>·(ψ⁰ − 1): mit s = ${f1(x.sRaster)} mm (Rasterabstände) → ${f3(x.psiGA)}; mit s = ${f1(x.sPaare)} mm (alle Achsabstände) → ${f3(x.psiGB)}; maßgebend <b>${f3(x.psiG)}</b> ≥ 1`, "Gl. (7.17); Auslegung s. Hinweise");
       } else h += zl("ψ<sub>g,Np</sub> = 1,0 (ein zugbeanspruchter Anker)", "Gl. (7.17)");
       h += zl(`N<sub>Rk,p</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiG)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)} = <b>${fmt(x.Rk)} kN</b>; N<sub>Rd,p</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "Gl. (7.13)");
     }
@@ -2000,7 +2021,7 @@ function berechnetProtokoll(E, R, L) {
       h += zl(`${sup(sub("N", "Rk,sp"), "0")} = <b>${fmt(x.N0)} kN</b> – ${fx(x.N0text)}`, "7.2.1.7 (2) c), Anm.");
       h += kegelZeilen(x, { aSym: "c,N", ccrSym: "c<sub>cr,sp</sub>", scrSym: "s<sub>cr,sp</sub>", sSym: "s,N", ecSym: "ec,N", idx: zug, refA: "7.2.1.7 (2) c)", refS: "Gl. (7.4) mit c<sub>cr,sp</sub>", refEc: "Gl. (7.6) mit s<sub>cr,sp</sub>" });
       h += x.abhH ? zl("ψ<sub>h,sp</sub> = 1,0: c<sub>cr,sp</sub> nach ETA bereits für die vorhandene Dicke h ermittelt (h<sub>min</sub> = h)", "Gl. (7.24); 7.2.1.7 (2) d)", true)
-        : zl(`ψ<sub>h,sp</sub> = (h/h<sub>min</sub>)<sup>2/3</sup> ≤ max{1; ((h<sub>ef</sub> + 1,5·c<sub>1</sub>)/h<sub>min</sub>)<sup>2/3</sup>} ≤ 2 = min{(${fmtA(g.h)}/${fmtA(x.hmin)})<sup>2/3</sup>; max[1; ((${fmtA(g.hef)} + 1,5·${mm(x.c1)})/${fmtA(x.hmin)})<sup>2/3</sup>]; 2} = <b>${f3(x.psiH)}</b>`, "Gl. (7.24) " + UNG(K.PRUEFEN.psiHsp));
+        : zl(`ψ<sub>h,sp</sub> = (h/h<sub>min</sub>)<sup>2/3</sup> ≤ max{1; ((h<sub>ef</sub> + 1,5·c<sub>1</sub>)/h<sub>min</sub>)<sup>2/3</sup>} ≤ 2 = min{(${fmtA(g.h)}/${fmtA(x.hmin)})<sup>2/3</sup>; max[1; ((${fmtA(g.hef)} + 1,5·${mm(x.c1)})/${fmtA(x.hmin)})<sup>2/3</sup>]; 2} = <b>${f3(x.psiH)}</b> (c<sub>1</sub> = min{${mm(x.c1A)} Zuganker; ${mm(x.c1B)} Gruppe})`, "Gl. (7.24); Auslegung s. Hinweise");
       h += zl(`N<sub>Rk,sp</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)}·${f3(x.psiH)} = <b>${fmt(x.Rk)} kN</b>; N<sub>Rd,sp</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "Gl. (7.23)");
     }
   }
