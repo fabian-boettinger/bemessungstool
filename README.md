@@ -7,6 +7,7 @@ Online (nach Einschalten von GitHub Pages): https://fabian-boettinger.github.io/
 
 - `index.html` – Übersicht aller Nachweise als Kacheln, gruppiert nach Kategorie, mit Suche
 - `rothoblaas/` – Rothoblaas Verbinder: NINO, TITAN N/S/F/V (auch mit XYLOFON PLATE), WHT PLATE C/T, ALUMINI/ALUMIDI/ALUMAXI, ALUMEGA
+  (Betonseite AB1 an TCN200 und TCF200 nach den Datenblättern TITAN N / TITAN F, Ausgabe 07-26; übrige Werte nach Katalog 24)
 - `bsp/` – BSP-Schraubenverbindungen Würth / Rothoblaas: Wand–Decke, stumpfer Deckenstoß, Verbindungsmittel-Bibliothek
 - `anker/` – Verankerung in Beton nach DIN EN 1992-4 mit NA (Betonseite der Holz–Beton-Anschlüsse): Ankergruppen mit Rändern,
   Betonwiderstände nach 7.2.1.4–7.2.1.7 und 7.2.2.4–7.2.2.5 aus ETA-Kennwerten berechnet oder je Versagensart eingegeben

@@ -577,14 +577,16 @@ const TCB = {
   pg:{F23:246,F45:247}}
 };
 /* Betonseite: R_d,concrete in kN je Winkel (2 Anker), C25/30. [st, Typ, Größe, IN, OUT]; mit Unterlegscheibe nur IN.
+   Letztes Element (Text) = abweichende Quelle: AB1 an TCN200 und TCF200 nach den Datenblättern TITAN N / TITAN F, Ausgabe 07-26
+   (M12 × 115 bzw. mit TCW200 M12 × 125); der Katalog 24 nennt dafür noch M12 × 100 bzw. M12 × 120 mit anderen Werten.
    st: u ungerissen, g gerissen, s seismisch (C2). „5.8/8.8“ gilt für beide Festigkeitsklassen. */
 const TCON = {
  TCN200:{
-  F23:[["u","VIN-FIX 5.8","M12 × 140",35.5,29.1],["u","VIN-FIX 8.8","M12 × 140",48.1,39.1],["u","SKR","12 × 90",34.5,28.5],["u","AB1","M12 × 100",35.4,28.9],
-       ["g","VIN-FIX 5.8","M12 × 140",35.5,29.1],["g","HYB-FIX 8.8","M12 × 140",48.1,39.1],["g","SKR","12 × 90",24.3,20.0],["g","AB1","M12 × 100",35.4,28.9],
-       ["s","HYB-FIX 8.8","M12 × 195",29.0,23.8],["s","SKR","12 × 90",9.0,7.3],["s","AB1","M12 × 100",10.6,8.7]],
-  F23w:[["u","VIN-FIX 5.8","M12 × 140",27.4],["u","HYB-FIX 8.8","M12 × 195",41.5],["u","SKR","12 × 110",15.4],["u","AB1","M12 × 120",26.1],
-        ["g","VIN-FIX 5.8","M12 × 140",21.1],["g","HYB-FIX 8.8","M12 × 195",41.8],["g","AB1","M12 × 120",17.3],
+  F23:[["u","VIN-FIX 5.8","M12 × 140",35.5,29.1],["u","VIN-FIX 8.8","M12 × 140",48.1,39.1],["u","SKR","12 × 90",34.5,28.5],["u","AB1","M12 × 115",33.1,27.2,"Datenblatt TITAN N 07-26, S. 6"],
+       ["g","VIN-FIX 5.8","M12 × 140",35.5,29.1],["g","HYB-FIX 8.8","M12 × 140",48.1,39.1],["g","SKR","12 × 90",24.3,20.0],["g","AB1","M12 × 115",32.5,26.7,"Datenblatt TITAN N 07-26, S. 6"],
+       ["s","HYB-FIX 8.8","M12 × 195",29.0,23.8],["s","SKR","12 × 90",9.0,7.3],["s","AB1","M12 × 115",13.7,11.3,"Datenblatt TITAN N 07-26, S. 6"]],
+  F23w:[["u","VIN-FIX 5.8","M12 × 140",27.4],["u","HYB-FIX 8.8","M12 × 195",41.5],["u","SKR","12 × 110",15.4],["u","AB1","M12 × 125",18.7,"Datenblatt TITAN N 07-26, S. 9"],
+        ["g","VIN-FIX 5.8","M12 × 140",21.1],["g","HYB-FIX 8.8","M12 × 195",41.8],["g","AB1","M12 × 125",14.4,"Datenblatt TITAN N 07-26, S. 9"],
         ["s","HYB-FIX 8.8","M12 × 195",14.0],["s","EPO-FIX 8.8","M12 × 195",17.2]], ez:83.5,
   F1w:[["u","VIN-FIX 5.8/8.8","M12 × 195",21.8],["u","HYB-FIX 8.8","M12 × 195",40.8],["g","HYB-FIX 5.8/8.8","M12 × 195",23.0],["g","HYB-FIX 8.8","M12 × 245",30.6],
        ["s","EPO-FIX 8.8","M12 × 195",14.0],["s","EPO-FIX 8.8","M12 × 245",18.5]],
@@ -610,9 +612,9 @@ const TCON = {
        ["s","HYB-FIX 8.8","M16 × 245",14.9],["s","HYB-FIX 8.8","M16 × 330",21.1],["s","EPO-FIX 8.8","M16 × 245",19.8],["s","EPO-FIX 8.8","M16 × 330",28.1]],
   hmin:"200 mm; mit TCW 200 mm (M16 × 195), 250 mm (M16 × 245), 350 mm (M16 × 330)"},
  TCF200:{
-  F23:[["u","VIN-FIX 5.8","M12 × 140",35.5,29.1],["u","VIN-FIX 8.8","M12 × 140",48.1,39.1],["u","SKR","12 × 90",34.5,28.5],["u","AB1","M12 × 100",35.4,28.9],
-       ["g","VIN-FIX 5.8","M12 × 140",35.5,29.1],["g","VIN-FIX 8.8","M12 × 140",39.8,32.6],["g","SKR","12 × 90",24.3,20.0],["g","AB1","M12 × 100",35.4,28.9],
-       ["s","HYB-FIX 8.8","M12 × 195",29.0,23.8],["s","SKR","12 × 90",9.0,7.3],["s","AB1","M12 × 100",10.6,8.7]],
+  F23:[["u","VIN-FIX 5.8","M12 × 140",35.5,29.1],["u","VIN-FIX 8.8","M12 × 140",48.1,39.1],["u","SKR","12 × 90",34.5,28.5],["u","AB1","M12 × 115",33.1,27.2,"Datenblatt TITAN F 07-26, S. 5"],
+       ["g","VIN-FIX 5.8","M12 × 140",35.5,29.1],["g","VIN-FIX 8.8","M12 × 140",39.8,32.6],["g","SKR","12 × 90",24.3,20.0],["g","AB1","M12 × 115",32.5,26.7,"Datenblatt TITAN F 07-26, S. 5"],
+       ["s","HYB-FIX 8.8","M12 × 195",29.0,23.8],["s","SKR","12 × 90",9.0,7.3],["s","AB1","M12 × 115",13.7,11.3,"Datenblatt TITAN F 07-26, S. 5"]],
   F23w:null, F1w:null, hmin:"200 mm (SKR, AB1, VIN-FIX), 210 mm (HYB-FIX M12 × 195)"}
 };
 // Katalogvergleich mit/ohne XYLOFON (Katalog S. 193, Full Pattern bzw. pattern 1)
@@ -627,7 +629,7 @@ const XYLOFON = {
 };
 
 /* ===== Grundlagen, Hilfsfunktionen, Rechenkern ===== */
-const TOOL = {ver:"3.3", stand:"14.11.2026", kat:"Rothoblaas Katalog „Holzbauverbinder“ (24-holzbauverbinder-de)"};
+const TOOL = {ver:"3.4", stand:"14.11.2026", kat:"Rothoblaas Katalog „Holzbauverbinder“ (24-holzbauverbinder-de); AB1 an TCN200/TCF200 nach Datenblatt TITAN N / TITAN F 07-26"};
 const GAMMA = {M:1.30, M2:1.25, M0:1.00, M1:1.10};   // gamma_M1 Aluminium (Stabilität, EN 1999-1-1) für N_b,Rk nach ETA-09/0361 Gl. (B.12)   // DIN EN 1995-1-1/NA (Verbindungen); gamma_M2 Stahl/Alu nach Katalog; gamma_M0 Stahlversagen TITAN (Katalog, EN 1993-1-1 mit NA)
 
 // DIN EN 1995-1-1/NA: kmod für Vollholz, Brettschichtholz, Brettsperrholz; [NKL 1, NKL 2, NKL 3]
@@ -682,6 +684,8 @@ function applyState(o){
   if(o.nkl!=null&&[1,2,3].indexOf(+o.nkl)>=0) S.nkl=+o.nkl;
   if(o.m&&typeof o.m==="object") MOD_ORDER.forEach(id=>{ const src=o.m[id]; if(!src||typeof src!=="object") return;
     Object.keys(src).forEach(k=>{ if(k!=="lc"&&(typeof src[k]==="string"||typeof src[k]==="number")) S.m[id][k]=src[k]; });
+    // Datenstand 07-26: AB1 an TCN200/TCF200 heißt M12 × 115 (mit TCW200 M12 × 125) statt M12 × 100 bzw. M12 × 120
+    if(/^titan/.test(id)&&typeof S.m[id].anchor==="string") S.m[id].anchor=S.m[id].anchor.replace("|AB1|M12 × 100","|AB1|M12 × 115").replace("|AB1|M12 × 120","|AB1|M12 × 125");
     if(MOD[id].auto&&src.modus===undefined) S.m[id].modus="hand";   // ältere Stände: Auswahl des Nutzers nicht überschreiben
     const lc=src.lc; if(Array.isArray(lc)&&lc.length) S.m[id].lc=lc.map(l=>({name:String((l&&l.name)||""),kled:+(l&&l.kled)||0,v:Object.assign({},l&&l.v)})); });
 }
@@ -1447,9 +1451,10 @@ function tConc(typ,key,wOn,apos){
   if(!key||key==="sep") return null;
   const c=TCON[typ], p=String(key).split("|"), f=r=>r[0]===p[0]&&r[1]===p[1]&&r[2]===p[2];
   let R1=null,R23=null;
-  if(wOn){ const a=tExpand(c.F1w).find(f), b=tExpand(c.F23w).find(f); R1=a?a[3]:null; R23=b?b[3]:null; }
-  else { const b=tExpand(c.F23).find(f); R23=b?(apos==="OUT"?b[4]:b[3]):null; }
-  return {st:p[0],typ:p[1],size:p[2],R1,R23};
+  let src23=null;   // abweichende Quelle (Datenblatt) statt Katalogseite
+  if(wOn){ const a=tExpand(c.F1w).find(f), b=tExpand(c.F23w).find(f); R1=a?a[3]:null; R23=b?b[3]:null; if(b&&typeof b[4]==="string") src23=b[4]; }
+  else { const b=tExpand(c.F23).find(f); R23=b?(apos==="OUT"?b[4]:b[3]):null; if(b&&typeof b[5]==="string") src23=b[5]; }
+  return {st:p[0],typ:p[1],size:p[2],R1,R23,src23};
 }
 function titanPatKeys(typ,hb,xyl){
   if(hb) return Object.keys(TCB[typ]).filter(k=>TCB[typ][k]&&TCB[typ][k].nV);
@@ -1550,7 +1555,7 @@ function mkTitan(ser,xyl){
         let src = wOn ? kat(pg.F23w)+", mit "+w.name : kat(pg.F23);
         if(!wOn&&c.r23note&&fk==="LBS") src = eta("B.7")+" (Katalog S. 246 abweichend)";
         p23.push(tP("Holzseite ("+c.nV+" × "+vmS+")",R23,[fN,fK,fF],src,sub("R","2/3,k timber")));
-        if(cv) p23.push(cP(cv.R23,kat(wOn?pg.F23w:pg.F23)+(wOn?"":", Anker "+apos)));
+        if(cv) p23.push(cP(cv.R23,(cv.src23||kat(wOn?pg.F23w:pg.F23))+(wOn?"":", Anker "+apos)));
       }
       const naQ = typ==="TCS240" ? "liegt nur für full pattern ein Wert vor (Katalog S. 237)" : "liegt nur für full pattern und pattern 2 ein Wert vor (Katalog S. 219, 223)";
       const s45=t=>c.src45||kat(pg.F45);
