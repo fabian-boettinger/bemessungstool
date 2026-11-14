@@ -622,3 +622,17 @@ test("6.2.2.3 (1): Querlast ohne Hebelarm nur mit allen Bedingungen", () => {
   nah(p.sRaster, 100, "s Raster"); nah(p.sPaare, sP, "s alle Paare"); nah(p.psiG, p.psiG0 - Math.sqrt(sP / p.scrNp) * (p.psiG0 - 1), "ψ_g,Np mit größerem s");
   assert.ok(p.psiGB <= p.psiGA);
 });
+
+test("ETA-12/0164 WIT-VM 250: Stichproben, c_cr,sp = 2·h_ef·(2,5 − h/h_ef)", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-12/0164").length, 18);
+  const e = etaEintrag("eta120164-8.8-m16");
+  assert.equal(e.NRks, 125); assert.equal(e.VRks, 63); assert.equal(e.M0Rks, 266); assert.equal(e.tauUcr, 12); assert.equal(e.tauCr, 5.5); assert.equal(e.gInst, 1.2);
+  assert.equal(etaEintrag("eta120164-8.8-m8").gInst, 1.0); assert.equal(etaEintrag("eta120164-A4-70-m24").M0Rks, 784);
+  // h = 250, h_ef = 150: h/h_ef = 1,667 → c_cr,sp = 2·150·(2,5 − 1,667) = 250 mm; Hilti-Ansatz: 4,6·150 − 1,8·250 = 240 mm
+  nah(A.ccrSpVarianten({ spArt: "ead", sp1c: 2.4 }, 250, 150)[0].ccr, 250, "c_cr,sp WIT-VM 250");
+  nah(A.ccrSpVarianten({ spArt: "ead", sp1c: 2.26 }, 250, 150)[0].ccr, 240, "c_cr,sp HIT-HY 200");
+  nah(A.ccrSpVarianten({ spArt: "ead" }, 150, 150)[0].ccr, 2.26 * 150, "Vorgabe X = 2,26");
+  const R = A.nachweis(Z.kernEingabe(zustandAusEintrag(e, 125)));
+  assert.deepEqual([...R.fehler], []);
+  nah(R.lf[0].ber.Np.gM, 1.5 * 1.2, "γ_Mp = 1,5·γ_inst");
+});

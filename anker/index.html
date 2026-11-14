@@ -619,9 +619,10 @@ function ccrSpVarianten(kw, h, hef, hminETA) {
   if (kw.spArt === "faktor") {   // c_cr,sp = Faktor·h_ef, zugehörige Mindestdicke = h_min der ETA
     return num(kw.sp1c) && kw.sp1c > 0 && num(hminETA) && h >= hminETA - 1e-9 ? [{ ccr: kw.sp1c * hef, hmin: hminETA, text: `c_cr,sp = ${fmtz(kw.sp1c)}·h_ef, h_min = ${fmtz(hminETA)} mm` }] : [];
   }
-  if (kw.spArt === "ead") {
-    const r = h / hef, ccr = r >= 2 ? hef : r > 1.3 ? 4.6 * hef - 1.8 * h : 2.26 * hef;
-    return [{ ccr, hmin: h, text: r >= 2 ? "h/h_ef ≥ 2,0: c_cr,sp = 1,0·h_ef" : r > 1.3 ? "2,0 > h/h_ef > 1,3: c_cr,sp = 4,6·h_ef − 1,8·h" : "h/h_ef ≤ 1,3: c_cr,sp = 2,26·h_ef", abhH: true }];
+  if (kw.spArt === "ead") {   // nach h/h_ef: 1,0·h_ef (h/h_ef ≥ 2,0), linear bis X·h_ef (h/h_ef ≤ 1,3); X laut ETA (Feld sp1c, Vorgabe 2,26)
+    const X = num(kw.sp1c) && kw.sp1c > 0 ? kw.sp1c : 2.26, r = h / hef, m = (X - 1) / 0.7;
+    const ccr = r >= 2 ? hef : r > 1.3 ? hef * (1 + m * (2 - r)) : X * hef;
+    return [{ ccr, hmin: h, text: r >= 2 ? "h/h_ef ≥ 2,0: c_cr,sp = 1,0·h_ef" : r > 1.3 ? `2,0 > h/h_ef > 1,3: c_cr,sp = h_ef·(1 + ${fmtz(Math.round(m * 1000) / 1000)}·(2 − h/h_ef))` : `h/h_ef ≤ 1,3: c_cr,sp = ${fmtz(X)}·h_ef`, abhH: true }];
   }
   const v = [[kw.sp1h, kw.sp1c], [kw.sp2h, kw.sp2c]].filter(([a, b]) => num(a) && num(b) && a > 0 && b > 0);
   return v.filter(([a]) => h >= a - 1e-9).map(([a, b]) => ({ ccr: b, hmin: a, text: `h_min = ${fmtz(a)} mm: c_cr,sp = ${fmtz(b)} mm` }));
@@ -1279,7 +1280,7 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       smin: smin[i], cmin: cmin[i], hmin: d <= 12 ? "hef+30>=100" : "hef+" + 2 * d0[i], dfETA: df[i],
       NRks: w.N[i], gMs: w.gN, VRks: Math.round(w.k6 * w.N[i] * 100) / 100, gMsV: w.gV, M0Rks: w.M[i],
       gInst: 1.0, kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: "", NRkpUcr: "", psic: "exp:0,1", tauCr: tcr[i], tauUcr: 18, psi0sus: 0.80,
-      spArt: "ead", sp1h: "", sp1c: "", sp2h: "", sp2c: "", N0Rksp: "", k8: 2.0, lf: "", betonMin: "C20/25", betonMax: "C50/60",
+      spArt: "ead", sp1h: "", sp1c: 2.26, sp2h: "", sp2c: "", N0Rksp: "", k8: 2.0, lf: "", betonMin: "C20/25", betonMax: "C50/60",
       quelle: "ETA-19/0601: Anh. B3 (S. 13), C1 (S. 25), C2 (S. 26), C4 (S. 28)",
       notiz: `Temperaturbereich I (24/40 °C), 50 Jahre, trockener/feuchter Beton, Hammer-/Hohlbohren; d₀ = ${d0[i]} mm; d_f Vorsteckmontage; V_Rk,s = ${w.k6}·N_Rk,s` }));
     return out;
@@ -1305,6 +1306,28 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       spArt: "faktor", sp1h: "", sp1c: sp[i], sp2h: "", sp2c: "", N0Rksp: Pu[i], k8: k8[i], lf: "", betonMin: "C20/25", betonMax: "C50/60",
       quelle: "ETA-98/0001: Anh. C3 (S. 35), C4 (S. 36), C7 (S. 39), C8 (S. 40)",
       notiz: "h_ef,2-Bereich; s_min, c_min, h_min je h_ef nach Anh. B10–B12 eintragen; V_Rk,s ohne Verfüll-Set; d_f nach Tab. 6.1" }));
+    return out;
+  })(),
+
+  // ---- Würth WIT-VM 250 / WIT-NORDIC mit Gewindestangen, ETA-12/0164 vom 08.05.2026
+  // Anhang B3 (PDF-S. 12): d₀, h_ef, d_f, h_min, s_min, c_min; C1 (S. 19): N_Rk,s, V⁰_Rk,s, M⁰_Rk,s, γ_Ms (Werte ohne Klammer);
+  // C2 (S. 20): k_cr/ucr,N, c_cr,N, c_cr,sp = 1,0·h_ef … 2·h_ef·(2,5 − h/h_ef) … 2,4·h_ef; C3 (S. 21): τ_Rk Temperaturbereich I,
+  // trockener/feuchter Beton, ψ⁰_sus, ψ_c = (f_ck/20)^0,11, γ_inst (HD, CD); C4 (S. 22): k₈, l_f; Beton C20/25–C50/60 (S. 11)
+  ...(() => {
+    const G = [8, 10, 12, 16, 20, 24], d0 = [10, 12, 14, 18, 24, 28], hmi = [60, 60, 70, 80, 90, 96], hma = [160, 200, 240, 320, 400, 480],
+      df = [9, 12, 14, 18, 22, 26], smin = [40, 50, 60, 80, 100, 120], tu = [10, 12, 12, 12, 12, 11], tc = [4.0, 5.0, 5.5, 5.5, 5.5, 5.5], gi = [1.0, 1.2, 1.2, 1.2, 1.2, 1.2];
+    const ST = { "5.8": { fuk: 500, N: [18, 29, 42, 78, 122, 176], gN: 1.5, V: [11, 17, 25, 47, 74, 106], gV: 1.25, M: [19, 37, 65, 166, 324, 560] },
+                 "8.8": { fuk: 800, N: [29, 46, 67, 125, 196, 282], gN: 1.5, V: [15, 23, 34, 63, 98, 141], gV: 1.25, M: [30, 60, 105, 266, 519, 896] },
+                 "A4-70": { fuk: 700, N: [26, 41, 59, 110, 171, 247], gN: 1.87, V: [13, 20, 30, 55, 86, 124], gV: 1.56, M: [26, 52, 92, 232, 454, 784] } };
+    const out = [];
+    for (const [st, w] of Object.entries(ST)) G.forEach((d, i) => out.push({ id: `eta120164-${st}-m${d}`, hersteller: "Würth", produkt: `WIT-VM 250 / WIT-NORDIC, Gewindestange M${d} ${st}`,
+      eta: "ETA-12/0164", etaDatum: "08.05.2026", typ: "verbund", d, dnom: d, hef: "", hefMin: hmi[i], hefMax: hma[i], fuk: w.fuk, schraube: false,
+      smin: smin[i], cmin: smin[i], hmin: d <= 12 ? "hef+30>=100" : "hef+" + 2 * d0[i], dfETA: df[i],
+      NRks: w.N[i], gMs: w.gN, VRks: w.V[i], gMsV: w.gV, M0Rks: w.M[i],
+      gInst: gi[i], kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: "", NRkpUcr: "", psic: "exp:0,11", tauCr: tc[i], tauUcr: tu[i], psi0sus: 0.73,
+      spArt: "ead", sp1h: "", sp1c: 2.4, sp2h: "", sp2c: "", N0Rksp: "", k8: 2.0, lf: "", betonMin: "C20/25", betonMax: "C50/60",
+      quelle: "ETA-12/0164: Anh. B3 (S. 12), C1 (S. 19), C2 (S. 20), C3 (S. 21), C4 (S. 22)",
+      notiz: `Temperaturbereich I (24/40 °C), 50 Jahre, trockener/feuchter Beton, Hammer- oder Pressluftbohren (γ_inst = ${String(gi[i]).replace(".", ",")}); d₀ = ${d0[i]} mm; d_f Vorsteckmontage` }));
     return out;
   })(),
   /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
@@ -1448,8 +1471,8 @@ function baue() {
     ${d.typ === "verbund" ? fld(sub("τ", "Rk,cr") + " C20/25 [N/mm²]", "dub.tauCr") + fld(sub("τ", "Rk,ucr") + " C20/25 [N/mm²]", "dub.tauUcr") + fld(sup(sub("ψ", "sus"), "0"), "dub.psi0sus")
       : fld(sub("N", "Rk,p") + " gerissen [kN]", "dub.NRkpCr", { text: true, fh: "„nm“ = laut ETA nicht maßgebend" }) + fld(sub("N", "Rk,p") + " ungerissen [kN]", "dub.NRkpUcr", { text: true, fh: "„nm“ = nicht maßgebend" })}
     ${fld(sub("ψ", "c") + " Betonfestigkeit", "dub.psic", { text: true, ph: "exp:0,5 oder C30/37=1,22; C40/50=1,41", fh: "leer = 1,0" })}
-    ${fld(sub("c", "cr,sp") + " Angabe", "dub.spArt", { sel: [["paare", "Wertepaare h<sub>min</sub> / c<sub>cr,sp</sub>"], ["faktor", "Faktor · h<sub>ef</sub> (bei h<sub>min</sub> der ETA)"], ["ead", "nach h/h<sub>ef</sub> (1,0·h<sub>ef</sub> … 2,26·h<sub>ef</sub>)"]], rb: true })}
-    ${d.spArt === "faktor" ? fld(sub("c", "cr,sp") + " / " + sub("h", "ef"), "dub.sp1c") : ""}
+    ${fld(sub("c", "cr,sp") + " Angabe", "dub.spArt", { sel: [["paare", "Wertepaare h<sub>min</sub> / c<sub>cr,sp</sub>"], ["faktor", "Faktor · h<sub>ef</sub> (bei h<sub>min</sub> der ETA)"], ["ead", "nach h/h<sub>ef</sub> (1,0·h<sub>ef</sub> … X·h<sub>ef</sub>)"]], rb: true })}
+    ${d.spArt === "faktor" ? fld(sub("c", "cr,sp") + " / " + sub("h", "ef"), "dub.sp1c") : d.spArt === "ead" ? fld("X: " + sub("c", "cr,sp") + "/" + sub("h", "ef") + " bei h/h<sub>ef</sub> ≤ 1,3", "dub.sp1c", { fh: "z. B. 2,26 (Hilti) bzw. 2,4; leer = 2,26" }) : ""}
     ${d.spArt === "ead" || d.spArt === "faktor" ? "" : fld(sub("h", "min,1") + " [mm]", "dub.sp1h") + fld(sub("c", "cr,sp,1") + " [mm]", "dub.sp1c") + fld(sub("h", "min,2") + " [mm] (optional)", "dub.sp2h") + fld(sub("c", "cr,sp,2") + " [mm]", "dub.sp2c")}
     ${fld(sup(sub("N", "Rk,sp"), "0") + " ungerissen [kN] (optional)", "dub.N0Rksp", { fh: "gerissen bzw. leer: Anm. zu 7.2.1.7 (2)" })}
     ${fld(sub("k", "8") + " lastabgewandte Seite", "dub.k8")}
