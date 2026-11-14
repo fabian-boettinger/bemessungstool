@@ -695,7 +695,7 @@ function kennwertePruefen(e, keys, fehler) {
     brauch(!num(e.alphaSus) || e.alphaSus < 0 || e.alphaSus > 1, "α_sus (0 … 1)");
   }
   if (keys.includes("Np") || (verbund && keys.some(k => k === "Vcp" || k === "Nsp")) || (!verbund && keys.includes("Nsp") && !num(kw.N0Rksp))) {
-    if (!psiC(kw.psic, g.beton)) fehlt.push("ψ_c (Angabe unlesbar)");
+    if (!psiC(g.zustand !== "gerissen" && String(kw.psicU || "").trim() ? kw.psicU : kw.psic, g.beton)) fehlt.push("ψ_c (Angabe unlesbar)");
   }
   if (keys.includes("Nsp")) brauch(kw.spArt === "faktor" ? !num(kw.sp1c) : kw.spArt !== "ead" && !(num(kw.sp1h) && num(kw.sp1c)), kw.spArt === "faktor" ? "c_cr,sp/h_ef" : "c_cr,sp mit h_min");
   if (keys.includes("Vcp")) brauch(!num(kw.k8) || kw.k8 <= 0, "k₈");
@@ -710,7 +710,7 @@ function kennwertePruefen(e, keys, fehler) {
 // Rechenumgebung (Werte unabhängig vom Lastfall)
 function betonKontext(e, A, raender, dnom) {
   const g = e.geo, kw = e.kw || {}, bew = e.bew || {}, ger = g.zustand === "gerissen";
-  const pc = psiC(kw.psic, g.beton) || { psi: 1, text: "" };
+  const pc = psiC(!ger && String(kw.psicU || "").trim() ? kw.psicU : kw.psic, g.beton) || { psi: 1, text: "" };
   const lfCap = dnom <= 24 ? 12 * dnom : Math.max(8 * dnom, 300);
   const lfE = num(kw.lf) && kw.lf > 0 ? kw.lf : g.hef;
   const psi0 = kw.psi0sus, aS = e.alphaSus;
@@ -1078,14 +1078,14 @@ function vorlageAnker(v, s1, s2) {
 const wLeer = () => ({ art: "k", Rk: "", gM: "", Rd: "", quelle: "", grund: "" });
 const wB = () => ({ art: "b", Rk: "", gM: "", Rd: "", quelle: "", grund: "" });
 // ETA-Kennwerte für berechnete Betonwiderstände (Felder des Dübels; Text: psic, spArt, betonMin, betonMax; "nm" bei N_Rk,p)
-const KWF = ["gInst", "kcr", "kucr", "ccrNf", "NRkpCr", "NRkpUcr", "psic", "tauCr", "tauUcr", "psi0sus", "spArt", "sp1h", "sp1c", "sp2h", "sp2c", "N0Rksp", "k8", "lf", "betonMin", "betonMax", "hefMin", "hefMax"];
-const KWTEXT = new Set(["psic", "spArt", "betonMin", "betonMax"]);
+const KWF = ["gInst", "kcr", "kucr", "ccrNf", "NRkpCr", "NRkpUcr", "psic", "psicU", "tauCr", "tauUcr", "psi0sus", "spArt", "sp1h", "sp1c", "sp2h", "sp2c", "N0Rksp", "k8", "lf", "betonMin", "betonMax", "hefMin", "hefMax"];
+const KWTEXT = new Set(["psic", "psicU", "spArt", "betonMin", "betonMax"]);
 const kwLeer = () => { const o = {}; KWF.forEach(k => o[k] = ""); o.spArt = "paare"; o.betonMin = "C20/25"; o.betonMax = "C50/60"; return o; };
 // h_min als Zahl oder als Regel der ETA abhängig von h_ef: "hef+30>=100" (h_ef + 30 ≥ 100 mm), "hef+36"
 function hminWert(v, hef) {
   const t = String(v == null ? "" : v).replace(/\s/g, "").replace(/,/g, ".").replace("≥", ">=");
-  const m = t.match(/^hef\+(\d*\.?\d+)(?:>=(\d*\.?\d+))?$/i);
-  if (m) return isFinite(hef) ? Math.max(hef + Number(m[1]), m[2] ? Number(m[2]) : 0) : NaN;
+  const m = t.match(/^(\d*\.?\d+)?\*?hef(?:\+(\d*\.?\d+))?(?:>=(\d*\.?\d+))?$/i);   // "a·hef + b ≥ c", a, b, c optional
+  if (m) return isFinite(hef) ? Math.max((m[1] ? Number(m[1]) : 1) * hef + (m[2] ? Number(m[2]) : 0), m[3] ? Number(m[3]) : 0) : NaN;
   return zahl(t);
 }
 const npWert = v => /^\s*(nm|–|-|n\.?\s*m\.?)\s*$/i.test(String(v)) ? "nm" : zahl(v);
@@ -1257,11 +1257,11 @@ const LIBF = [ // [Schlüssel, Kopf, Art]
   ["smin", "s<sub>min</sub>", "n"], ["cmin", "c<sub>min</sub>", "n"], ["hmin", "h<sub>min</sub>", "hm"], ["dfETA", "d<sub>f,max</sub>", "n"],
   ["NRks", "N<sub>Rk,s</sub> [kN]", "n"], ["gMs", "γ<sub>Ms</sub>", "n"], ["VRks", "V<sub>Rk,s</sub> [kN]", "n"], ["gMsV", "γ<sub>Ms,V</sub>", "n"], ["M0Rks", "M<sup>0</sup><sub>Rk,s</sub> [Nm]", "n"],
   ["gInst", "γ<sub>inst</sub>", "n"], ["kcr", "k<sub>cr,N</sub>", "n"], ["kucr", "k<sub>ucr,N</sub>", "n"], ["ccrNf", "c<sub>cr,N</sub>/h<sub>ef</sub>", "n"],
-  ["NRkpCr", "N<sub>Rk,p</sub> geriss. [kN]", "np"], ["NRkpUcr", "N<sub>Rk,p</sub> ungeriss. [kN]", "np"], ["psic", "ψ<sub>c</sub>", "t"],
+  ["NRkpCr", "N<sub>Rk,p</sub> geriss. [kN]", "np"], ["NRkpUcr", "N<sub>Rk,p</sub> ungeriss. [kN]", "np"], ["psic", "ψ<sub>c</sub>", "t"], ["psicU", "ψ<sub>c</sub> ungeriss. (falls abweichend)", "t"],
   ["tauCr", "τ<sub>Rk,cr</sub> [N/mm²]", "n"], ["tauUcr", "τ<sub>Rk,ucr</sub> [N/mm²]", "n"], ["psi0sus", "ψ<sup>0</sup><sub>sus</sub>", "n"],
   ["spArt", "c<sub>cr,sp</sub> Art", "sp"], ["sp1h", "h<sub>min,1</sub>", "n"], ["sp1c", "c<sub>cr,sp,1</sub>", "n"], ["sp2h", "h<sub>min,2</sub>", "n"], ["sp2c", "c<sub>cr,sp,2</sub>", "n"],
   ["N0Rksp", "N<sup>0</sup><sub>Rk,sp</sub> [kN]", "n"], ["k8", "k<sub>8</sub>", "n"], ["lf", "l<sub>f</sub> [mm]", "n"], ["betonMin", "Beton von", "bk"], ["betonMax", "Beton bis", "bk"],
-  ["hefMin", "h<sub>ef,min</sub>", "n"], ["hefMax", "h<sub>ef,max</sub>", "n"], ["quelle", "Fundstelle (Anhang, Seite)", "tl"], ["notiz", "Notiz", "tl"]];
+  ["hefMin", "h<sub>ef,min</sub>", "n"], ["hefMax", "h<sub>ef,max</sub>", "n"], ["spEingabe", "Spalten als Eingabe", "b"], ["quelle", "Fundstelle (Anhang, Seite)", "tl"], ["notiz", "Notiz", "tl"]];
 const PFLICHT = [["hersteller", "Hersteller"], ["produkt", "Produkt"], ["eta", "ETA-Nummer"], ["etaDatum", "Ausgabedatum der ETA"]];
 // Mitgelieferte Einträge aus den ETAs (schreibgeschützt, werk: true; Fundstelle im Feld „quelle“); eigene Einträge im Browser-Speicher
 const ETA_LIB = [ /* ETA-DATEN-START */
@@ -1371,6 +1371,24 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       quelle: "ETA-99/0011: Anh. B3 (S. 14), B4 (S. 15), C1 (S. 22), C3 (S. 24), C5 (S. 26)",
       notiz: `c_min = ${cmin[i]} mm für s ≥ ${sFc[i]} mm (als s_min eingetragen); alternativ s_min = ${sAlt[i]} mm für c ≥ ${cAlt[i]} mm, Zwischenwerte nach Anh. B4 interpolierbar; Spalten Fall 1 der ETA (Fall 2 nicht genutzt), ψ_c auf N⁰_Rk,sp nicht angesetzt; c_cr,N in der ETA nicht genannt, 1,5·h_ef nach Anm. zu 7.2.1.4 (3)` }));
   })(),
+
+  // ---- Würth Fixanker W-FAZ PRO/S (Stahl galvanisch verzinkt), ETA-20/0229 vom 27.08.2026
+  // Anhang B4 (PDF-S. 20): h_min = max(1,5·h_ef; …); s_min, c_min nur mit Nachweis A_sp,rqd ≤ A_sp,ef (Tab. B4) → je Position eintragen;
+  // C1 (S. 30): N_Rk,s, γ_Ms, N_Rk,p,cr/ucr mit eigenem ψ_c je Zustand, h_ef,min/max, c_cr,N, k_cr/ucr,N; Spalten: c_cr,sp aus h_sp und A_sp
+  // (Tab. B3) – im Werkzeug nicht abgebildet, Spalten als Eingabe; C3 (S. 32): V⁰_Rk,s (unverfüllter Ringspalt), M⁰_Rk,s, γ_Ms, k₈, l_f = h_ef
+  ...(() => {
+    const G = [8, 10, 12, 16, 20], hmi = [35, 40, 50, 65, 90], hma = [90, 100, 125, 160, 140], hm = [80, 80, 100, 120, 150], df = [9, 12, 14, 18, 22],
+      N = [19.8, 30.4, 44.9, 79.3, 126.2], Pc = [9.5, 15.6, 22.6, 30.3, 45.1], ec = [0.439, 0.265, 0.5, 0.339, 0.338], Pu = [14.0, 23.9, 31.4, 53.7, 59.1], eu = [0.489, 0.448, 0.5, 0.203, 0.5],
+      kc = [7.7, 7.7, 8.3, 8.9, 7.7], V = [15.7, 26.8, 38.3, 60.0, 83.8], M = [30, 60, 105, 240, 412], k8 = [2.8, 3.1, 2.8, 3.1, 3.3];
+    return G.map((d, i) => ({ id: `eta200229-s-m${d}`, hersteller: "Würth", produkt: `W-FAZ PRO/S M${d} (verzinkt)`,
+      eta: "ETA-20/0229", etaDatum: "27.08.2026", typ: "mechanisch", d, dnom: d, hef: "", hefMin: hmi[i], hefMax: hma[i], fuk: "", schraube: false,
+      smin: "", cmin: "", hmin: `1.5hef>=${hm[i]}`, dfETA: [9, 12, 14, 18, 22][i],
+      NRks: N[i], gMs: 1.5, VRks: V[i], gMsV: 1.25, M0Rks: M[i],
+      gInst: 1.0, kcr: kc[i], kucr: 11.0, ccrNf: 1.5, NRkpCr: Pc[i], NRkpUcr: Pu[i], psic: "exp:" + String(ec[i]).replace(".", ","), psicU: "exp:" + String(eu[i]).replace(".", ","),
+      tauCr: "", tauUcr: "", psi0sus: "", spArt: "paare", sp1h: "", sp1c: "", sp2h: "", sp2c: "", N0Rksp: "", k8: k8[i], lf: "", betonMin: "C20/25", betonMax: "C50/60", spEingabe: true,
+      quelle: "ETA-20/0229: Anh. B4 (S. 20), C1 (S. 30), C3 (S. 32)",
+      notiz: "Spalten: c_cr,sp = min{(A_sp + 0,8·(h_sp − h_ef)²)/(3,41·h_sp − 0,59·h_ef); A_sp/(h_sp·√8)} ≥ 1,5·h_ef mit h_sp, A_sp nach Anh. B4, N⁰_Rk,sp = min(N_Rk,p; N⁰_Rk,c), ψ_h,sp = 1,0 – N_Rk,sp je Position eingeben. s_min/c_min mit A_sp-Nachweis (Tab. B2/B4) eintragen. V_Rk,s unverfüllter Ringspalt; k₈ = min(k₈,cr; k₈,ucr). ETA gilt bis C80/95, hier bis C50/60 hinterlegt" }));
+  })(),
   /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
 const clone = o => JSON.parse(JSON.stringify(o));
 const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); return true; } catch (er) { return null; } };
@@ -1417,6 +1435,7 @@ function uebernehmeLib(s, e) {
   const setzeW = (k, Rk, gM) => { s.w[k] = { art: "k", Rk, gM, Rd: "", quelle, grund: "", bsp: !!e.beispiel }; };
   setzeW("Ns", e.NRks, e.gMs); setzeW("Vs", e.VRks, e.gMsV);
   for (const k of ["Np", "Nc", "Nsp", "Vcp"]) s.w[k] = Z.wB();
+  if (e.spEingabe) s.w.Nsp = { art: "k", Rk: "", gM: "", Rd: "", quelle: "", grund: "", hinweis: "Spalten nach ETA eingeben: " + (e.notiz || "") };
   Object.keys(s.w.Vc || {}).forEach(r => s.w.Vc[r] = Z.wB());
   s.hebel.M0Rks = e.M0Rks; s.hebel.gMs = e.gMsV === "" ? s.hebel.gMs : e.gMsV;
 }
@@ -1480,7 +1499,7 @@ function widZeile(p, nm, beton) {
   else if (w.art === "k") wert = `<td><input type="number" step="any" data-p="${p}.Rk" value="${esc(w.Rk)}" title="${nm[2]} [kN]"${st}></td><td><input type="number" step="any" data-p="${p}.gM" value="${esc(w.gM)}" title="${nm[3]}"${st}></td><td><input type="text" data-p="${p}.quelle" value="${esc(w.quelle)}" placeholder="Quelle"></td>`;
   else if (w.art === "d") wert = `<td><input type="number" step="any" data-p="${p}.Rd" value="${esc(w.Rd)}" title="Bemessungswert [kN]"${st}></td><td></td><td><input type="text" data-p="${p}.quelle" value="${esc(w.quelle)}" placeholder="Quelle"></td>`;
   else wert = `<td colspan="3"><input type="text" data-p="${p}.grund" value="${esc(w.grund)}" placeholder="Begründung (Pflicht)"></td>`;
-  return `<tr><td class="lab">${nm[0]}<small>${nm[1]}</small></td><td>${art}</td>${wert}</tr>`;
+  return `<tr><td class="lab">${nm[0]}<small>${nm[1]}</small></td><td>${art}</td>${wert}</tr>` + (w.hinweis && w.art !== "b" ? `<tr><td></td><td colspan="4" class="hint">${fx(w.hinweis)}</td></tr>` : "");
 }
 
 // ------------------------------------------------------------------ Formulare aufbauen
@@ -1512,6 +1531,7 @@ function baue() {
     ${d.typ === "verbund" ? fld(sub("τ", "Rk,cr") + " C20/25 [N/mm²]", "dub.tauCr") + fld(sub("τ", "Rk,ucr") + " C20/25 [N/mm²]", "dub.tauUcr") + fld(sup(sub("ψ", "sus"), "0"), "dub.psi0sus")
       : fld(sub("N", "Rk,p") + " gerissen [kN]", "dub.NRkpCr", { text: true, fh: "„nm“ = laut ETA nicht maßgebend" }) + fld(sub("N", "Rk,p") + " ungerissen [kN]", "dub.NRkpUcr", { text: true, fh: "„nm“ = nicht maßgebend" })}
     ${fld(sub("ψ", "c") + " Betonfestigkeit", "dub.psic", { text: true, ph: "exp:0,5 oder C30/37=1,22; C40/50=1,41", fh: "leer = 1,0" })}
+    ${fld(sub("ψ", "c") + " ungerissen (optional)", "dub.psicU", { text: true, fh: "nur wenn die ETA für ungerissenen Beton einen anderen Wert nennt" })}
     ${fld(sub("c", "cr,sp") + " Angabe", "dub.spArt", { sel: [["paare", "Wertepaare h<sub>min</sub> / c<sub>cr,sp</sub>"], ["faktor", "Faktor · h<sub>ef</sub> (bei h<sub>min</sub> der ETA)"], ["ead", "nach h/h<sub>ef</sub> (1,0·h<sub>ef</sub> … X·h<sub>ef</sub>)"]], rb: true })}
     ${d.spArt === "faktor" ? fld(sub("c", "cr,sp") + " / " + sub("h", "ef"), "dub.sp1c") : d.spArt === "ead" ? fld("X: " + sub("c", "cr,sp") + "/" + sub("h", "ef") + " bei h/h<sub>ef</sub> ≤ 1,3", "dub.sp1c", { fh: "z. B. 2,26 (Hilti) bzw. 2,4; leer = 2,26" }) : ""}
     ${d.spArt === "ead" || d.spArt === "faktor" ? "" : fld(sub("h", "min,1") + " [mm]", "dub.sp1h") + fld(sub("c", "cr,sp,1") + " [mm]", "dub.sp1c") + fld(sub("h", "min,2") + " [mm] (optional)", "dub.sp2h") + fld(sub("c", "cr,sp,2") + " [mm]", "dub.sp2c")}

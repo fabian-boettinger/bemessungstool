@@ -655,3 +655,17 @@ test("ETA-99/0011 W-FAZ: Stichproben", () => {
   const R = A.nachweis(Z.kernEingabe(s));
   assert.deepEqual([...R.fehler], []);
 });
+
+test("ETA-20/0229 W-FAZ PRO/S: ψ_c je Zustand, h_min = max(1,5·h_ef; …), Spalten als Eingabe", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-20/0229").length, 5);
+  const e = etaEintrag("eta200229-s-m12");
+  assert.equal(e.VRks, 38.3); assert.equal(e.kcr, 8.3); assert.equal(e.spEingabe, true);
+  assert.equal(Z.hminWert("1.5hef>=100", 60), 100); assert.equal(Z.hminWert("1.5hef>=100", 80), 120);
+  const s = zustandAusEintrag(e, 70); Object.assign(s.dub, { smin: 50, cmin: 55 }); s.geo.zustand = "ungerissen"; s.geo.beton = "C40/50";
+  s.w.Nsp = { art: "entfaellt", grund: "Test" };
+  const R = A.nachweis(Z.kernEingabe(s));
+  assert.deepEqual([...R.fehler], []);
+  nah(R.lf[0].ber.Np.Rk, 31.4 * Math.pow(2, 0.5), "N_Rk,p,ucr·(40/20)^0,5");
+  s.geo.zustand = "gerissen"; s.dub.psic = "exp:0,439"; const R2 = A.nachweis(Z.kernEingabe(s));
+  nah(R2.lf[0].ber.Np.Rk, 22.6 * Math.pow(2, 0.439), "gerissen mit eigenem Exponenten");
+});
