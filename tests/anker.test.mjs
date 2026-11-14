@@ -9,8 +9,10 @@ import vm from "node:vm";
 const html = readFileSync(new URL("../anker/index.html", import.meta.url), "utf8");
 const m = html.match(/<script id="kern">([\s\S]*?)<\/script>/);
 assert.ok(m, "Block <script id=\"kern\"> nicht gefunden");
-const ctx = {}; vm.createContext(ctx); vm.runInContext(m[1], ctx);
-const A = ctx.ANKER;
+const mz = html.match(/<script id="zustand">([\s\S]*?)<\/script>/);
+assert.ok(mz, "Block <script id=\"zustand\"> nicht gefunden");
+const ctx = {}; vm.createContext(ctx); vm.runInContext(m[1], ctx); vm.runInContext(mz[1], ctx);
+const A = ctx.ANKER, Z = ctx.ZUSTAND;
 
 const TOL = 5e-4;   // relativ, sofern nicht anders angegeben
 function nah(ist, soll, was, tol = TOL) {
@@ -245,5 +247,85 @@ test("Hash-Übergabe je Anker und Gruppengrößen", () => {
   assert.equal(L.weg, "jeAnker");
   nah(L.G.Ng, 3, "N^g"); nah(L.G.Nh, 2, "N^h"); nah(L.G.eN.x, -27, "e_N,x"); nah(L.G.Vg, 4, "V^g"); nah(L.G.eV, 40.5, "e_V");
   assert.ok(A.leseHash("#von=rb&n=3&xy=0,0;10,0&lc=A~1,0,0;1,0,0").fehler.length > 0, "n passt nicht zum Lochbild");
+  assert.equal(A.leseHash("#lib"), null);
+});
+
+// ---------------------------------------------------------------------------------------------- Projektdatei und Direktlink
+// Zustand wie Fall 2 (Zweiergruppe am Rand, Torsion), über die Oberfläche eingegeben gedacht.
+function zustandFall2() {
+  const s = Z.vorgabe();
+  Object.assign(s.dub, { hersteller: "Test", produkt: "Anker M12", eta: "ETA-00/0000", etaDatum: "01.01.2026", d: 12, dnom: 12, hef: 80, smin: 60, cmin: 60, hmin: 160 });
+  s.geo.vorlage = "2x"; s.geo.s1 = 100; s.geo.anker = Z.vorlageAnker("2x", 100, 100); s.geo.rand = { "+x": "", "-x": "", "+y": 80, "-y": "" }; s.geo.df = 14;
+  s.lf = [{ name: "LK1", N: 10, Vx: 0, Vy: 6, Mx: 0, My: 0.2, T: 0.15, je: [] }, { name: "LK2", N: 4, Vx: 2, Vy: 0, Mx: 0, My: 0, T: 0, je: [] }];
+  const k = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Test", grund: "" });
+  s.w = { Ns: k(30, 1.5), Np: k(25, 1.5), Nc: k(21, 1.5), Nsp: { art: "d", Rk: "", gM: "", Rd: 18, quelle: "Test", grund: "" }, Vs: k(18, 1.25), Vcp: k(30, 1.5), Vc: { "+y": k(18, 1.5) } };
+  s.pos = "108.101"; s.bez = "Wand </script><b>Achse 3</b>";
+  return s;
+}
+
+// Quelle: Fall 2 (Handrechnung oben), η max = 0,95724. Toleranz: gleiche Rechnung → exakt gleich (1e-12).
+test("Projektdatei: Speichern → Laden → gleiche Ergebnisse", () => {
+  const s = zustandFall2();
+  const R1 = A.nachweis(Z.kernEingabe(s));
+  assert.deepEqual([...R1.fehler], []); nah(R1.etaMax, 0.957235, "η max vor dem Speichern");
+  const obj = Z.packe(s, R1, "2026-11-14T12:00:00.000Z");
+  const datei = Z.projektHtml(html, obj);
+  assert.equal(datei.split('<script type="application/json" id="anker-projekt">').length - 1, 1, "genau ein Datenblock");
+  assert.ok(!/<\/script><b>Achse/.test(datei.split('id="anker-projekt">')[1].split("</script>")[0]), "Bezeichnung mit </script> im Datenblock maskiert");
+  assert.ok(datei.includes("<title>Pos 108.101 – Wand &lt;/script&gt;&lt;b&gt;Achse 3&lt;/b&gt; – Verankerung</title>"), "Titel „Pos – Bezeichnung – Verankerung“");
+  // Laden
+  const o = Z.leseText(datei);
+  assert.equal(o.tool, A.VERSION); assert.equal(o.summary.eta, 0.957); assert.equal(o.state.bez, s.bez);
+  const s2 = Z.normalisiere(Z.zustandAus(o), Z.vorgabe());
+  const R2 = A.nachweis(Z.kernEingabe(s2));
+  nah(R2.etaMax, R1.etaMax, "η max nach dem Laden", 1e-12);
+  R1.lf.forEach((l, i) => nah(R2.lf[i].eta, l.eta, "η " + l.name, 1e-12));
+  assert.equal(Z.ladePruefung(o, R2).abw, false);
+  // erneut speichern aus der geladenen Datei: weiterhin genau ein Datenblock
+  const datei2 = Z.projektHtml(datei, Z.packe(s2, R2));
+  assert.equal(datei2.split('<script type="application/json" id="anker-projekt">').length - 1, 1);
+  // Dateiname
+  assert.equal(Z.dateiname(s2), "108.101.html");
+  assert.equal(Z.dateiname({ pos: "" }, new Date(2026, 10, 14)), "anker_2026-11-14.html");
+  assert.equal(Z.dateiname({ pos: "Pos 3/4: A" }), "Pos 3-4- A.html");
+});
+
+// Quelle: Vorgabe Nutzer – weicht max η ab (Toleranz 0,0015 wie Rothoblaas-Werkzeug), erscheint eine Warnung.
+test("Projektdatei: Warnung bei abweichendem max η", () => {
+  const s = zustandFall2(), R = A.nachweis(Z.kernEingabe(s));
+  const o = Z.leseText(Z.projektHtml(html, Z.packe(s, R)));
+  o.summary.eta = 0.900;
+  const P = Z.ladePruefung(o, R);
+  assert.equal(P.abw, true); nah(P.was, 0.9, "η beim Speichern"); nah(P.now, 0.957235, "η jetzt");
+  o.summary.eta = 0.958; assert.equal(Z.ladePruefung(o, R).abw, false, "Rundung auf 3 Stellen gilt nicht als Abweichung");
+  o.summary.eta = null; assert.equal(Z.ladePruefung(o, R).abw, true, "damals nicht nachweisbar, jetzt schon");
+  o.tool = "0.9"; assert.equal(Z.ladePruefung(o, R).version, true);
+  assert.throws(() => Z.normalisiere({ dub: {}, geo: { anker: [] }, lf: [] }, Z.vorgabe()), /Lochbild/);
+  assert.throws(() => Z.leseText("<html><body>keine Projektdatei</body></html>"), /kein gespeicherter Projektstand/);
+});
+
+// Quelle: Formatvorgabe Nutzer (Kräfte je Anker bzw. Schnittgrößen der Gruppe; Betonwiderstände nicht über den Link).
+test("Direktlink: Position, Lochbild, Lastfälle; Betonwiderstände geleert", () => {
+  const q = A.leseHash("#pos=108.102&bez=Wand%20A&xy=-75,0;75,0&lcg=LK1~10,0,6,0,0.2,0.15|LK2~4,2");
+  assert.deepEqual([...q.fehler], []); assert.equal(q.modus, "starr");
+  assert.equal(q.lastfaelle[1].Vx, 2); assert.equal(q.lastfaelle[1].My, 0);
+  const s = Z.hashAnwenden(zustandFall2(), q);
+  assert.equal(s.pos, "108.102"); assert.equal(s.bez, "Wand A"); assert.equal(s.geo.vorlage, "frei"); assert.equal(s.geo.anker[1].x, 75);
+  assert.equal(s.lf.length, 2); assert.equal(s.lf[0].T, 0.15);
+  for (const k of ["Nc", "Nsp", "Vcp"]) assert.equal(s.w[k].Rk, "", k + " geleert");
+  assert.equal(Object.keys(s.w.Vc).length, 0); assert.equal(s.w.Ns.Rk, 30, "Stahl bleibt");
+  const R = A.nachweis(Z.kernEingabe(s));
+  assert.equal(R.etaMax, null, "ohne Betonwiderstände kein Nachweis");
+  assert.ok(R.fehler.some(t => t.includes("Kegelförmiger Betonausbruch")));
+  // Kräfte je Anker, Zwischenschicht → Hebelarm aus H_B
+  const q2 = A.leseHash("#von=rb&prod=titann&typ=TCN240&n=2&xy=39,0;201,0&hb=10&tfix=3&lc=LK1~1.5,3,0;1.5,3,0");
+  const s2 = Z.hashAnwenden(zustandFall2(), q2);
+  assert.equal(s2.modus, "jeAnker"); assert.equal(s2.lf[0].je[1].Vx, 3);
+  assert.equal(s2.hebel.mit, true); assert.equal(s2.hebel.quelle, "hb"); assert.equal(s2.hebel.alphaM, 1);
+  nah(Z.e1(s2), 11.5, "e₁ = H_B + t_fix/2", 1e-12);
+  assert.equal(s2.herkunft.von, "rb");
+  // Fehler und Nicht-Daten
+  assert.ok(A.leseHash("#xy=0,0&lc=A~1,0,0&lcg=B~1").fehler.length > 0, "lc und lcg zugleich");
+  assert.ok(A.leseHash("#lcg=A~1,x").fehler.length > 0, "unlesbare Zahl");
   assert.equal(A.leseHash("#lib"), null);
 });

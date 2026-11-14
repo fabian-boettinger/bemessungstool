@@ -93,7 +93,23 @@ svg{max-width:100%;height:auto;display:block;margin:0 auto}
 /* ---------- Ausdruck ---------- */
 #report{margin:0 auto;width:180mm}
 .rep{color:#000;font:9.5pt/1.35 Arial,Helvetica,sans-serif}
-.rep .sheet{background:#fff;width:180mm;min-height:250mm;box-shadow:0 2px 12px rgba(0,0,0,.35);display:flow-root}
+.rep .page{background:#fff;width:180mm;height:250mm;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.35);margin:0 0 8mm;display:flow-root}
+.rep .pgno{color:#fff;font:12px Arial,sans-serif;margin:0 0 4px}
+#measure{position:absolute;left:-20000px;top:0;width:180mm;visibility:hidden;display:flow-root}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);max-width:min(720px,92vw);background:#1b2430;color:#fff;border-radius:8px;padding:10px 14px;font-size:13px;box-shadow:0 4px 18px rgba(0,0,0,.3);display:none;align-items:center;gap:12px;z-index:50}
+#toast.err{background:var(--bad)} #toast.warn{background:#7a5100}
+#toast button{background:#fff;color:#1b2430;border:0;border-radius:5px;padding:4px 10px;font-weight:600}
+body.drop::after{content:"Projektdatei (.html / .json) hier ablegen";position:fixed;inset:10px;border:3px dashed var(--acc);border-radius:14px;background:rgba(11,90,122,.12);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:600;color:var(--acc);z-index:60;pointer-events:none}
+.row{display:flex;gap:8px;margin:8px 0}
+.row input{flex:1}
+table.snap{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+table.snap td{border-top:1px solid var(--line);padding:6px 4px;vertical-align:middle}
+table.snap td.act{white-space:nowrap;text-align:right}
+table.snap td.act .btn,table.snap td.act .x{margin-left:4px}
+table.snap .x{border:0;background:none;color:var(--mute);font-size:16px}
+.fileinfo{font-size:12px;color:var(--mute)}
+.fileinfo b{color:var(--ink);word-break:break-all}
+.fileinfo .dirty{color:var(--warn);font-weight:600}
 .rep h1{font-size:12.5pt;margin:0 0 1mm;border-bottom:1.2pt solid #000;padding-bottom:1mm}
 .rep h2{font-size:10.5pt;margin:4.5mm 0 1.5mm;border-bottom:.5pt solid #000;padding-bottom:.6mm;break-after:avoid}
 .rep h3{font-size:9.5pt;margin:2.5mm 0 .8mm;break-after:avoid}
@@ -139,7 +155,6 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
 .bspband{background:var(--badbg);color:var(--bad);border:2px solid var(--bad);border-radius:8px;padding:8px 12px;font-weight:700;margin-bottom:10px}
 .fh.abw{color:var(--warn);font-weight:600}
 .rep .bspv{border:1.5pt solid #000;text-align:center;font-weight:bold;font-size:11pt;padding:1.5mm;margin:0 0 2mm;letter-spacing:.5pt}
-.rep .wz{display:none}
 @page{size:A4;margin:20mm 15mm 25mm 15mm}
 @media print{
   body{background:#fff}
@@ -147,9 +162,10 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
   .wrap{display:block;padding:0;max-width:none}
   .sheetwrap{background:none;padding:0;border-radius:0;overflow:visible}
   #report{width:180mm;margin:0}
-  .rep .sheet{box-shadow:none;min-height:0}
-  nav.tabs,#libView{display:none!important}
-  .rep .wz{display:block;position:fixed;left:0;right:0;top:45%;text-align:center;font:bold 30pt Arial,sans-serif;color:rgba(0,0,0,.13);transform:rotate(-28deg);z-index:0;pointer-events:none}
+  nav.tabs,#libView,#toast{display:none!important}
+  #report .page{box-shadow:none;margin:0;break-after:page;page-break-after:always}
+  #report .page:last-child{break-after:auto;page-break-after:auto}
+  #report .pgno{display:none}
 }
 </style>
 </head>
@@ -157,6 +173,9 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
 <header class="app">
   <div><h1>Verankerung in Beton – Nachweis</h1><div class="sub">DIN EN 1992-4:2019-04 mit NA · Widerstände aus ETA bzw. Herstellersoftware · <a href="../index.html">Übersicht</a></div></div>
   <div class="sp"></div>
+  <button class="btn ghost" id="bExp" title="Neue HTML-Datei mit allen Eingaben ablegen, Name = Positionsnummer (Strg+S)">Projekt speichern</button>
+  <button class="btn ghost" id="bImp" title="Gespeicherte Projektdatei (.html) oder Stand (.json) laden (Strg+O) – oder Datei auf die Seite ziehen">Projekt laden</button>
+  <input type="file" id="fImp" accept=".html,.htm,.json,text/html,application/json" hidden>
   <button class="btn ghost" id="bReset" title="Alle Eingaben auf die Beispielwerte zurücksetzen">Zurücksetzen</button>
   <button class="btn pri" id="bPrint">Drucken / an VCmaster übergeben</button>
 </header>
@@ -174,6 +193,13 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
   <div class="card"><h2><span class="n">5</span>Einwirkungen (Bemessungswerte)</h2><div id="fLast"></div></div>
   <div class="card"><h2><span class="n">6</span>Querlast: mit oder ohne Hebelarm</h2><div id="fHebel"></div></div>
   <div class="card"><h2><span class="n">7</span>Widerstände je Versagensart</h2><div id="fWid"></div></div>
+  <div class="card" id="cStand">
+    <h2><span class="n">8</span>Stände</h2>
+    <div class="fileinfo" id="fileInfo"></div>
+    <div class="row"><input type="text" id="snapName" placeholder="Bezeichnung (Vorgabe: Positionsnummer)"><button class="btn" id="bSnap">Zwischenstand merken</button></div>
+    <div id="snapL"></div>
+    <div class="hint" style="margin-top:8px">Zwischenstände (höchstens 40) liegen nur in diesem Browser. Zum Archivieren „Projekt speichern“ verwenden: Es entsteht eine eigene HTML-Datei (Dateiname = Positionsnummer), die beim Öffnen die gespeicherten Eingaben zeigt und neu rechnet. Vor jedem Laden wird der aktuelle Stand vorgehalten und lässt sich rückgängig machen.</div>
+  </div>
 </div>
 
 <div class="right">
@@ -194,6 +220,9 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
   </div>
 </div>
 </div>
+
+<div id="measure" class="rep" aria-hidden="true"></div>
+<div id="toast" role="status"></div>
 
 <section id="libView" hidden>
   <div class="card">
@@ -623,29 +652,48 @@ function nachweis(e) {
 }
 function fmtz(x) { return (Math.round(x * 10) / 10).toString().replace(".", ","); }
 
-// ------------------------------------------------------------------ Direktlink / Übergabe aus dem Rothoblaas-Tool
-// #von=rb&prod=…&typ=…&n=2&xy=39,0;201,0&hb=10&pos=…&lc=LK1~N1,V1x,V1y;N2,V2x,V2y|LK2~…   (kN, mm)
+// ------------------------------------------------------------------ Direktlink / Übergabe
+// #pos=…&bez=…&n=2&xy=39,0;201,0&lc=LK1~N1,V1x,V1y;N2,V2x,V2y|LK2~…        Kräfte je Anker [kN]
+//                               &lcg=LK1~N,Vx,Vy,Mx,My,T|…                    Schnittgrößen am Gruppenschwerpunkt [kN, kNm]
+// optional: von=rb&prod=…&typ=… (Herkunft), hb=<Zwischenschicht mm>, tfix=<Blechdicke mm>. Betonwiderstände kommen nie über den Link.
 function leseHash(h) {
   const s = String(h || "").replace(/^#/, "");
   const q = {};
   for (const t of s.split("&")) { if (!t) continue; const i = t.indexOf("="), dec = x => { try { return decodeURIComponent(x.replace(/\+/g, " ")); } catch (er) { return x; } };
     q[dec(i < 0 ? t : t.slice(0, i))] = i < 0 ? "" : dec(t.slice(i + 1)); }
-  if (!("von" in q)) return null;
-  const out = { von: q.von, prod: q.prod || "", typ: q.typ || "", pos: q.pos || "", fehler: [] };
+  if (!["von", "pos", "bez", "xy", "lc", "lcg", "n", "hb"].some(k => k in q)) return null;
+  const out = { von: q.von || "", prod: q.prod || "", typ: q.typ || "", pos: q.pos || "", bez: q.bez || "", fehler: [] };
   const zahl = x => { const v = Number(String(x).trim()); return String(x).trim() !== "" && isFinite(v) ? v : NaN; };
-  out.n = zahl(q.n);
   out.anker = String(q.xy || "").split(";").filter(Boolean).map(p => { const [x, y] = p.split(",").map(zahl); return { x, y }; });
   if (out.anker.some(p => isNaN(p.x) || isNaN(p.y))) out.fehler.push("Lochbild (xy) unlesbar.");
-  if (!(out.n >= 1) || out.n !== out.anker.length) out.fehler.push(`Ankeranzahl n = ${q.n} passt nicht zum Lochbild (${out.anker.length} Anker).`);
+  out.n = "n" in q ? zahl(q.n) : out.anker.length;
+  if ("n" in q && (!(out.n >= 1) || out.n !== out.anker.length)) out.fehler.push(`Ankeranzahl n = ${q.n} passt nicht zum Lochbild (${out.anker.length} Anker).`);
+  if (out.anker.length > 12) out.fehler.push("Mehr als 12 Anker.");
   out.hb = q.hb === undefined ? null : zahl(q.hb);
   if (q.hb !== undefined && !(out.hb >= 0)) out.fehler.push("Zwischenschicht hb unlesbar.");
-  out.lastfaelle = String(q.lc || "").split("|").filter(Boolean).map(t => {
-    const i = t.indexOf("~"), name = i < 0 ? "" : t.slice(0, i), je = (i < 0 ? t : t.slice(i + 1)).split(";").map(a => { const [N, Vx, Vy] = a.split(",").map(zahl); return { N, Vx, Vy }; });
-    if (je.length !== out.anker.length) out.fehler.push(`Lastfall ${name}: ${je.length} Ankerkräfte für ${out.anker.length} Anker.`);
-    if (je.some(a => isNaN(a.N) || isNaN(a.Vx) || isNaN(a.Vy))) out.fehler.push(`Lastfall ${name}: Kräfte unlesbar.`);
-    return { name, je };
-  });
-  if (!out.lastfaelle.length) out.fehler.push("Keine Lastfälle (lc) übergeben.");
+  out.tfix = q.tfix === undefined ? null : zahl(q.tfix);
+  if (q.tfix !== undefined && !(out.tfix > 0)) out.fehler.push("Blechdicke tfix unlesbar.");
+  const teile = t => { const i = t.indexOf("~"); return [i < 0 ? "" : t.slice(0, i), i < 0 ? t : t.slice(i + 1)]; };
+  out.modus = null; out.lastfaelle = [];
+  if (q.lc && q.lcg) out.fehler.push("lc (je Anker) und lcg (Gruppe) nicht gemeinsam übergeben.");
+  else if (q.lc) {
+    out.modus = "jeAnker";
+    if (!out.anker.length) out.fehler.push("Lastfälle ohne Lochbild (xy).");
+    out.lastfaelle = String(q.lc).split("|").filter(Boolean).map(t => {
+      const [name, r] = teile(t), je = r.split(";").map(a => { const [N, Vx, Vy] = a.split(",").map(zahl); return { N, Vx, Vy }; });
+      if (je.length !== out.anker.length) out.fehler.push(`Lastfall ${name}: ${je.length} Ankerkräfte für ${out.anker.length} Anker.`);
+      if (je.some(a => isNaN(a.N) || isNaN(a.Vx) || isNaN(a.Vy))) out.fehler.push(`Lastfall ${name}: Kräfte unlesbar.`);
+      return { name, je };
+    });
+  } else if (q.lcg) {
+    out.modus = "starr";
+    out.lastfaelle = String(q.lcg).split("|").filter(Boolean).map(t => {
+      const [name, r] = teile(t), v = r.split(",").map(zahl);
+      if (v.length < 1 || v.length > 6 || v.some(isNaN)) out.fehler.push(`Lastfall ${name}: Schnittgrößen unlesbar (N,Vx,Vy,Mx,My,T).`);
+      const [N = 0, Vx = 0, Vy = 0, Mx = 0, My = 0, T = 0] = v;
+      return { name, N, Vx, Vy, Mx, My, T };
+    });
+  }
   return out;
 }
 
@@ -655,12 +703,155 @@ return { VERSION, STAND, PRUEFEN, TEXT, REF, NAME, RICHTUNG, BETON, TAB61, dfMax
 if (typeof globalThis !== "undefined") globalThis.ANKER = ANKER;
 </script>
 
+<script id="zustand">
+"use strict";
+/* Zustand, Projektdatei und Direktlink – reine Funktionen ohne DOM (Tests: tests/anker.test.mjs) */
+const ZUSTAND = (() => {
+const K = ANKER;
+const FORMAT = "anker-nachweis", FV = 1, DIRS = ["+x", "-x", "+y", "-y"];
+const zahl = v => (v === "" || v == null) ? NaN : Number(v);
+const fin = v => isFinite(zahl(v));
+const clone = o => JSON.parse(JSON.stringify(o));
+const VORL_N = { "1": [1, 1], "2x": [2, 1], "2y": [1, 2], "3x": [3, 1], "2x2": [2, 2], "3x2": [3, 2], "3x3": [3, 3] };
+function vorlageAnker(v, s1, s2) {
+  const nn = VORL_N[v]; if (!nn) return null;
+  const a = []; for (let j = 0; j < nn[1]; j++) for (let i = 0; i < nn[0]; i++) a.push({ x: (i - (nn[0] - 1) / 2) * s1, y: (j - (nn[1] - 1) / 2) * s2 });
+  return a;
+}
+const wk = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Beispielwert", grund: "", bsp: true });
+const wLeer = () => ({ art: "k", Rk: "", gM: "", Rd: "", quelle: "", grund: "" });
+// Vorgabezustand ohne Dübel; die Oberfläche übernimmt dazu den Beispieleintrag der Bibliothek
+function vorgabe() {
+  return {
+    pos: "", bez: "", herkunft: null,
+    dub: { lib: null, hersteller: "", produkt: "", eta: "", etaDatum: "", typ: "mechanisch", d: "", dnom: "", hef: "", fuk: "", schraube: false, smin: "", cmin: "", hmin: "", dfETA: "" },
+    geo: { vorlage: "2x", s1: 150, s2: 100, anker: vorlageAnker("2x", 150, 100), h: 200, beton: "C25/30", zustand: "gerissen", lochspiel: "tab61", df: 14,
+           rand: { "+x": "", "-x": "", "+y": 100, "-y": "" } },
+    modus: "starr", druck: "ablehnen", interaktion: "7.55",
+    lf: [{ name: "LK1", N: 8, Vx: 0, Vy: 5, Mx: 0, My: 0, T: 0, je: [] }],
+    hebel: { mit: false, quelle: "e1", e1: 10, HB: 0, tfix: 3, a3Null: false, alphaM: 1, M0Rks: "", gMs: 1.25 },
+    w: { Ns: wk(30, 1.5), Np: wk(20, 1.5), Nc: wk(25, 1.5), Nsp: wk(25, 1.5), Vs: wk(18, 1.25), Vcp: wk(40, 1.5), Vc: { "+y": wk(15, 1.5) } },
+    geoSchluessel: null,
+  };
+}
+const raender = s => DIRS.filter(r => fin(s.geo.rand[r])).map(r => ({ richtung: r, c: zahl(s.geo.rand[r]) }));
+const e1 = s => s.hebel.quelle === "hb" ? K.e1AusZwischenschicht(zahl(s.hebel.HB), zahl(s.hebel.tfix)) : zahl(s.hebel.e1);
+function wIn(w) {
+  if (!w) return null;
+  if (w.art === "k") return { art: "k", Rk: zahl(w.Rk), gM: zahl(w.gM), quelle: w.quelle };
+  if (w.art === "d") return { art: "d", Rd: zahl(w.Rd), quelle: w.quelle };
+  if (w.art === "entfaellt") return { art: "entfaellt", grund: w.grund };
+  return null;
+}
+// Zustand → Eingabe des Rechenkerns
+function kernEingabe(s) {
+  const d = s.dub, g = s.geo, H = s.hebel, R = raender(s);
+  const W = {}; for (const k of ["Ns", "Np", "Nc", "Nsp", "Vs", "Vcp"]) W[k] = wIn(s.w[k]);
+  W.Vc = R.map(r => wIn((s.w.Vc || {})[r.richtung]));
+  return {
+    anker: g.anker.map(p => ({ x: zahl(p.x), y: zahl(p.y) })), modus: s.modus, druck: s.druck, interaktion: s.interaktion,
+    geo: { h: zahl(g.h), hef: zahl(d.hef), d: zahl(d.d), dnom: zahl(d.dnom), beton: g.beton, zustand: g.zustand, typ: d.typ,
+           fuk: zahl(d.fuk), betonschraube: !!d.schraube, raender: R, lochspiel: g.lochspiel, df: zahl(g.df), dfETA: zahl(d.dfETA) },
+    mindest: { smin: zahl(d.smin), cmin: zahl(d.cmin), hmin: zahl(d.hmin) },
+    lastfaelle: s.lf.map(l => s.modus === "jeAnker"
+      ? { name: l.name, je: (l.je || []).map(a => ({ N: zahl(a.N) || 0, Vx: zahl(a.Vx) || 0, Vy: zahl(a.Vy) || 0 })) }
+      : { name: l.name, N: zahl(l.N) || 0, Vx: zahl(l.Vx) || 0, Vy: zahl(l.Vy) || 0, Mx: zahl(l.Mx) || 0, My: zahl(l.My) || 0, T: zahl(l.T) || 0 }),
+    widerstand: W,
+    hebel: H.mit ? { mit: true, M0Rks: zahl(H.M0Rks), alphaM: zahl(H.alphaM), gMs: zahl(H.gMs), e1: e1(s), e1HB: H.quelle === "hb", a3Null: !!H.a3Null } : { mit: false },
+    geoSchluessel: s.geoSchluessel,
+  };
+}
+// Beispielwerte im Spiel? (Beispieleintrag oder unveränderte Beispiel-Widerstände)
+function beispielAktiv(s) {
+  const w = Object.entries(s.w).filter(([k]) => k !== "Vc").map(([, v]) => v).concat(Object.values(s.w.Vc || {}));
+  return !!(s.dub.lib && s.dub.lib.beispiel) || w.some(v => v && v.bsp && v.art !== "entfaellt");
+}
+// ---------------------------------------------------------------- Projektdatei
+const titel = s => [s.pos ? "Pos " + s.pos : "", s.bez, "Verankerung"].filter(Boolean).join(" – ");
+const sauber = t => String(t || "").trim().replace(/[\\\/:*?"<>|]+/g, "-").replace(/\s+/g, " ").replace(/^[.\s]+|[.\s]+$/g, "").slice(0, 60);
+const datum = d => { const p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); };
+const dateiname = (s, d) => (sauber(s.pos) || "anker_" + datum(d || new Date())) + ".html";
+function zusammenfassung(s, R) {
+  return { pos: s.pos, bez: s.bez, eta: R && R.etaMax != null ? Math.round(R.etaMax * 1000) / 1000 : null, ok: R ? R.ok : null, beispiel: beispielAktiv(s) };
+}
+function packe(s, R, jetzt) {
+  return { format: FORMAT, fv: FV, tool: K.VERSION, stand: K.STAND, saved: jetzt || new Date().toISOString(),
+    summary: zusammenfassung(s, R), bibliothek: s.dub && s.dub.lib ? [clone(s.dub.lib)] : [], state: clone(s) };
+}
+const EMB_OPEN = '<scr' + 'ipt type="application/json" id="anker-projekt">', EMB_CLOSE = '</scr' + 'ipt>', KERN = '<scr' + 'ipt id="kern">';
+function embBlock(h) { const a = h.indexOf(EMB_OPEN); if (a < 0) return null; const b = h.indexOf(EMB_CLOSE, a); return b < 0 ? null : { a, b: b + EMB_CLOSE.length, json: h.slice(a + EMB_OPEN.length, b) }; }
+const escT = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+// Projektdatei = Quelltext dieses Werkzeugs mit eingebettetem Datenblock vor dem Rechenkern
+function projektHtml(src, obj) {
+  const data = JSON.stringify(obj).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
+  let h = src; const e = embBlock(h); if (e) h = h.slice(0, e.a) + h.slice(e.b).replace(/^\n/, "");
+  const i = h.indexOf(KERN); if (i < 0) throw new Error("Quelltext des Werkzeugs nicht gefunden");
+  h = h.slice(0, i) + EMB_OPEN + data + EMB_CLOSE + "\n" + h.slice(i);
+  return h.replace(/<title>[^<]*<\/title>/, () => "<title>" + escT(titel(obj.state)) + "</title>");
+}
+// Text einer Projektdatei (HTML) oder eines JSON-Stands → Objekt; wirft bei unlesbarem Inhalt
+function leseText(t) {
+  if (/^\s*</.test(t)) { const e = embBlock(t); if (!e) throw new Error("kein gespeicherter Projektstand"); return JSON.parse(e.json); }
+  return JSON.parse(t);
+}
+const zustandAus = o => o && o.format === FORMAT && o.state ? o.state : (o && o.dub && o.geo && Array.isArray(o.lf) ? o : null);
+// Gespeicherten Zustand auf die Vorgabe abbilden: fehlende Felder ergänzen, Strukturfehler → Ausnahme
+function normalisiere(st, d) {
+  if (!st || typeof st !== "object") throw new Error("kein Zustand");
+  const s = clone(d), obj = x => x && typeof x === "object" && !Array.isArray(x);
+  for (const k of ["pos", "bez", "modus", "druck", "interaktion"]) if (typeof st[k] === "string") s[k] = st[k];
+  for (const k of ["dub", "geo", "hebel"]) if (obj(st[k])) Object.assign(s[k], clone(st[k]));
+  s.herkunft = obj(st.herkunft) ? clone(st.herkunft) : null;
+  if (obj(st.w)) {
+    for (const k of ["Ns", "Np", "Nc", "Nsp", "Vs", "Vcp"]) if (obj(st.w[k])) s.w[k] = Object.assign(wLeer(), clone(st.w[k]));
+    s.w.Vc = {}; if (obj(st.w.Vc)) DIRS.forEach(r => { if (obj(st.w.Vc[r])) s.w.Vc[r] = Object.assign(wLeer(), clone(st.w.Vc[r])); });
+  }
+  s.geo.rand = Object.assign({ "+x": "", "-x": "", "+y": "", "-y": "" }, obj(st.geo) && obj(st.geo.rand) ? st.geo.rand : {});
+  if (!Array.isArray(s.geo.anker) || !s.geo.anker.length || s.geo.anker.length > 12 || s.geo.anker.some(p => !obj(p))) throw new Error("Lochbild fehlt oder ist fehlerhaft");
+  s.geo.anker = s.geo.anker.map(p => ({ x: p.x, y: p.y }));
+  if (Array.isArray(st.lf) && st.lf.length) s.lf = st.lf.map(l => ({ name: String(l && l.name != null ? l.name : ""), N: l.N ?? 0, Vx: l.Vx ?? 0, Vy: l.Vy ?? 0, Mx: l.Mx ?? 0, My: l.My ?? 0, T: l.T ?? 0,
+    je: Array.isArray(l.je) ? l.je.map(a => ({ N: a && a.N != null ? a.N : 0, Vx: a && a.Vx != null ? a.Vx : 0, Vy: a && a.Vy != null ? a.Vy : 0 })) : [] }));
+  if (!["starr", "jeAnker"].includes(s.modus)) s.modus = "starr";
+  if (!["ablehnen", "neuverteilen"].includes(s.druck)) s.druck = "ablehnen";
+  if (!["7.55", "7.56"].includes(s.interaktion)) s.interaktion = "7.55";
+  if (!obj(s.dub.lib)) s.dub.lib = null;
+  s.geoSchluessel = typeof st.geoSchluessel === "string" ? st.geoSchluessel : null;
+  return s;
+}
+// Prüfung beim Laden: max η beim Speichern gegen neu gerechnetes max η; Version und Datenstand
+function ladePruefung(o, R) {
+  const now = R && R.etaMax != null ? R.etaMax : null, was = o && o.summary ? o.summary.eta : undefined;
+  const abw = was !== undefined && ((was == null) !== (now == null) || (was != null && Math.abs(was - now) > 0.0015));
+  const version = !!(o && o.tool && (o.tool !== K.VERSION || o.stand !== K.STAND));
+  return { abw, was, now, version, tool: o && o.tool, stand: o && o.stand };
+}
+// ---------------------------------------------------------------- Direktlink anwenden
+// Lochbild, Lastfälle, Position und ggf. Zwischenschicht; Betonwiderstände gehören zur Position und werden geleert.
+function hashAnwenden(s, q) {
+  if (q.pos) s.pos = q.pos;
+  if (q.bez) s.bez = q.bez;
+  if (q.anker.length) { s.geo.vorlage = "frei"; s.geo.anker = q.anker.map(p => ({ x: p.x, y: p.y })); }
+  if (q.modus === "jeAnker") { s.modus = "jeAnker"; s.lf = q.lastfaelle.map(l => ({ name: l.name, N: 0, Vx: 0, Vy: 0, Mx: 0, My: 0, T: 0, je: l.je.map(a => ({ N: a.N, Vx: a.Vx, Vy: a.Vy })) })); }
+  else if (q.modus === "starr") { s.modus = "starr"; s.lf = q.lastfaelle.map(l => ({ name: l.name, N: l.N, Vx: l.Vx, Vy: l.Vy, Mx: l.Mx, My: l.My, T: l.T, je: [] })); }
+  if (q.hb != null) { s.hebel.mit = true; s.hebel.quelle = "hb"; s.hebel.HB = q.hb; s.hebel.alphaM = 1; if (q.tfix != null) s.hebel.tfix = q.tfix; }
+  s.w.Nc = wLeer(); s.w.Nsp = wLeer(); s.w.Vcp = wLeer(); s.w.Vc = {};
+  if (s.dub.typ === "verbund") s.w.Np = wLeer();
+  s.geoSchluessel = null;
+  s.herkunft = q.von ? { von: q.von, prod: q.prod, typ: q.typ, hb: q.hb } : { von: "Link" };
+  return s;
+}
+return { FORMAT, DIRS, VORL_N, vorlageAnker, vorgabe, raender, e1, kernEingabe, beispielAktiv, titel, dateiname, packe, projektHtml, embBlock, leseText,
+  zustandAus, normalisiere, ladePruefung, hashAnwenden, clone };
+})();
+if (typeof globalThis !== "undefined") globalThis.ZUSTAND = ZUSTAND;
+</script>
+
 <script id="app">
 "use strict";
 /* ===================================================================================================== App
    Zustand S → Kerneingabe → ANKER.nachweis → Ergebnis, Skizze, Protokoll. Texte aus Eingaben immer über esc(). */
 const $ = id => document.getElementById(id);
-const K = ANKER;
+const K = ANKER, Z = ZUSTAND;
 const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fmt = (x, n = 2) => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { minimumFractionDigits: n, maximumFractionDigits: n });
 const fmtA = x => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { maximumFractionDigits: 2 });
@@ -672,13 +863,7 @@ const DIRS = ["+x", "-x", "+y", "-y"];
 const UNG = t => `<span class="ungtag" title="${esc(t || "Annahme noch nicht am Normtext geprüft")}">ungeprüft</span>`;
 const VORL = [["1", "Einzelanker"], ["2x", "2 Anker in x-Richtung"], ["2y", "2 Anker in y-Richtung"], ["3x", "3 Anker in x-Richtung"],
   ["2x2", "4 Anker (2 × 2)"], ["3x2", "6 Anker (3 in x × 2 in y)"], ["3x3", "9 Anker (3 × 3)"], ["frei", "frei (Koordinaten eingeben)"]];
-const VORL_N = { "1": [1, 1], "2x": [2, 1], "2y": [1, 2], "3x": [3, 1], "2x2": [2, 2], "3x2": [3, 2], "3x3": [3, 3] };
-function vorlageAnker(v, s1, s2) {
-  const nn = VORL_N[v]; if (!nn) return null;
-  const a = []; for (let j = 0; j < nn[1]; j++) for (let i = 0; i < nn[0]; i++) a.push({ x: (i - (nn[0] - 1) / 2) * s1, y: (j - (nn[1] - 1) / 2) * s2 });
-  return a;
-}
-const wk = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Beispielwert", grund: "", bsp: true });
+const VORL_N = Z.VORL_N, vorlageAnker = Z.vorlageAnker;
 
 // ------------------------------------------------------------------ Ankerbibliothek
 // Einträge: geometrieunabhängige Kennwerte aus der ETA. Beispieleinträge (beispiel: true) sind frei gewählt.
@@ -754,60 +939,21 @@ function abweichungen(s) {
   });
   return out;
 }
-// Beispielwerte im Spiel? (Beispieleintrag oder unveränderte Beispiel-Widerstände)
-function beispielAktiv(s) {
-  const w = Object.entries(s.w).filter(([k]) => k !== "Vc").map(([, v]) => v).concat(Object.values(s.w.Vc || {}));
-  return !!(s.dub.lib && s.dub.lib.beispiel) || w.some(v => v && v.bsp && v.art !== "entfaellt");
-}
+const beispielAktiv = Z.beispielAktiv;
 
 function defState() {
-  const s = {
-    pos: "", bez: "",
-    dub: { lib: null, hersteller: "", produkt: "", eta: "", etaDatum: "", typ: "mechanisch", d: "", dnom: "", hef: "", fuk: "", schraube: false, smin: "", cmin: "", hmin: "", dfETA: "" },
-    geo: { vorlage: "2x", s1: 150, s2: 100, anker: vorlageAnker("2x", 150, 100), h: 200, beton: "C25/30", zustand: "gerissen", lochspiel: "tab61", df: 14,
-           rand: { "+x": "", "-x": "", "+y": 100, "-y": "" } },
-    modus: "starr", druck: "ablehnen", interaktion: "7.55",
-    lf: [{ name: "LK1", N: 8, Vx: 0, Vy: 5, Mx: 0, My: 0, T: 0, je: [] }],
-    hebel: { mit: false, quelle: "e1", e1: 10, HB: 0, tfix: 3, a3Null: false, alphaM: 1, M0Rks: "", gMs: 1.25 },
-    w: { Ns: wk(30, 1.5), Np: wk(20, 1.5), Nc: wk(25, 1.5), Nsp: wk(25, 1.5), Vs: wk(18, 1.25), Vcp: wk(40, 1.5), Vc: { "+y": wk(15, 1.5) } },
-    geoSchluessel: null,
-  };
-  const e = LIB.find(x => x.id === "bsp-m12") || BSP_LIB[0];
-  uebernehmeLib(s, e);
+  const s = Z.vorgabe();
+  uebernehmeLib(s, LIB.find(x => x.id === "bsp-m12") || BSP_LIB[0]);
   return s;
 }
 
-// ------------------------------------------------------------------ Zustand → Kerneingabe
-function wIn(w) {
-  if (!w) return null;
-  if (w.art === "k") return { art: "k", Rk: zahl(w.Rk), gM: zahl(w.gM), quelle: w.quelle };
-  if (w.art === "d") return { art: "d", Rd: zahl(w.Rd), quelle: w.quelle };
-  if (w.art === "entfaellt") return { art: "entfaellt", grund: w.grund };
-  return null;
-}
-function raenderAus() { return DIRS.filter(r => fin(S.geo.rand[r])).map(r => ({ richtung: r, c: zahl(S.geo.rand[r]) })); }
+// ------------------------------------------------------------------ Zustand → Kerneingabe (Zustandsblock)
+const raenderAus = () => Z.raender(S);
 function syncJe() {
   const n = S.geo.anker.length;
   S.lf.forEach(l => { l.je = l.je || []; while (l.je.length < n) l.je.push({ N: 0, Vx: 0, Vy: 0 }); l.je.length = n; });
 }
-function e1Wert() { const H = S.hebel; return H.quelle === "hb" ? K.e1AusZwischenschicht(zahl(H.HB), zahl(H.tfix)) : zahl(H.e1); }
-function kernEingabe() {
-  const d = S.dub, g = S.geo, H = S.hebel, R = raenderAus();
-  const W = {}; for (const k of ["Ns", "Np", "Nc", "Nsp", "Vs", "Vcp"]) W[k] = wIn(S.w[k]);
-  W.Vc = R.map(r => wIn(S.w.Vc[r.richtung]));
-  return {
-    anker: g.anker.map(p => ({ x: zahl(p.x), y: zahl(p.y) })), modus: S.modus, druck: S.druck, interaktion: S.interaktion,
-    geo: { h: zahl(g.h), hef: zahl(d.hef), d: zahl(d.d), dnom: zahl(d.dnom), beton: g.beton, zustand: g.zustand, typ: d.typ,
-           fuk: zahl(d.fuk), betonschraube: !!d.schraube, raender: R, lochspiel: g.lochspiel, df: zahl(g.df), dfETA: zahl(d.dfETA) },
-    mindest: { smin: zahl(d.smin), cmin: zahl(d.cmin), hmin: zahl(d.hmin) },
-    lastfaelle: S.lf.map(l => S.modus === "jeAnker"
-      ? { name: l.name, je: l.je.map(a => ({ N: zahl(a.N) || 0, Vx: zahl(a.Vx) || 0, Vy: zahl(a.Vy) || 0 })) }
-      : { name: l.name, N: zahl(l.N) || 0, Vx: zahl(l.Vx) || 0, Vy: zahl(l.Vy) || 0, Mx: zahl(l.Mx) || 0, My: zahl(l.My) || 0, T: zahl(l.T) || 0 }),
-    widerstand: W,
-    hebel: H.mit ? { mit: true, M0Rks: zahl(H.M0Rks), alphaM: zahl(H.alphaM), gMs: zahl(H.gMs), e1: e1Wert(), e1HB: H.quelle === "hb", a3Null: !!H.a3Null } : { mit: false },
-    geoSchluessel: S.geoSchluessel,
-  };
-}
+const kernEingabe = () => Z.kernEingabe(S);
 
 // ------------------------------------------------------------------ Formularbausteine
 const getP = (p, s) => p.split(".").reduce((o, k) => o == null ? undefined : o[k], s || S);
@@ -938,6 +1084,7 @@ function leseWert(el) {
 }
 function nachEingabe(el) {
   const p = el.dataset.p;
+  touch();
   setP(p, leseWert(el));
   if (p === "geo.vorlage" || p === "geo.s1" || p === "geo.s2") {
     if (S.geo.vorlage !== "frei") { const a = vorlageAnker(S.geo.vorlage, zahl(S.geo.s1) || 0, zahl(S.geo.s2) || 0); if (a) S.geo.anker = a; }
@@ -958,6 +1105,7 @@ L0.addEventListener("input", ev => { const el = ev.target; if (!el.dataset.p || 
 L0.addEventListener("change", ev => { const el = ev.target; if (!el.dataset.p || !(el.tagName === "SELECT" || el.type === "checkbox")) return; nachEingabe(el); });
 L0.addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.seg || b.id === "bLf" || b.dataset.delLf != null || b.id === "bAnker" || b.dataset.delAnker != null || b.id === "bStempel") touch();
   if (b.dataset.seg) { const p = b.dataset.seg, v = b.dataset.v; setP(p, v === "true" ? true : v === "false" ? false : v); baue(); return; }
   if (b.id === "bLf") { const n = S.lf.length + 1; S.lf.push({ name: "LK" + n, N: 0, Vx: 0, Vy: 0, Mx: 0, My: 0, T: 0, je: [] }); baue(); return; }
   if (b.dataset.delLf != null) { S.lf.splice(+b.dataset.delLf, 1); baue(); return; }
@@ -966,8 +1114,8 @@ L0.addEventListener("click", ev => {
   if (b.id === "bStempel") { S.geoSchluessel = K.geoSchluessel(kernEingabe()); rechne(); return; }
 });
 L0.addEventListener("change", ev => { if (ev.target.id !== "libWahl") return; const e = LIB.find(x => x.id === ev.target.value);
-  if (e) uebernehmeLib(S, e); else S.dub.lib = null; baue(); });
-$("bReset").addEventListener("click", () => { if (confirm("Alle Eingaben auf die Beispielwerte zurücksetzen?")) { S = defState(); baue(); } });
+  if (e) uebernehmeLib(S, e); else S.dub.lib = null; touch(); baue(); });
+$("bReset").addEventListener("click", () => { if (!confirm("Alle Eingaben auf die Beispielwerte zurücksetzen?")) return; PREV = { state: clone(S), file: FILE, dirty: DIRTY }; S = defState(); FILE = null; DIRTY = false; baue(); toast("Eingaben zurückgesetzt.", "", { lab: "Rückgängig", fn: undoLoad }); });
 $("bPrint").addEventListener("click", () => window.print());
 $("bPrint2").addEventListener("click", () => window.print());
 
@@ -1015,7 +1163,10 @@ function rechne() {
   $("warns").insertAdjacentHTML("afterbegin", zusatz.join(""));
   const L = massgebend(R);
   $("viz").innerHTML = skizze(E, R, L);
-  $("report").innerHTML = `<div class="sheet">${report(E, R, L)}</div>`;
+  $("report").innerHTML = paginate(report(E, R, L), beispielAktiv(S));
+  document.title = Z.titel(S);
+  fileInfo();
+  speichereLokal();
 }
 
 // Anwendungsgrenzen: Mindestwerte aus dem Kern und Geltungsbereich der Norm
@@ -1103,7 +1254,7 @@ function report(E, R, L) {
   let k = 0; const H2 = t => `<h2>${++k} ${t}</h2>`;
   const bsp = beispielAktiv(S), fe = libFehlt(d), dn = [d.lib && d.lib.beispiel ? "" : d.hersteller, d.produkt].filter(Boolean).join(" ") || "(Dübel ohne Bezeichnung)";
   const etaT = d.eta ? esc(d.eta) + (d.etaDatum ? " vom " + esc(d.etaDatum) : "") : "";
-  let h = bsp ? `<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div><div class="wz">BEISPIELWERTE – nicht für die Bemessung</div>` : "";
+  let h = "";   // Vermerk BEISPIELWERTE setzt paginate() auf jede Seite
   h += `<h1>${S.pos ? "Pos. " + esc(S.pos) + " – " : ""}${S.bez ? esc(S.bez) + ": " : ""}Verankerung in Beton nach DIN EN 1992-4</h1>`;
   h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(dn)}${etaT ? " (" + etaT + ")" : ""}. Widerstände je Versagensart aus ETA bzw. Herstellersoftware; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
   // 1 System
@@ -1117,7 +1268,7 @@ function report(E, R, L) {
     <tr><td>Lochspiel</td><td>${g.lochspiel === "ohne" ? "ohne Lochspiel (Tab. 6.1, Anm. 1)" : "Durchgangsloch d<sub>f</sub> = " + fmtA(g.df) + " mm"}</td></tr>
     <tr><td>Betonbauteil</td><td>${esc(g.beton)}, ${g.zustand === "gerissen" ? "gerissen" : "ungerissen"}, h = ${fmtA(g.h)} mm</td></tr>
     <tr><td>Ränder</td><td>${rd}</td></tr>
-    <tr><td>Ankerkräfte</td><td>${E.modus === "jeAnker" ? "je Anker übergeben" : "aus Schnittgrößen am Gruppenschwerpunkt, elastisch"}</td></tr>
+    <tr><td>Ankerkräfte</td><td>${E.modus === "jeAnker" ? "je Anker übergeben" : "aus Schnittgrößen am Gruppenschwerpunkt, elastisch"}${S.herkunft ? "; Lochbild und Lasten übernommen aus " + (S.herkunft.von === "rb" ? "dem Rothoblaas-Werkzeug" + (S.herkunft.typ ? " (" + esc(S.herkunft.typ) + ")" : "") : "einem Direktlink") : ""}</td></tr>
     <tr><td>Querlast</td><td>${H.mit ? "mit Hebelarm" : "ohne Hebelarm (Bedingungen 6.2.2.3 (1))"}</td></tr></table>`;
   h += zl(esc(K.TEXT.starr), "6.2.1 (1)", true);
   if (E.modus === "jeAnker") h += zl(esc(K.TEXT.jeAnker), "Übergabe", true);
@@ -1153,7 +1304,7 @@ function report(E, R, L) {
     <li>Ermüdung, Erdbeben (C1/C2), Brand, außergewöhnliche Bemessungssituation; benachbarte Gruppen (7.1 (7))</li></ul>`;
   return h + fuss();
 }
-const fuss = () => `<div class="foot">Werkzeug „Verankerung in Beton“ V ${K.VERSION} · Stand ${K.STAND} · DIN EN 1992-4:2019-04, DIN EN 1992-4/NA:2019-04 · Dübel: ${esc([S.dub.hersteller, S.dub.produkt, S.dub.eta].filter(Boolean).join(", ") || "Eingabe")}${beispielAktiv(S) ? " · BEISPIELWERTE – nicht für die Bemessung" : ""}</div>`;
+const fuss = () => `<div class="foot">Werkzeug „Verankerung in Beton“ V ${K.VERSION} · Stand ${K.STAND} · ${FILE ? "Projektdatei: " + esc(FILE.name) + (DIRTY ? " (danach geändert)" : "") : "nicht als Projektdatei gespeichert"} · DIN EN 1992-4:2019-04, DIN EN 1992-4/NA:2019-04 · Dübel: ${esc([S.dub.hersteller, S.dub.produkt, S.dub.eta].filter(Boolean).join(", ") || "Eingabe")}${beispielAktiv(S) ? " · BEISPIELWERTE – nicht für die Bemessung" : ""}</div>`;
 
 function ankerkraefte(E, R, L) {
   const A = E.anker, n = A.length; let h = "";
@@ -1185,8 +1336,8 @@ function ankerkraefte(E, R, L) {
     }
   } else h += zl(esc(K.TEXT.jeAnker), "Übergabe", true);
   // Tabelle je Kombination
-  h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">x [mm]</th><th class="r">y [mm]</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th><th class="r">|V<sub>Ed,i</sub>| [kN]</th></tr>`;
-  R.lf.forEach(lf => { if (!lf.N) return; A.forEach((p, i) => { h += `<tr><td>${i ? "" : esc(lf.name)}</td><td>${i + 1}</td><td class="r">${fmtA(p.x)}</td><td class="r">${fmtA(p.y)}</td><td class="r">${fmt(lf.N[i])}</td><td class="r">${fmt(lf.V[i][0])}</td><td class="r">${fmt(lf.V[i][1])}</td><td class="r">${fmt(Math.hypot(lf.V[i][0], lf.V[i][1]))}</td></tr>`; }); });
+  h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th><th class="r">|V<sub>Ed,i</sub>| [kN]</th></tr>`;
+  R.lf.forEach(lf => { if (!lf.N) return; A.forEach((p, i) => { h += `<tr><td>${i ? "" : esc(lf.name)}</td><td>${i + 1}</td><td class="r">${fmt(lf.N[i])}</td><td class="r">${fmt(lf.V[i][0])}</td><td class="r">${fmt(lf.V[i][1])}</td><td class="r">${fmt(Math.hypot(lf.V[i][0], lf.V[i][1]))}</td></tr>`; }); });
   h += "</table>";
   // Gruppengrößen der maßgebenden Kombination
   if (L && L.G) { const G = L.G;
@@ -1326,7 +1477,184 @@ $("libFile").addEventListener("change", ev => {
   });
 });
 
-baue();
+/* ------------------------------------------------------------------ Seitenaufteilung für den Druck
+   Seiten mit 250 mm Inhaltshöhe für den Import in VCmaster (wie Rothoblaas-Werkzeug V 3.2). Einheiten = oberste
+   Elemente des Protokolls; Rechenzeilen (.zl), Nachweiskästen (.res), Bilder und Tabellenzeilen werden nie geteilt.
+   Abschnitte (ab h2) möglichst ganz auf eine Seite, Überschriften nie allein am Seitenende, lange Tabellen zeilenweise
+   mit wiederholter Kopfzeile. Bei Beispielwerten steht der Vermerk als erste Zeile auf jeder Seite. */
+const PAGE_MM = 250, PAGE_TOL_MM = 2;
+const BSPV = '<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div>';
+function paginate(html, bsp) {
+  const M = $("measure"); M.innerHTML = (bsp ? BSPV : "") + html;
+  const t = document.createElement("div"); t.style.height = "100mm"; M.appendChild(t); const pxmm = t.getBoundingClientRect().height / 100; M.removeChild(t);
+  const oh = el => { const cs = getComputedStyle(el); return el.getBoundingClientRect().height + parseFloat(cs.marginTop) + parseFloat(cs.marginBottom); };
+  const kopfH = bsp ? oh(M.firstElementChild) : 0;
+  if (bsp) M.removeChild(M.firstElementChild);
+  const maxH = (PAGE_MM - PAGE_TOL_MM) * pxmm - kopfH;
+  if (!(pxmm > 0)) { M.innerHTML = ""; return `<div class="page">${bsp ? BSPV : ""}${html}</div>`; }   // ohne Layout (verborgen): ungeteilt
+  const isHead = el => /^H[23]$/.test(el.tagName);
+  const isTab = el => el.tagName === "TABLE";
+  const rowsOf = el => { const rs = [...el.rows]; const hd = rs.length && rs[0].querySelector("th") ? rs.shift() : null; return { hd, rs }; };
+  const tabFirst = el => { const o = rowsOf(el); const ex = oh(el) - [...el.rows].reduce((a, r) => a + r.getBoundingClientRect().height, 0); return (o.hd ? o.hd.getBoundingClientRect().height : 0) + o.rs.slice(0, 2).reduce((a, r) => a + r.getBoundingClientRect().height, 0) + ex; };
+  const units = [...M.children].map(el => ({ el, h: oh(el) }));
+  const secs = []; units.forEach(u => { if (u.el.tagName === "H2" || !secs.length) secs.push([]); secs[secs.length - 1].push(u); });
+  const pages = []; let cur = [], used = 0;
+  const newPage = () => { if (cur.length) { pages.push(cur); cur = []; used = 0; } };
+  const add = (h, hh) => { cur.push(h); used += hh; };
+  const placeTable = el => {
+    const o = rowsOf(el), rh = r => r.getBoundingClientRect().height, hh = o.hd ? rh(o.hd) : 0;
+    const ex = oh(el) - [...el.rows].reduce((a, r) => a + rh(r), 0);
+    let i = 0;
+    while (i < o.rs.length) {
+      let sum = 0, j = i;
+      while (j < o.rs.length && used + ex + hh + sum + rh(o.rs[j]) <= maxH) { sum += rh(o.rs[j]); j++; }
+      if (j === i) { if (cur.length) { newPage(); continue; } sum = rh(o.rs[i]); j = i + 1; }
+      add('<table class="' + el.className + '">' + (o.hd ? o.hd.outerHTML : "") + o.rs.slice(i, j).map(r => r.outerHTML).join("") + "</table>", ex + hh + sum);
+      i = j; if (i < o.rs.length) newPage();
+    }
+  };
+  secs.forEach(sec => {
+    const sh = sec.reduce((a, u) => a + u.h, 0);
+    if (cur.length && used + sh > maxH && (sh <= maxH || maxH - used < 0.4 * maxH)) newPage();
+    sec.forEach((u, k) => {
+      const el = u.el, nx = sec[k + 1];
+      if (isHead(el) && nx) { const need = u.h + (isTab(nx.el) ? tabFirst(nx.el) : nx.h); if (cur.length && used + need > maxH) newPage(); }
+      if (used + u.h <= maxH) { add(el.outerHTML, u.h); return; }
+      if (isTab(el)) { placeTable(el); return; }
+      newPage(); add(el.outerHTML, u.h);
+    });
+  });
+  newPage();
+  M.innerHTML = "";
+  return pages.map((pg, i) => `<div class="pgno">Seite ${i + 1} von ${pages.length} · Inhaltshöhe 250 mm</div><div class="page">${bsp ? BSPV : ""}${pg.join("")}</div>`).join("");
+}
+
+/* ------------------------------------------------------------------ Stände: Projektdatei, Laden, Zwischenstände
+   Dateiformat (Zustandsblock): {format, fv, tool, stand, saved, summary:{pos, bez, eta, ok, beispiel}, bibliothek:[…], state}
+   summary dient nur der Kontrolle beim Laden; gerechnet wird immer neu aus state. */
+const STORE = "anker-nachweis-v1", SNAPSTORE = STORE + "-snap", SNAPMAX = 40;
+const SRC_HTML = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;   // Quelltext beim Start, Grundlage der Projektdatei
+let FILE = null, DIRTY = false, PREV = null;
+const touch = () => { DIRTY = true; };
+function speichereLokal() { LS(STORE, JSON.stringify(S)); }
+function download(name, text, mime) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: mime || "text/html" })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+// „Speichern unter“ mit vorgeschlagenem Namen (Chrome/Edge), sonst Download
+async function saveFile(name, obj) {
+  let text; try { text = Z.projektHtml(SRC_HTML, obj); } catch (e) { toast("Projektdatei konnte nicht erzeugt werden: " + esc(e.message), "err"); return null; }
+  if (window.showSaveFilePicker) {
+    try { const h = await window.showSaveFilePicker({ suggestedName: name, types: [{ description: "Verankerung in Beton (HTML)", accept: { "text/html": [".html"] } }] });
+      const w = await h.createWritable(); await w.write(text); await w.close(); return h.name; }
+    catch (e) { if (e && e.name === "AbortError") return null; }
+  }
+  download(name, text); return name;
+}
+async function exportState() { const n = await saveFile(Z.dateiname(S), Z.packe(S, LAST && LAST.R)); if (!n) return; FILE = { name: n }; DIRTY = false; rechne(); toast("Projekt gespeichert: " + esc(n)); }
+let toastT = null;
+function toast(msg, kind, act) {
+  const t = $("toast"); t.className = kind || ""; t.innerHTML = "<span>" + msg + "</span>" + (act ? '<button id="toastAct">' + act.lab + "</button>" : "");
+  t.style.display = "flex"; if (act) $("toastAct").onclick = () => { t.style.display = "none"; act.fn(); };
+  clearTimeout(toastT); toastT = setTimeout(() => { t.style.display = "none"; }, act || kind ? 12000 : 4500);
+}
+function undoLoad() { if (!PREV) return; const p = PREV; PREV = null; S = p.state; FILE = p.file; DIRTY = p.dirty; baue(); toast("Vorheriger Stand wiederhergestellt."); }
+function ladeMeldung(o, name) {
+  const P = Z.ladePruefung(o, LAST && LAST.R);
+  let msg = (name ? "Stand geladen: " + esc(name) : "Gespeicherte Eingaben geladen") + (o.saved ? " (Stand vom " + new Date(o.saved).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) + ")" : "") + ".", kind = "";
+  if (P.version) msg += " Erstellt mit V " + esc(P.tool) + " (Datenstand " + esc(P.stand) + "), aktuell V " + K.VERSION + " (" + K.STAND + ").";
+  if (P.abw) { msg += " Achtung: max η beim Speichern " + (P.was == null ? "–" : fmt(P.was, 3)) + ", jetzt " + (P.now == null ? "–" : fmt(P.now, 3)) + ". Eingaben und Datenstand prüfen."; kind = "warn"; }
+  return { msg, kind };
+}
+// Stand übernehmen; o ist ein Exportobjekt oder ein roher Zustand
+function loadFrom(o, name) {
+  const st = Z.zustandAus(o);
+  if (!st) { toast("Die Datei enthält keinen Stand des Werkzeugs „Verankerung in Beton“.", "err"); return false; }
+  PREV = { state: clone(S), file: FILE, dirty: DIRTY };
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  try { S = Z.normalisiere(st, defState()); FILE = name ? { name } : null; DIRTY = !name; zeigeReiter("nachweis"); }
+  catch (e) { S = PREV.state; FILE = PREV.file; DIRTY = PREV.dirty; PREV = null; baue(); toast("Der Stand konnte nicht übernommen werden (" + esc(e.message) + "). Die bisherigen Eingaben bleiben erhalten.", "err"); return false; }
+  const m = ladeMeldung(o, name); toast(m.msg, m.kind, { lab: "Rückgängig", fn: undoLoad });
+  return true;
+}
+function importFile(file) {
+  if (!file) return;
+  const rd = new FileReader();
+  rd.onload = () => { let o; try { o = Z.leseText(String(rd.result)); } catch (e) { toast("„" + esc(file.name) + "“ ist keine Projektdatei dieses Werkzeugs (" + esc(e.message) + ").", "err"); return; } loadFrom(o, file.name); };
+  rd.onerror = () => toast("Datei konnte nicht gelesen werden.", "err");
+  rd.readAsText(file);
+}
+function snaps() { try { const a = JSON.parse(LS(SNAPSTORE) || "[]"); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+function setSnaps(a) { if (LS(SNAPSTORE, JSON.stringify(a))) return true; toast("Der Browser-Speicher ist nicht verfügbar oder voll. Stand bitte als Projektdatei speichern.", "err"); return false; }
+function addSnap() {
+  const lab = $("snapName").value.trim() || Z.titel(S);
+  const a = snaps(); a.unshift(Object.assign(Z.packe(S, LAST && LAST.R), { label: lab })); if (a.length > SNAPMAX) a.length = SNAPMAX;
+  if (setSnaps(a)) { $("snapName").value = ""; snapList(); toast("Zwischenstand gemerkt: " + esc(lab)); }
+}
+function snapList() {
+  const a = snaps();
+  $("snapL").innerHTML = a.length ? '<table class="snap">' + a.map((x, i) => { const sm = x.summary || {};
+    return `<tr><td><b>${esc(x.label || "ohne Bezeichnung")}</b><br><span class="hint">max η = ${sm.eta == null ? "–" : fmt(sm.eta, 3)}${sm.ok === false ? " (nicht erfüllt)" : ""}${sm.beispiel ? " · BEISPIELWERTE" : ""} · ${x.saved ? new Date(x.saved).toLocaleString("de-DE", { dateStyle: "short", timeStyle: "short" }) : ""}</span></td><td class="act"><button class="btn sm" data-snapload="${i}">Laden</button><button class="btn sm" data-snapexp="${i}" title="Als Projektdatei speichern">↓</button><button class="x" data-snapdel="${i}" title="Zwischenstand löschen">×</button></td></tr>`; }).join("") + "</table>"
+    : '<div class="hint">Noch keine Zwischenstände.</div>';
+}
+function fileInfo() {
+  const el = $("fileInfo"); if (!el) return;
+  el.innerHTML = FILE ? "Eingabestand: <b>" + esc(FILE.name) + "</b> – " + (DIRTY ? '<span class="dirty">seitdem geändert</span>' : "unverändert")
+    : (DIRTY ? '<span class="dirty">Nicht gespeichert.</span> ' : "") + "Vorgeschlagener Dateiname: <b>" + esc(Z.dateiname(S)) + "</b>";
+}
+$("cStand").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return; const d = b.dataset;
+  if (b.id === "bSnap") addSnap();
+  else if (d.snapload != null) { const x = snaps()[+d.snapload]; if (x) loadFrom(x, null); }
+  else if (d.snapexp != null) { const x = snaps()[+d.snapexp]; if (x) { const o = Object.assign({}, x); delete o.label; saveFile(Z.dateiname(x.state), o).then(n => { if (n) toast("Gespeichert: " + esc(n)); }); } }
+  else if (d.snapdel != null) { const a = snaps(), i = +d.snapdel, x = a[i]; a.splice(i, 1); if (setSnaps(a)) { snapList(); toast("Zwischenstand gelöscht.", "", { lab: "Rückgängig", fn: () => { const c = snaps(); c.splice(i, 0, x); setSnaps(c); snapList(); } }); } }
+});
+$("snapName").addEventListener("keydown", ev => { if (ev.key === "Enter") addSnap(); });
+$("bExp").addEventListener("click", exportState);
+$("bImp").addEventListener("click", () => { $("fImp").value = ""; $("fImp").click(); });
+$("fImp").addEventListener("change", ev => importFile(ev.target.files && ev.target.files[0]));
+document.addEventListener("keydown", ev => {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey) return;
+  const k = ev.key.toLowerCase();
+  if (k === "s") { ev.preventDefault(); exportState(); }
+  else if (k === "o") { ev.preventDefault(); $("fImp").value = ""; $("fImp").click(); }
+  else if (k === "p") { ev.preventDefault(); zeigeReiter("nachweis"); window.print(); }
+});
+let dragN = 0;
+const isFile = ev => ev.dataTransfer && Array.from(ev.dataTransfer.types || []).indexOf("Files") >= 0;
+document.addEventListener("dragenter", ev => { if (!isFile(ev)) return; ev.preventDefault(); dragN++; document.body.classList.add("drop"); });
+document.addEventListener("dragover", ev => { if (isFile(ev)) ev.preventDefault(); });
+document.addEventListener("dragleave", ev => { if (!isFile(ev)) return; if (--dragN <= 0) { dragN = 0; document.body.classList.remove("drop"); } });
+document.addEventListener("drop", ev => { if (!isFile(ev)) return; ev.preventDefault(); dragN = 0; document.body.classList.remove("drop"); importFile(ev.dataTransfer.files[0]); });
+
+/* ------------------------------------------------------------------ Direktlink
+   #lib öffnet die Bibliothek. Eingaben über den Link (Lochbild, Lasten, Position) beginnen eine neue Position
+   mit leeren Betonwiderständen; eine geladene Projektdatei oder ungespeicherte Änderungen nur nach Rückfrage. */
+function hashAuswerten(frage) {
+  const h = location.hash.slice(1);
+  if (h === "lib") { zeigeReiter("lib"); return; }
+  let q = null; try { q = K.leseHash(location.hash); } catch (e) { q = null; }
+  if (!q) return;
+  const weg = () => { try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} };
+  if (q.fehler.length) { toast("Direktlink nicht übernommen: " + esc(q.fehler.join(" ")), "err"); weg(); return; }
+  if (frage && !confirm(`Der Link enthält Eingaben${q.pos ? " für Pos. " + q.pos : ""} (Lochbild, Lasten). Die aktuellen Eingaben${FILE ? " aus „" + FILE.name + "“" : ""} ersetzen?`)) { weg(); return; }
+  PREV = { state: clone(S), file: FILE, dirty: DIRTY };
+  S = Z.hashAnwenden(defState(), q); FILE = null; DIRTY = true;
+  zeigeReiter("nachweis"); weg();
+  toast("Eingaben aus dem Link übernommen" + (q.von === "rb" ? " (Rothoblaas-Werkzeug)" : "") + ". Betonwiderstände für diese Position eintragen.", "warn", { lab: "Rückgängig", fn: undoLoad });
+}
+
+// ------------------------------------------------------------------ Start: Projektdatei > Browser-Speicher > Vorgabe; danach Direktlink
+let EMB = null;
+try { const el = $("anker-projekt"); if (el) { const o = JSON.parse(el.textContent), st = Z.zustandAus(o); if (st) { S = Z.normalisiere(st, defState()); EMB = o; } } } catch (e) { EMB = null; S = defState(); }
+if (EMB) { FILE = { name: decodeURIComponent(location.pathname.split("/").pop() || "Projektdatei") }; DIRTY = false; }
+else { try { const st = JSON.parse(LS(STORE) || "null"); if (st) S = Z.normalisiere(st, defState()); } catch (e) { S = defState(); } }
+snapList();
+try { baue(); } catch (e) { S = defState(); baue(); }
+if (EMB) { const m = ladeMeldung(EMB, null); toast(m.msg, m.kind); }
+hashAuswerten(!!EMB || DIRTY);
+window.addEventListener("hashchange", () => hashAuswerten(!!FILE || DIRTY));
 </script>
 </body>
 </html>
