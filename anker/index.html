@@ -10,6 +10,7 @@
   --ok:#1f7a3d; --okbg:#e5f4ea; --bad:#b3261e; --badbg:#fbe9e7; --warn:#8a5a00; --warnbg:#fff4d6; --ung:#6a3d9a; --ungbg:#f1eafa;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 "Segoe UI",system-ui,-apple-system,Arial,sans-serif}
 header.app{background:var(--acc);color:#fff;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
@@ -119,6 +120,26 @@ svg{max-width:100%;height:auto;display:block;margin:0 auto}
 .rep .foot{margin-top:4mm;border-top:.5pt solid #000;padding-top:1mm;font-size:7.5pt;color:#333}
 .rep .nok{font-weight:bold}
 .rep .ungtag{color:#000;background:none;border:.4pt solid #000;font-size:7pt;padding:0 1mm}
+/* Reiter, Bibliothek, Beispielkennzeichnung */
+nav.tabs{display:flex;gap:2px;padding:0 20px;background:#dfe4e8;border-bottom:1px solid var(--line)}
+nav.tabs button{border:0;background:transparent;padding:9px 14px;color:var(--mute);border-bottom:3px solid transparent}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--acc);font-weight:600}
+#libView{padding:16px 20px;max-width:1900px;margin:0 auto}
+table.lib{border-collapse:collapse;font-size:12.5px;min-width:1500px}
+table.lib th{font-size:11px;color:var(--mute);font-weight:500;text-align:left;padding:0 3px 4px;vertical-align:bottom;white-space:nowrap}
+table.lib td{padding:2px 3px;border-top:1px solid var(--line);vertical-align:middle}
+table.lib input,table.lib select{height:30px;padding:4px 5px;font-size:12.5px}
+table.lib input[type=number]{width:64px;text-align:right}
+table.lib select{min-width:118px}
+table.lib input.t{width:130px} table.lib input.tl{width:190px}
+table.lib tr.bsp td{background:#fff8e6}
+table.lib input:disabled,table.lib select:disabled{background:transparent;border-color:transparent;color:var(--ink)}
+.st{font-size:11px;font-weight:700;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.st.bsp{background:var(--warnbg);color:var(--warn)} .st.unv{background:var(--badbg);color:var(--bad)} .st.ok{background:var(--okbg);color:var(--ok)}
+.bspband{background:var(--badbg);color:var(--bad);border:2px solid var(--bad);border-radius:8px;padding:8px 12px;font-weight:700;margin-bottom:10px}
+.fh.abw{color:var(--warn);font-weight:600}
+.rep .bspv{border:1.5pt solid #000;text-align:center;font-weight:bold;font-size:11pt;padding:1.5mm;margin:0 0 2mm;letter-spacing:.5pt}
+.rep .wz{display:none}
 @page{size:A4;margin:20mm 15mm 25mm 15mm}
 @media print{
   body{background:#fff}
@@ -127,6 +148,8 @@ svg{max-width:100%;height:auto;display:block;margin:0 auto}
   .sheetwrap{background:none;padding:0;border-radius:0;overflow:visible}
   #report{width:180mm;margin:0}
   .rep .sheet{box-shadow:none;min-height:0}
+  nav.tabs,#libView{display:none!important}
+  .rep .wz{display:block;position:fixed;left:0;right:0;top:45%;text-align:center;font:bold 30pt Arial,sans-serif;color:rgba(0,0,0,.13);transform:rotate(-28deg);z-index:0;pointer-events:none}
 }
 </style>
 </head>
@@ -137,8 +160,12 @@ svg{max-width:100%;height:auto;display:block;margin:0 auto}
   <button class="btn ghost" id="bReset" title="Alle Eingaben auf die Beispielwerte zurücksetzen">Zurücksetzen</button>
   <button class="btn pri" id="bPrint">Drucken / an VCmaster übergeben</button>
 </header>
+<nav class="tabs" role="tablist">
+  <button type="button" role="tab" data-tab="nachweis" aria-selected="true">Nachweis</button>
+  <button type="button" role="tab" data-tab="lib" aria-selected="false">Ankerbibliothek</button>
+</nav>
 
-<div class="wrap">
+<div class="wrap" id="nachweisView">
 <div class="left" id="left">
   <div class="card"><h2><span class="n">1</span>Position</h2><div class="grid" id="fPos"></div></div>
   <div class="card"><h2><span class="n">2</span>Dübel – Kennwerte aus der ETA</h2><div id="fDub"></div></div>
@@ -167,6 +194,21 @@ svg{max-width:100%;height:auto;display:block;margin:0 auto}
   </div>
 </div>
 </div>
+
+<section id="libView" hidden>
+  <div class="card">
+    <h2>Ankerbibliothek</h2>
+    <p class="hint" style="margin-top:0">Geometrieunabhängige Kennwerte aus der ETA: Abmessungen, Mindestwerte, Lochspiel, Stahlversagen und Herausziehen mechanischer Dübel. Betonausbruch, Spalten, lastabgewandte Seite, Kantenbruch und das kombinierte Versagen von Verbunddübeln hängen von der Geometrie ab und werden je Position eingegeben. Die Bibliothek liegt in diesem Browser; zum Teilen als JSON exportieren.</p>
+    <p class="hint">Pflichtangaben je Eintrag: Hersteller, Produkt, ETA-Nummer, Ausgabedatum der ETA. Fehlt eine, ist der Eintrag <span class="st unv">⚠ unvollständig</span>. Beispieleinträge <span class="st bsp">BEISPIEL</span> enthalten frei gewählte Werte, sind schreibgeschützt und nicht für die Bemessung bestimmt.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
+      <button class="btn" id="libNeu">+ Eintrag</button>
+      <button class="btn" id="libExp">Bibliothek exportieren (JSON)</button>
+      <button class="btn" id="libImp">Bibliothek importieren (JSON)</button><input type="file" id="libFile" accept=".json,application/json" hidden>
+      <button class="btn" id="libBsp">Beispieleinträge wiederherstellen</button>
+    </div>
+    <div class="scroll"><table class="lib" id="libT"></table></div>
+  </div>
+</section>
 
 <script id="kern">
 "use strict";
@@ -636,12 +678,92 @@ function vorlageAnker(v, s1, s2) {
   const a = []; for (let j = 0; j < nn[1]; j++) for (let i = 0; i < nn[0]; i++) a.push({ x: (i - (nn[0] - 1) / 2) * s1, y: (j - (nn[1] - 1) / 2) * s2 });
   return a;
 }
-const wk = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Beispielwert", grund: "" });
+const wk = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Beispielwert", grund: "", bsp: true });
+
+// ------------------------------------------------------------------ Ankerbibliothek
+// Einträge: geometrieunabhängige Kennwerte aus der ETA. Beispieleinträge (beispiel: true) sind frei gewählt.
+const LIBKEY = "anker-bibliothek-v1", LIBFMT = "anker-bibliothek";
+const LIBF = [ // [Schlüssel, Kopf, Art]
+  ["hersteller", "Hersteller", "t"], ["produkt", "Produkt / Größe", "tl"], ["eta", "ETA-Nummer", "t"], ["etaDatum", "Ausgabe ETA", "t"],
+  ["typ", "Dübelart", "typ"], ["d", "d", "n"], ["dnom", "d<sub>nom</sub>", "n"], ["hef", "h<sub>ef</sub>", "n"], ["fuk", "f<sub>uk</sub>", "n"], ["schraube", "Beton&shy;schraube", "b"],
+  ["smin", "s<sub>min</sub>", "n"], ["cmin", "c<sub>min</sub>", "n"], ["hmin", "h<sub>min</sub>", "n"], ["dfETA", "d<sub>f,max</sub>", "n"],
+  ["NRks", "N<sub>Rk,s</sub> [kN]", "n"], ["gMs", "γ<sub>Ms</sub>", "n"], ["NRkpCr", "N<sub>Rk,p</sub> geriss.", "n"], ["NRkpUcr", "N<sub>Rk,p</sub> ungeriss.", "n"], ["gMp", "γ<sub>Mp</sub>", "n"],
+  ["VRks", "V<sub>Rk,s</sub> [kN]", "n"], ["gMsV", "γ<sub>Ms,V</sub>", "n"], ["M0Rks", "M<sup>0</sup><sub>Rk,s</sub> [Nm]", "n"], ["notiz", "Notiz", "tl"]];
+const PFLICHT = [["hersteller", "Hersteller"], ["produkt", "Produkt"], ["eta", "ETA-Nummer"], ["etaDatum", "Ausgabedatum der ETA"]];
+const BSPTXT = "BEISPIEL – frei gewählte Werte, keine ETA";
+const BSP_LIB = [
+  { id: "bsp-m12", beispiel: true, hersteller: "BEISPIEL", produkt: "BEISPIEL-Anker M12", eta: BSPTXT, etaDatum: "", typ: "mechanisch", d: 12, dnom: 12, hef: 80, fuk: 800, schraube: false,
+    smin: 60, cmin: 60, hmin: 120, dfETA: "", NRks: 67, gMs: 1.5, NRkpCr: 16, NRkpUcr: 25, gMp: 1.5, VRks: 34, gMsV: 1.25, M0Rks: 105, notiz: "nur zur Erprobung des Werkzeugs" },
+  { id: "bsp-m16", beispiel: true, hersteller: "BEISPIEL", produkt: "BEISPIEL-Anker M16", eta: BSPTXT, etaDatum: "", typ: "mechanisch", d: 16, dnom: 16, hef: 100, fuk: 800, schraube: false,
+    smin: 80, cmin: 80, hmin: 160, dfETA: "", NRks: 125, gMs: 1.5, NRkpCr: 25, NRkpUcr: 35, gMp: 1.5, VRks: 63, gMsV: 1.25, M0Rks: 266, notiz: "nur zur Erprobung des Werkzeugs" },
+  { id: "bsp-v16", beispiel: true, hersteller: "BEISPIEL", produkt: "BEISPIEL-Verbunddübel M16", eta: BSPTXT, etaDatum: "", typ: "verbund", d: 16, dnom: 16, hef: 125, fuk: 500, schraube: false,
+    smin: 80, cmin: 80, hmin: 160, dfETA: "", NRks: 78, gMs: 1.5, NRkpCr: "", NRkpUcr: "", gMp: "", VRks: 39, gMsV: 1.25, M0Rks: 166, notiz: "Herausziehen/Betonbruch geometrieabhängig, je Position eingeben" }];
+const clone = o => JSON.parse(JSON.stringify(o));
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); return true; } catch (er) { return null; } };
+const libLeer = () => { const e = { id: "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), beispiel: false }; LIBF.forEach(([k, , a]) => e[k] = a === "b" ? false : a === "typ" ? "mechanisch" : ""); return e; };
+// Eintrag aus fremder Quelle (Browser-Speicher, Import) bereinigen: nur bekannte Felder, Typen erzwingen
+function libSauber(x) {
+  if (!x || typeof x !== "object") return null;
+  const e = libLeer();
+  if (typeof x.id === "string" && /^[\w-]{1,40}$/.test(x.id)) e.id = x.id;
+  e.beispiel = x.beispiel === true;
+  LIBF.forEach(([k, , a]) => {
+    const v = x[k];
+    if (a === "n") e[k] = (v === "" || v == null || !isFinite(Number(v))) ? "" : Number(v);
+    else if (a === "b") e[k] = v === true;
+    else if (a === "typ") e[k] = v === "verbund" ? "verbund" : "mechanisch";
+    else e[k] = String(v == null ? "" : v).slice(0, 200);
+  });
+  if (/^BEISPIEL/i.test(e.produkt) || /^BEISPIEL/i.test(e.hersteller)) e.beispiel = true;
+  return e;
+}
+let LIB = (() => { try { const o = JSON.parse(LS(LIBKEY)); if (o && Array.isArray(o.eintraege)) return o.eintraege.map(libSauber).filter(Boolean); } catch (er) {} return clone(BSP_LIB); })();
+const libSpeichern = () => LS(LIBKEY, JSON.stringify({ format: LIBFMT, fv: 1, eintraege: LIB }));
+const libFehlt = e => PFLICHT.filter(([k]) => !String(e[k] == null ? "" : e[k]).trim()).map(([, t]) => t);
+const libStatus = e => e.beispiel ? ["bsp", "BEISPIEL"] : libFehlt(e).length ? ["unv", "⚠ unvollständig"] : ["ok", "vollständig"];
+const libName = e => (e.beispiel ? "[BEISPIEL] " : libFehlt(e).length ? "⚠ " : "") + [e.beispiel ? "" : e.hersteller, e.produkt].filter(Boolean).join(" ") + (e.eta && !e.beispiel ? " – " + e.eta : "") + (e.hef !== "" ? `, hef = ${e.hef} mm` : "");
+// Abbildung Bibliothek → Eingabe
+const DUBF = ["hersteller", "produkt", "eta", "etaDatum", "typ", "d", "dnom", "hef", "fuk", "schraube", "smin", "cmin", "hmin", "dfETA"];
+function libZuordnung(s) {
+  const z = [["w.Ns.Rk", "NRks"], ["w.Ns.gM", "gMs"], ["w.Vs.Rk", "VRks"], ["w.Vs.gM", "gMsV"], ["hebel.M0Rks", "M0Rks"], ["hebel.gMs", "gMsV"]];
+  if (s.dub.typ === "mechanisch") z.push(["w.Np.Rk", s.geo.zustand === "ungerissen" ? "NRkpUcr" : "NRkpCr"], ["w.Np.gM", "gMp"]);
+  return z;
+}
+function uebernehmeLib(s, e) {
+  if (!e) { s.dub.lib = null; return; }
+  s.dub.lib = clone(e);
+  DUBF.forEach(k => s.dub[k] = e[k]);
+  const quelle = (e.beispiel ? "BEISPIEL" : "Bibliothek") + (e.eta && !e.beispiel ? ": " + e.eta : "");
+  const setzeW = (k, Rk, gM) => { s.w[k] = { art: "k", Rk, gM, Rd: "", quelle, grund: "", bsp: !!e.beispiel }; };
+  setzeW("Ns", e.NRks, e.gMs); setzeW("Vs", e.VRks, e.gMsV);
+  if (e.typ === "mechanisch") setzeW("Np", s.geo.zustand === "ungerissen" ? e.NRkpUcr : e.NRkpCr, e.gMp);
+  s.hebel.M0Rks = e.M0Rks; s.hebel.gMs = e.gMsV === "" ? s.hebel.gMs : e.gMsV;
+}
+// Abweichungen der Eingabe vom übernommenen Eintrag
+function abweichungen(s) {
+  const e = s.dub.lib; if (!e) return [];
+  const gl = (a, b) => (a === "" || a == null) && (b === "" || b == null) ? true : String(a) === String(b);
+  const out = [];
+  DUBF.forEach(k => { if (!gl(s.dub[k], e[k])) out.push({ p: "dub." + k, k, ist: s.dub[k], lib: e[k] }); });
+  libZuordnung(s).forEach(([p, k]) => {
+    if (p.startsWith("hebel.") && !s.hebel.mit) return;
+    if (p.startsWith("w.Vs") && s.hebel.mit) return;
+    const w = p.startsWith("w.") ? s.w[p.split(".")[1]] : null;
+    if (w && w.art !== "k") { if (p.endsWith(".Rk")) out.push({ p, k, ist: w.art === "d" ? "Bemessungswert" : "entfällt", lib: e[k] }); return; }
+    if (!gl(getP(p, s), e[k])) out.push({ p, k, ist: getP(p, s), lib: e[k] });
+  });
+  return out;
+}
+// Beispielwerte im Spiel? (Beispieleintrag oder unveränderte Beispiel-Widerstände)
+function beispielAktiv(s) {
+  const w = Object.entries(s.w).filter(([k]) => k !== "Vc").map(([, v]) => v).concat(Object.values(s.w.Vc || {}));
+  return !!(s.dub.lib && s.dub.lib.beispiel) || w.some(v => v && v.bsp && v.art !== "entfaellt");
+}
 
 function defState() {
   const s = {
     pos: "", bez: "",
-    dub: { name: "Beispieldübel M12 (keine ETA-Werte)", eta: "", typ: "mechanisch", d: 12, dnom: 12, hef: 80, fuk: "", schraube: false, smin: 60, cmin: 60, hmin: 120, dfETA: "" },
+    dub: { lib: null, hersteller: "", produkt: "", eta: "", etaDatum: "", typ: "mechanisch", d: "", dnom: "", hef: "", fuk: "", schraube: false, smin: "", cmin: "", hmin: "", dfETA: "" },
     geo: { vorlage: "2x", s1: 150, s2: 100, anker: vorlageAnker("2x", 150, 100), h: 200, beton: "C25/30", zustand: "gerissen", lochspiel: "tab61", df: 14,
            rand: { "+x": "", "-x": "", "+y": 100, "-y": "" } },
     modus: "starr", druck: "ablehnen", interaktion: "7.55",
@@ -650,9 +772,10 @@ function defState() {
     w: { Ns: wk(30, 1.5), Np: wk(20, 1.5), Nc: wk(25, 1.5), Nsp: wk(25, 1.5), Vs: wk(18, 1.25), Vcp: wk(40, 1.5), Vc: { "+y": wk(15, 1.5) } },
     geoSchluessel: null,
   };
+  const e = LIB.find(x => x.id === "bsp-m12") || BSP_LIB[0];
+  uebernehmeLib(s, e);
   return s;
 }
-let S = defState();
 
 // ------------------------------------------------------------------ Zustand → Kerneingabe
 function wIn(w) {
@@ -687,7 +810,7 @@ function kernEingabe() {
 }
 
 // ------------------------------------------------------------------ Formularbausteine
-const getP = p => p.split(".").reduce((o, k) => o == null ? undefined : o[k], S);
+const getP = (p, s) => p.split(".").reduce((o, k) => o == null ? undefined : o[k], s || S);
 function setP(p, v) { const ks = p.split("."); let o = S; for (let i = 0; i < ks.length - 1; i++) o = o[ks[i]]; o[ks[ks.length - 1]] = v; }
 const hid = p => "h_" + p.replace(/[.+\-]/g, "_");
 function fld(lab, p, o = {}) {
@@ -725,9 +848,13 @@ function baue() {
   syncJe();
   const d = S.dub, g = S.geo, H = S.hebel;
   $("fPos").innerHTML = fld("Position (Dateiname, Kopf des Ausdrucks)", "pos", { text: true }) + fld("Bezeichnung / Bauteil", "bez", { text: true, wide: true });
-  $("fDub").innerHTML = `<div class="grid">
-    ${fld("Produkt / Größe", "dub.name", { text: true, wide: true })}
-    ${fld("ETA (Nummer, Stand)", "dub.eta", { text: true, ph: "z. B. ETA-xx/xxxx vom …" })}
+  const libSel = `<label class="f wide"><span>Aus der Ankerbibliothek übernehmen</span><select id="libWahl"><option value="">– freie Eingabe / keine Übernahme –</option>${LIB.map(e => `<option value="${esc(e.id)}"${d.lib && d.lib.id === e.id ? " selected" : ""}>${esc(libName(e))}</option>`).join("")}</select><span class="fh">${d.lib ? "übernommen: " + esc(libName(d.lib)) + (LIB.some(e => e.id === d.lib.id) ? "" : " (nicht mehr in der Bibliothek dieses Browsers)") : "Werte werden in die Felder kopiert und bleiben überschreibbar"}</span></label>`;
+  $("fDub").innerHTML = `${d.lib && d.lib.beispiel ? `<div class="bspband">BEISPIELWERTE – nicht für die Bemessung (${esc(d.lib.produkt)})</div>` : ""}<div class="grid">
+    ${libSel}
+    ${fld("Hersteller", "dub.hersteller", { text: true })}
+    ${fld("Produkt / Größe", "dub.produkt", { text: true })}
+    ${fld("ETA-Nummer", "dub.eta", { text: true, ph: "ETA-xx/xxxx" })}
+    ${fld("Ausgabedatum der ETA", "dub.etaDatum", { text: true, ph: "TT.MM.JJJJ" })}
     ${fld("Dübelart", "dub.typ", { sel: [["mechanisch", "mechanisch (Spreiz-, Hinterschnitt-, Schraubanker)"], ["verbund", "Verbunddübel"]], rb: true, st: true })}
     ${fld(sub("d", "") + " Schaft/Gewinde [mm]", "dub.d")}
     ${fld(sub("d", "nom") + " Außendurchmesser [mm]", "dub.dnom", { fh: "für Tab. 6.1, a₃, 60·d<sub>nom</sub>" })}
@@ -795,6 +922,7 @@ function baue() {
     + R.map(r => widZeile("w.Vc." + r.richtung, [`${K.NAME.Vc}, Rand ${r.richtung}`, `V<sub>Ed</sub> der wirksamen Anker, c = ${fmtA(r.c)} mm`, sub("V", "Rk,c"), sub("γ", "Mc")], true)).join("");
   $("fWid").innerHTML = `<div class="info bsp">Die Widerstände für Betonausbruch, Spalten, lastabgewandte Seite und Kantenbruch gehören zur eingegebenen Geometrie (Rand- und Achsabstände, h, h<sub>ef</sub>, Beton) und zur Lastrichtung bzw. Exzentrizität. Bei Änderungen neu ermitteln.</div>
     <div class="scroll" style="margin-top:8px"><table class="lc wid"><tr><th>Versagensart</th><th>Eingabe</th><th>R<sub>k</sub> bzw. R<sub>d</sub> [kN]</th><th>γ<sub>M</sub></th><th>Quelle / Begründung</th></tr>${zeilen}</table></div>
+    <div id="libAbw"></div>
     <div id="geoStempel"></div>
     <h3>Interaktion Beton (Tab. 7.3, Zeile 2)</h3><div class="grid">${fld("Gleichung", "interaktion", { sel: [["7.55", "(7.55): β<sub>N</sub><sup>1,5</sup> + β<sub>V</sub><sup>1,5</sup> ≤ 1"], ["7.56", "(7.56): (β<sub>N</sub> + β<sub>V</sub>)/1,2 ≤ 1"]], wide: true })}</div>
     <div class="hint">Teilsicherheitsbeiwerte nach ETA bzw. Tab. 4.1: γ<sub>Mc</sub> = 1,5·γ<sub>inst</sub>, γ<sub>Msp</sub> = γ<sub>Mp</sub> = γ<sub>Mc</sub>; γ<sub>Ms</sub> aus f<sub>uk</sub>/f<sub>yk</sub>. Der NA übernimmt die Empfehlungen (NDP zu 4.4.2.2 (2)).</div>`;
@@ -816,6 +944,13 @@ function nachEingabe(el) {
   }
   // Betonwiderstand eingegeben → Werte gelten ab jetzt für diese Geometrie
   if (/^w\.(Nc|Nsp|Vcp|Vc\.)/.test(p) || (p.startsWith("w.Np") && S.dub.typ === "verbund")) S.geoSchluessel = K.geoSchluessel(kernEingabe());
+  // eigene Eingabe ersetzt einen Beispielwert
+  const mw = p.match(/^(w\.(?:Vc\.[+-][xy]|\w+))\.(Rk|gM|Rd|art|grund)$/); if (mw) { const w = getP(mw[1]); if (w) w.bsp = false; }
+  // Wechsel gerissen/ungerissen: Herausziehen aus der Bibliothek nachführen, solange nicht überschrieben
+  if (p === "geo.zustand" && S.dub.lib && S.dub.typ === "mechanisch" && S.w.Np.art === "k") {
+    const e = S.dub.lib, alt = S.geo.zustand === "ungerissen" ? e.NRkpCr : e.NRkpUcr;
+    if (String(S.w.Np.Rk) === String(alt)) S.w.Np.Rk = S.geo.zustand === "ungerissen" ? e.NRkpUcr : e.NRkpCr;
+  }
   if (el.hasAttribute("data-rb")) baue(); else rechne();
 }
 const L0 = $("left");
@@ -830,11 +965,14 @@ L0.addEventListener("click", ev => {
   if (b.dataset.delAnker != null) { S.geo.anker.splice(+b.dataset.delAnker, 1); baue(); return; }
   if (b.id === "bStempel") { S.geoSchluessel = K.geoSchluessel(kernEingabe()); rechne(); return; }
 });
+L0.addEventListener("change", ev => { if (ev.target.id !== "libWahl") return; const e = LIB.find(x => x.id === ev.target.value);
+  if (e) uebernehmeLib(S, e); else S.dub.lib = null; baue(); });
 $("bReset").addEventListener("click", () => { if (confirm("Alle Eingaben auf die Beispielwerte zurücksetzen?")) { S = defState(); baue(); } });
 $("bPrint").addEventListener("click", () => window.print());
 $("bPrint2").addEventListener("click", () => window.print());
 
 // ------------------------------------------------------------------ Auswertung
+let S = defState();
 let LAST = null;
 function massgebend(R) { const lf = R.lf.filter(l => isFinite(l.eta)); return lf.length ? lf.reduce((m, l) => l.eta > m.eta ? l : m, lf[0]) : (R.lf.find(l => l.N) || null); }
 const etaTxt = x => x === Infinity ? "∞" : fmt(x, 3);
@@ -866,6 +1004,15 @@ function rechne() {
   $("limT").innerHTML = `<tr><th>Bedingung</th><th>vorhanden</th><th>Grenze</th><th>Status</th></tr>` + grenzen(E, R).map(g => `<tr class="${g.ok === true ? "ok" : g.ok === false ? "bad" : ""}"><td>${g.t}</td><td>${g.v}</td><td>${g.g}</td><td><span class="dot"></span>${g.ok === true ? "erfüllt" : g.ok === false ? "nicht erfüllt" : (g.s || "Hinweis")}</td></tr>`).join("");
   const st = $("geoStempel");
   if (st) st.innerHTML = R.geoAbweichung ? `<div class="warns" style="margin-top:8px"><div class="err">Die Betonwiderstände wurden für eine andere Geometrie eingegeben. Werte neu ermitteln und eintragen oder bestätigen: <button class="btn sm" id="bStempel">Werte gelten für die aktuelle Geometrie</button></div></div>` : "";
+  // Bibliothek: Abweichungen an den Feldern, Pflichtangaben, Beispielwerte
+  document.querySelectorAll(".fh.abw").forEach(el => { el.classList.remove("abw"); el.innerHTML = el.dataset.fh0 || ""; });
+  const AB = abweichungen(S);
+  AB.forEach(a => { const el = $(hid(a.p)); if (el) { if (el.dataset.fh0 == null) el.dataset.fh0 = el.innerHTML; el.classList.add("abw"); el.innerHTML = "abweichend von Bibliothek (" + esc(a.lib === "" ? "leer" : a.lib) + ")"; } });
+  const ab = $("libAbw"); if (ab) { const w = AB.filter(a => /^(w|hebel)\./.test(a.p)); ab.innerHTML = w.length ? `<div class="info">Abweichend von Bibliothek: ${w.map(a => esc(a.p.replace(/^w\./, "").replace(".Rk", " Rk").replace(".gM", " γ")) + " (Bibliothek " + esc(a.lib === "" ? "leer" : a.lib) + ")").join("; ")}</div>` : ""; }
+  const zusatz = [], fe = libFehlt(S.dub);
+  if (beispielAktiv(S)) zusatz.push(`<div class="err">BEISPIELWERTE – nicht für die Bemessung.${S.dub.lib && S.dub.lib.beispiel ? " Dübelkennwerte aus einem Beispieleintrag." : ""}${Object.values(S.w).some(v => v && v.bsp) || Object.values(S.w.Vc).some(v => v && v.bsp) ? " Widerstände enthalten unveränderte Beispielwerte." : ""}</div>`);
+  if (fe.length && !(S.dub.lib && S.dub.lib.beispiel)) zusatz.push(`<div>⚠ Dübelangaben unvollständig: ${esc(fe.join(", "))} fehlt.</div>`);
+  $("warns").insertAdjacentHTML("afterbegin", zusatz.join(""));
   const L = massgebend(R);
   $("viz").innerHTML = skizze(E, R, L);
   $("report").innerHTML = `<div class="sheet">${report(E, R, L)}</div>`;
@@ -954,13 +1101,17 @@ function sumsRel(A) {
 function report(E, R, L) {
   const d = S.dub, g = E.geo, A = E.anker, n = A.length, H = E.hebel;
   let k = 0; const H2 = t => `<h2>${++k} ${t}</h2>`;
-  let h = `<h1>${S.pos ? "Pos. " + esc(S.pos) + " – " : ""}${S.bez ? esc(S.bez) + ": " : ""}Verankerung in Beton nach DIN EN 1992-4</h1>`;
-  h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(d.name)}${d.eta ? " (" + esc(d.eta) + ")" : ""}. Widerstände je Versagensart aus ETA bzw. Herstellersoftware; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
+  const bsp = beispielAktiv(S), fe = libFehlt(d), dn = [d.lib && d.lib.beispiel ? "" : d.hersteller, d.produkt].filter(Boolean).join(" ") || "(Dübel ohne Bezeichnung)";
+  const etaT = d.eta ? esc(d.eta) + (d.etaDatum ? " vom " + esc(d.etaDatum) : "") : "";
+  let h = bsp ? `<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div><div class="wz">BEISPIELWERTE – nicht für die Bemessung</div>` : "";
+  h += `<h1>${S.pos ? "Pos. " + esc(S.pos) + " – " : ""}${S.bez ? esc(S.bez) + ": " : ""}Verankerung in Beton nach DIN EN 1992-4</h1>`;
+  h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(dn)}${etaT ? " (" + etaT + ")" : ""}. Widerstände je Versagensart aus ETA bzw. Herstellersoftware; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
   // 1 System
   h += H2("System und Annahmen") + `<figure class="figs">${skizze(E, R, L)}<figcaption>Grundriss der Ankergruppe mit Rändern; Kräfte der maßgebenden Kombination</figcaption></figure>`;
   const rd = g.raender.length ? g.raender.map(r => `${r.richtung}: c = ${fmtA(r.c)} mm`).join("; ") : "keine Ränder (große Randabstände)";
   h += `<table class="kv">
-    <tr><td>Dübel</td><td>${esc(d.name)}${d.eta ? ", " + esc(d.eta) : ""}; ${d.typ === "verbund" ? "Verbunddübel" : "mechanischer Dübel"}</td></tr>
+    <tr><td>Dübel</td><td>${esc(dn)}${etaT ? ", " + etaT : ""}; ${d.typ === "verbund" ? "Verbunddübel" : "mechanischer Dübel"}${fe.length && !(d.lib && d.lib.beispiel) ? `; <b>⚠ unvollständig: ${esc(fe.join(", "))} fehlt</b>` : ""}</td></tr>
+    <tr><td>Kennwerte</td><td>${d.lib ? (d.lib.beispiel ? "<b>Beispieleintrag der Ankerbibliothek – frei gewählte Werte</b>" : "Ankerbibliothek: " + esc(libName(d.lib))) : "freie Eingabe"}${(() => { const a = abweichungen(S); return a.length ? "; abweichend von Bibliothek: " + a.map(x => esc(x.p.replace(/^(dub|w|hebel)\./, "")) + " = " + esc(x.ist === "" ? "leer" : x.ist) + " (Bibliothek " + esc(x.lib === "" ? "leer" : x.lib) + ")").join(", ") : ""; })()}</td></tr>
     <tr><td>Abmessungen</td><td>d = ${fmtA(g.d)} mm, d<sub>nom</sub> = ${fmtA(g.dnom || g.d)} mm, h<sub>ef</sub> = ${fmtA(g.hef)} mm${isFinite(g.fuk) ? ", f<sub>uk</sub> = " + fmtA(g.fuk) + " N/mm²" : ""}</td></tr>
     <tr><td>Lochbild</td><td>${A.map((p, i) => `${i + 1}: (${fmtA(p.x)}; ${fmtA(p.y)})`).join(" · ")} mm</td></tr>
     <tr><td>Lochspiel</td><td>${g.lochspiel === "ohne" ? "ohne Lochspiel (Tab. 6.1, Anm. 1)" : "Durchgangsloch d<sub>f</sub> = " + fmtA(g.df) + " mm"}</td></tr>
@@ -978,6 +1129,7 @@ function report(E, R, L) {
   if (E.modus === "jeAnker") h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th></tr>` + E.lastfaelle.map(l => l.je.map((a, j) => `<tr><td>${j ? "" : esc(l.name)}</td><td>${j + 1}</td><td class="r">${fmt(a.N)}</td><td class="r">${fmt(a.Vx)}</td><td class="r">${fmt(a.Vy)}</td></tr>`).join("")).join("") + "</table>";
   else h += `<table class="g"><tr><th>Kombination</th><th class="r">N<sub>Ed</sub> [kN]</th><th class="r">V<sub>Ed,x</sub> [kN]</th><th class="r">V<sub>Ed,y</sub> [kN]</th><th class="r">M<sub>Ed,x</sub> [kNm]</th><th class="r">M<sub>Ed,y</sub> [kNm]</th><th class="r">T<sub>Ed</sub> [kNm]</th></tr>` + E.lastfaelle.map(l => `<tr><td>${esc(l.name)}</td>${["N", "Vx", "Vy", "Mx", "My", "T"].map(x => `<td class="r">${fmt(l[x], ["Mx", "My", "T"].includes(x) ? 3 : 2)}</td>`).join("")}</tr>`).join("") + "</table><p>Zug positiv. Bezugspunkt Schwerpunkt der Ankergruppe; M<sub>Ed,y</sub> > 0 erzeugt Zug auf der +x-Seite, M<sub>Ed,x</sub> > 0 auf der +y-Seite, T<sub>Ed</sub> gegen den Uhrzeigersinn.</p>";
   if (R.etaMax == null) {
+    if (bsp) h += `<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div>`;
     h += H2("Ergebnis") + `<div class="res nok"><span>Nachweis nicht geführt</span><span>Eingaben unvollständig oder außerhalb des Anwendungsbereichs</span></div><ul>${R.fehler.map(t => `<li><b>${esc(t)}</b></li>`).join("")}</ul>`;
     return h + fuss();
   }
@@ -990,7 +1142,8 @@ function report(E, R, L) {
   // 7 Ergebnis
   h += H2("Ergebnis");
   const mg = MNAME[L.massgebend] || L.massgebend;
-  h += `<div class="res${R.ok ? "" : " nok"}"><span>${n} × ${esc(d.name)} · maßgebend ${esc(L.name)}: ${mg}</span><span>max η = ${etaTxt(R.etaMax)} ${R.ok ? "≤ 1 – Nachweis erfüllt" : "> 1 – Nachweis NICHT erfüllt"}</span></div>`;
+  if (bsp) h += `<div class="bspv">BEISPIELWERTE – nicht für die Bemessung</div>`;
+  h += `<div class="res${R.ok ? "" : " nok"}"><span>${n} × ${esc(dn)} · maßgebend ${esc(L.name)}: ${mg}</span><span>max η = ${etaTxt(R.etaMax)} ${R.ok ? "≤ 1 – Nachweis erfüllt" : "> 1 – Nachweis NICHT erfüllt"}</span></div>`;
   const hin = [...new Set([...R.hinweise, ...R.lf.flatMap(l => l.hinweise || [])])];
   if (R.warn.length || hin.length) h += "<ul>" + R.warn.map(t => `<li><b>${esc(t)}</b></li>`).join("") + hin.map(t => `<li>${esc(t)}</li>`).join("") + "</ul>";
   if (R.ungeprueft.length) h += `<h3>Ungeprüfte Annahmen ${UNG()}</h3><ul>${R.ungeprueft.map(u => `<li>${esc(u.text)}</li>`).join("")}</ul>`;
@@ -1000,7 +1153,7 @@ function report(E, R, L) {
     <li>Ermüdung, Erdbeben (C1/C2), Brand, außergewöhnliche Bemessungssituation; benachbarte Gruppen (7.1 (7))</li></ul>`;
   return h + fuss();
 }
-const fuss = () => `<div class="foot">Werkzeug „Verankerung in Beton“ V ${K.VERSION} · Stand ${K.STAND} · DIN EN 1992-4:2019-04, DIN EN 1992-4/NA:2019-04 · Widerstände: ${esc(S.dub.eta || "Eingabe")}</div>`;
+const fuss = () => `<div class="foot">Werkzeug „Verankerung in Beton“ V ${K.VERSION} · Stand ${K.STAND} · DIN EN 1992-4:2019-04, DIN EN 1992-4/NA:2019-04 · Dübel: ${esc([S.dub.hersteller, S.dub.produkt, S.dub.eta].filter(Boolean).join(", ") || "Eingabe")}${beispielAktiv(S) ? " · BEISPIELWERTE – nicht für die Bemessung" : ""}</div>`;
 
 function ankerkraefte(E, R, L) {
   const A = E.anker, n = A.length; let h = "";
@@ -1112,6 +1265,66 @@ function nachweise(E, R, L) {
   R.lf.forEach(l => { if (!l.beta) return; h += `<tr><td>${esc(l.name)}</td>${sp.map(([kk]) => `<td class="r">${etaTxt(l.beta[kk])}</td>`).join("")}${H.mit ? "" : `<td class="r">${etaTxt(l.int.s)}</td>`}<td class="r">${etaTxt(l.int.c)}</td><td class="r ${l.ok ? "" : "nok"}"><b>${etaTxt(l.eta)}</b></td></tr>`; });
   return h + "</table>";
 }
+
+// ------------------------------------------------------------------ Reiter und Bibliotheksansicht
+function zeigeReiter(t) {
+  document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === t)));
+  $("nachweisView").hidden = t !== "nachweis"; $("libView").hidden = t !== "lib";
+  if (t === "lib") baueLib(); else baue();
+}
+document.querySelector("nav.tabs").addEventListener("click", ev => { const b = ev.target.closest("button[data-tab]"); if (b) zeigeReiter(b.dataset.tab); });
+function baueLib() {
+  const kopf = `<tr><th>Status</th>${LIBF.map(([, t]) => `<th>${t}</th>`).join("")}<th></th></tr>`;
+  const zeile = (e, i) => {
+    const [c, t] = libStatus(e), ro = e.beispiel ? " disabled" : "", fe = libFehlt(e);
+    const zellen = LIBF.map(([k, , a]) => {
+      const v = e[k], dp = ` data-lib="${i}.${k}"${ro}`;
+      if (a === "typ") return `<td><select${dp}><option value="mechanisch"${v === "mechanisch" ? " selected" : ""}>mechanisch</option><option value="verbund"${v === "verbund" ? " selected" : ""}>Verbund</option></select></td>`;
+      if (a === "b") return `<td><input type="checkbox"${dp}${v ? " checked" : ""}></td>`;
+      if (a === "n") return `<td><input type="number" step="any" value="${esc(v)}"${dp}></td>`;
+      return `<td><input type="text" class="${a}" value="${esc(v)}"${dp}></td>`;
+    }).join("");
+    return `<tr class="${e.beispiel ? "bsp" : ""}"><td><span class="st ${c}" title="${esc(fe.length && !e.beispiel ? "fehlt: " + fe.join(", ") : t)}">${t}</span></td>${zellen}<td style="white-space:nowrap">${e.beispiel ? "" : `<button class="btn sm" data-lib-dup="${i}">Kopie</button> <button class="btn sm" data-lib-del="${i}">Löschen</button>`}</td></tr>`;
+  };
+  $("libT").innerHTML = kopf + LIB.map(zeile).join("");
+}
+$("libT").addEventListener("change", ev => {
+  const el = ev.target, dl = el.dataset.lib; if (!dl) return;
+  const [i, k] = dl.split("."), e = LIB[+i]; if (!e || e.beispiel) return;
+  const art = (LIBF.find(f => f[0] === k) || [])[2];
+  e[k] = art === "b" ? el.checked : art === "n" ? (el.value === "" ? "" : Number(el.value)) : el.value;
+  if (/^BEISPIEL/i.test(e.produkt) || /^BEISPIEL/i.test(e.hersteller)) e.beispiel = true;
+  libSpeichern(); baueLib();
+});
+$("libT").addEventListener("click", ev => {
+  const b = ev.target.closest("button"); if (!b) return;
+  if (b.dataset.libDup != null) { const e = clone(LIB[+b.dataset.libDup]); e.id = libLeer().id; e.produkt += " (Kopie)"; LIB.splice(+b.dataset.libDup + 1, 0, e); }
+  else if (b.dataset.libDel != null) { const e = LIB[+b.dataset.libDel]; if (!confirm(`Eintrag „${[e.hersteller, e.produkt].join(" ")}“ löschen?`)) return; LIB.splice(+b.dataset.libDel, 1); }
+  else return;
+  libSpeichern(); baueLib();
+});
+$("libNeu").addEventListener("click", () => { LIB.push(libLeer()); libSpeichern(); baueLib(); });
+$("libBsp").addEventListener("click", () => { BSP_LIB.forEach(b => { const i = LIB.findIndex(e => e.id === b.id); if (i >= 0) LIB[i] = clone(b); else LIB.unshift(clone(b)); }); libSpeichern(); baueLib(); });
+$("libExp").addEventListener("click", () => {
+  const p = n => String(n).padStart(2, "0"), d = new Date();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({ format: LIBFMT, fv: 1, exportiert: d.toISOString(), eintraege: LIB }, null, 1)], { type: "application/json" }));
+  a.download = `Ankerbibliothek_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.json`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+});
+$("libImp").addEventListener("click", () => $("libFile").click());
+$("libFile").addEventListener("change", ev => {
+  const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+  f.text().then(t => {
+    let o; try { o = JSON.parse(t); } catch (er) { alert("Die Datei ist kein gültiges JSON."); return; }
+    if (!o || o.format !== LIBFMT || !Array.isArray(o.eintraege)) { alert("Die Datei ist keine Ankerbibliothek dieses Werkzeugs."); return; }
+    const neu = o.eintraege.map(libSauber).filter(Boolean);
+    const gleich = neu.filter(e => LIB.some(x => x.id === e.id)).length;
+    const ersetzen = gleich ? confirm(`${neu.length} Einträge gelesen, davon ${gleich} mit gleicher Kennung wie vorhandene.\nOK = vorhandene ersetzen, Abbrechen = als zusätzliche Einträge anlegen.`) : false;
+    neu.forEach(e => { const i = LIB.findIndex(x => x.id === e.id); if (i >= 0 && ersetzen) LIB[i] = e; else { if (i >= 0) e.id = libLeer().id; LIB.push(e); } });
+    libSpeichern(); baueLib(); alert(`${neu.length} Einträge übernommen.`);
+  });
+});
 
 baue();
 </script>
