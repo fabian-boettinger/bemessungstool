@@ -143,6 +143,9 @@ table.snap .x{border:0;background:none;color:var(--mute);font-size:16px}
 .rep .zl .nb{font-size:7.5pt;color:#333;border-left:.4pt solid #888;padding-left:1.5mm;line-height:1.25}
 .rep .zl>div.nwk{font-family:Arial,Helvetica,sans-serif;font-size:9.5pt;font-weight:bold;border:.8pt solid #000;padding:1mm 2mm;margin:.6mm 0 1.2mm 4mm;display:flex;justify-content:space-between;gap:5mm}
 .rep .zl>div.nwk.nok{border-width:1.8pt}
+.rep .zl.erl>div:first-child{padding-left:4mm;font-size:8.5pt;color:#333}
+.rep .figs.fl{text-align:left;margin:1mm 0 1.5mm 4mm}
+.rep .figs.fl figcaption{text-align:left}
 .rep .figs{break-inside:avoid;margin-bottom:2mm;text-align:center}
 .rep .figs svg{max-height:85mm}
 .rep .figs figcaption{font-size:7.5pt;text-align:center;margin-top:1mm}
@@ -597,9 +600,8 @@ function vereinigung(rs) {
   return F;
 }
 // Wirkliche projizierte Fläche (Bild 7.3, 7.4): Quadrate der Seitenlänge 2·c_cr um die Anker, begrenzt durch die Ränder
-function flaecheN(A, idx, ccr, K) {
-  return vereinigung(idx.map(i => [Math.max(A[i].x - ccr, K["-x"]), Math.min(A[i].x + ccr, K["+x"]), Math.max(A[i].y - ccr, K["-y"]), Math.min(A[i].y + ccr, K["+y"])]));
-}
+const rechteckeN = (A, idx, ccr, K) => idx.map(i => [Math.max(A[i].x - ccr, K["-x"]), Math.min(A[i].x + ccr, K["+x"]), Math.max(A[i].y - ccr, K["-y"]), Math.min(A[i].y + ccr, K["+y"])]);
+function flaecheN(A, idx, ccr, K) { return vereinigung(rechteckeN(A, idx, ccr, K)); }
 // Exzentrizität der Resultierenden (Gewichte w) zum Schwerpunkt der betrachteten Anker
 function exzentrizitaet(A, idx, w) {
   const W = idx.reduce((s, i) => s + w[i], 0), n = idx.length;
@@ -623,7 +625,7 @@ function kegelFaktoren(A, idx, ccr, K, e) {
   const c = Math.min(...idx.map(i => randAbstand(A[i], K)));
   const psiS = Math.min(0.7 + 0.3 * c / ccr, 1);
   const psiEcX = Math.min(1 / (1 + 2 * Math.abs(e.x) / scr), 1), psiEcY = Math.min(1 / (1 + 2 * Math.abs(e.y) / scr), 1);
-  return { ccr, scr, Ac, A0, c, psiS, psiEcX, psiEcY, psiEc: psiEcX * psiEcY, e };
+  return { ccr, scr, Ac, A0, c, psiS, psiEcX, psiEcY, psiEc: psiEcX * psiEcY, e, rechtecke: rechteckeN(A, idx, ccr, K) };   // rechtecke [x0, x1, y0, y1] je Anker für das Protokoll
 }
 const psiReN = (hef, bewehrt) => bewehrt ? 1 : Math.min(0.5 + hef / 200, 1);   // Gl. (7.5), 7.2.1.4 (5)
 
@@ -690,9 +692,9 @@ function VRkcRand(c, r, K, nahIdx, VE, perp, w) {
   const A = c.A, c1 = r.c, quer = r.n[0] !== 0;                  // Rand ±x: Koordinate längs des Randes ist y
   const t = i => quer ? A[i].y : A[i].x, lo = quer ? K["-y"] : K["-x"], hi = quer ? K["+y"] : K["+x"];
   const iv = nahIdx.map(i => [Math.max(t(i) - 1.5 * c1, lo), Math.min(t(i) + 1.5 * c1, hi)]).sort((a, b) => a[0] - b[0]);
-  let L = 0, cur = null;
-  iv.forEach(q => { if (!cur || q[0] > cur[1]) { if (cur) L += cur[1] - cur[0]; cur = q.slice(); } else cur[1] = Math.max(cur[1], q[1]); });
-  if (cur) L += cur[1] - cur[0];
+  let L = 0, cur = null; const abschnitte = [];   // zusammenhängende Abschnitte längs des Randes (für das Protokoll)
+  iv.forEach(q => { if (!cur || q[0] > cur[1]) { if (cur) { L += cur[1] - cur[0]; abschnitte.push(cur); } cur = q.slice(); } else cur[1] = Math.max(cur[1], q[1]); });
+  if (cur) { L += cur[1] - cur[0]; abschnitte.push(cur); }
   const tief = Math.min(c.h, 1.5 * c1), Ac = L * tief, A0 = 4.5 * c1 * c1;
   const c2 = Math.min(...nahIdx.map(i => Math.min(t(i) - lo, hi - t(i))));
   const psiS = Math.min(0.7 + 0.3 * c2 / (1.5 * c1), 1);
@@ -705,7 +707,7 @@ function VRkcRand(c, r, K, nahIdx, VE, perp, w) {
   const al = 0.1 * Math.sqrt(c.lf / c1), be = 0.1 * Math.pow(c.dnom / c1, 0.2), k9 = c.gerissen ? 1.7 : 2.4;
   const V0 = k9 * Math.pow(c.dnom, al) * Math.pow(c.lf, be) * Math.sqrt(c.fck) * Math.pow(c1, 1.5) / 1000;
   const f08 = c.torsion2 ? 0.8 : 1;
-  return { gl: "7.40", c1, k9, alpha: al, beta: be, lf: c.lf, dnom: c.dnom, V0, L, tief, Ac, A0, c2, psiS, psiH, ev, psiEc, alphaV, psiA, psiRe: c.psiReV, f08,
+  return { gl: "7.40", abschnitte, tAnker: nahIdx.map(t), c1, k9, alpha: al, beta: be, lf: c.lf, dnom: c.dnom, V0, L, tief, Ac, A0, c2, psiS, psiH, ev, psiEc, alphaV, psiA, psiRe: c.psiReV, f08,
     Rk: V0 * Ac / A0 * psiS * psiH * psiEc * psiA * c.psiReV * f08 };
 }
 
@@ -1276,7 +1278,7 @@ const fmt = (x, n = 2) => (x == null || !isFinite(x)) ? "–" : x.toLocaleString
 const fmtA = x => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { maximumFractionDigits: 2 });
 const sub = (a, b) => a + "<sub>" + b + "</sub>";
 // Kerntexte mit Indizes in Klartext (ψ_M,N, c_cr,sp, N⁰_Rk,p) → HTML mit tiefgestellten Indizes
-const fx = t => esc(t).replace(/([A-Za-zψτγαβηΔ](?:⁰|&#39;)?)_([A-Za-z0-9]+(?:,[A-Za-z0-9]+)*)/g, "$1<sub>$2</sub>");
+const fx = t => esc(t).replace(/([A-Za-zψτγαβηΔ](?:⁰|&#39;)?)_([A-Za-z0-9]+(?:,[A-Za-z0-9]+)*)/g, "$1<sub>$2</sub>").replace(/\^(\d+(?:,\d+)?)/g, "<sup>$1</sup>");
 const sup = (a, b) => a + "<sup>" + b + "</sup>";
 const zahl = v => (v === "" || v == null) ? NaN : Number(v);
 const fin = v => isFinite(zahl(v));
@@ -2083,7 +2085,7 @@ function sumsRel(A) {
 function report(E, R, L) {
   const d = S.dub, g = E.geo, A = E.anker, n = A.length, H = E.hebel;
   let k = 0; const H2 = t => `<h2>${++k} ${t}</h2>`;
-  const ku = stufe() === "kurz";   // Kurz: Eingaben, Ergebnistabelle und Ergebnis ohne Herleitung
+  const ku = stufe() === "kurz"; PE = E;   // Kurz: Eingaben, Ergebnistabelle und Ergebnis ohne Herleitung
   const bsp = beispielAktiv(S), fe = libFehlt(d), dn = [d.lib && d.lib.beispiel ? "" : d.hersteller, d.produkt].filter(Boolean).join(" ") || "(Dübel ohne Bezeichnung)";
   const etaT = d.eta ? esc(d.eta) + (d.etaDatum ? " vom " + esc(d.etaDatum) : "") : "";
   let h = "";   // Vermerk BEISPIELWERTE setzt paginate() auf jede Seite
@@ -2105,6 +2107,7 @@ function report(E, R, L) {
     <tr><td>Ränder</td><td>${rd}</td></tr>
     <tr><td>Ankerkräfte</td><td>${E.modus === "jeAnker" ? "je Anker übergeben" : "aus Schnittgrößen am Gruppenschwerpunkt, elastisch"}${S.herkunft ? "; " + esc(herkunftText()) : ""}</td></tr>
     <tr><td>Querlast</td><td>${H.mit ? "mit Hebelarm" : R.ohneHebel ? `ohne Hebelarm nach 6.2.2.3 (1): a) Anbauteil aus Metall, Kontakt ≥ 0,5·t<sub>fix</sub>${R.ohneHebel.ok ? " – bestätigt" : ""}; b) ${R.ohneHebel.auflage === "moertel" ? `Ausgleichsmörtel t<sub>grout</sub> = ${fmtA(R.ohneHebel.tgrout)} mm ≤ 0,5·d = ${fmtA(0.5 * g.d)} mm, Festigkeit ≥ Beton und ≥ 30 N/mm², raue Oberfläche` : "direkt auf dem Beton"}${R.ohneHebel.ok ? "" : " – <b>nicht erfüllt</b>"}` : "ohne Hebelarm (keine Querlast)"}</td></tr></table>`;
+  if (det()) h += kennwertTabelle();
   h += zl(fx(K.TEXT.starr), "6.2.1 (1)", true);
   if (E.modus === "jeAnker") h += zl(fx(K.TEXT.jeAnker), "Übergabe", true);
   // 2 Grenzen
@@ -2132,11 +2135,13 @@ function report(E, R, L) {
   // 4 Ankerkräfte
   h += H2("Ankerkräfte") + ankerkraefte(E, R, L);
   // 5 Grundlagen, 6–8 Nachweise je Versagensart (Einwirkung → Widerstand → Nachweiskasten), 9 Zusammenstellung
-  const HL = herleitung(E, R, L);
   h += H2("Grundlagen der Widerstände") + grundlagen(E, R, L);
-  h += H2(`Nachweise Zugbeanspruchung – Kombination ${esc(L.name)}`) + nachweisZug(E, R, L, HL);
-  h += H2(`Nachweise Querbeanspruchung – Kombination ${esc(L.name)}`) + nachweisQuer(E, R, L, HL);
-  h += H2(`Kombinierte Zug- und Querbeanspruchung – Kombination ${esc(L.name)}`) + nachweisInteraktion(E, R, L);
+  // Standard: maßgebende Kombination; Detailliert: jede Kombination, die maßgebende zuerst
+  const Ls = det() ? [L].concat(R.lf.filter(l => l !== L && l.beta)) : [L];
+  Ls.forEach(Lx => { const HL = herleitung(E, R, Lx), mg = Lx === L && Ls.length > 1 ? " (maßgebend)" : "";
+    h += H2(`Nachweise Zugbeanspruchung – Kombination ${esc(Lx.name)}${mg}`) + nachweisZug(E, R, Lx, HL);
+    h += H2(`Nachweise Querbeanspruchung – Kombination ${esc(Lx.name)}${mg}`) + nachweisQuer(E, R, Lx, HL);
+    h += H2(`Kombinierte Zug- und Querbeanspruchung – Kombination ${esc(Lx.name)}${mg}`) + nachweisInteraktion(E, R, Lx); });
   h += H2("Zusammenstellung") + zusammenstellung(E, R, L);
   }
   h += H2("Ergebnis");
@@ -2165,19 +2170,22 @@ function ankerkraefte(E, R, L) {
   if (S.herkunft && S.herkunft.von === "rb") h += zl(esc(herkunftText()) + ". Koordinaten: x längs des Winkels, y vom Wandanschluss weg; V<sub>Ed,x</sub> = V<sub>Sd,x</sub>, T<sub>Ed</sub> = M<sub>Sd,z</sub>, M<sub>Ed,y</sub> = −M<sub>Sd,y</sub> (Zug auf der −x-Seite).", "Rothoblaas-Datenblatt, „Prüfung der Anker“", true);
   const Sm = sumsRel(A);
   if (E.modus === "starr") {
-    const l = E.lastfaelle[R.lf.indexOf(L)] || E.lastfaelle[0];
+    const LsA = det() ? R.lf.filter(x => x.N) : (L ? [L] : []);
     if (Math.abs(Sm.sxy) < 1e-6) h += zl(`N<sub>i</sub> = N<sub>Ed</sub>/n + M<sub>Ed,y</sub>·x<sub>i</sub>/Σx<sub>i</sub>² + M<sub>Ed,x</sub>·y<sub>i</sub>/Σy<sub>i</sub>²; n = ${n}, Σx² = ${fmtA(Sm.sxx)} mm², Σy² = ${fmtA(Sm.syy)} mm²`, kurzRef(K.REF.zug) + ", lineare Dehnungsverteilung");
     else h += zl(`N<sub>i</sub> = N<sub>Ed</sub>/n + a·x<sub>i</sub> + b·y<sub>i</sub> mit [Σx² Σxy; Σxy Σy²]·(a; b) = (M<sub>Ed,y</sub>; M<sub>Ed,x</sub>); Σx² = ${fmtA(Sm.sxx)}, Σxy = ${fmtA(Sm.sxy)}, Σy² = ${fmtA(Sm.syy)} mm²`, kurzRef(K.REF.zug));
     h += zl(`V<sub>i</sub> = V<sub>Ed</sub>/n + T<sub>Ed</sub>·(−y<sub>i</sub>; x<sub>i</sub>)/Σr<sub>i</sub>²; Σr² = ${fmtA(Sm.sr2)} mm²`, kurzRef(K.REF.quer));
     h += zl(`Koordinaten x<sub>i</sub>, y<sub>i</sub> bezogen auf den Schwerpunkt der Gruppe (${fmtA(Sm.S0.x)}; ${fmtA(Sm.S0.y)}) mm`, "", true);
-    if (L) {
-      const i = L.N.indexOf(Math.max(...L.N)), xi = A[i].x - Sm.S0.x, yi = A[i].y - Sm.S0.y;
-      if (!L.druck && Math.abs(Sm.sxy) < 1e-6) {
+    if (det()) h += `<table class="g"><tr><th>Anker</th><th class="r">x [mm]</th><th class="r">y [mm]</th><th class="r">x<sub>i</sub> [mm]</th><th class="r">y<sub>i</sub> [mm]</th><th class="r">x<sub>i</sub>² [mm²]</th><th class="r">y<sub>i</sub>² [mm²]</th><th class="r">r<sub>i</sub>² [mm²]</th></tr>`
+      + A.map((p, i) => { const x = p.x - Sm.S0.x, y = p.y - Sm.S0.y; return `<tr><td>${i + 1}</td>${[p.x, p.y, x, y, x * x, y * y, x * x + y * y].map(v => `<td class="r">${fmtA(v)}</td>`).join("")}</tr>`; }).join("")
+      + `<tr><td><b>Σ</b></td><td></td><td></td><td></td><td></td><td class="r"><b>${fmtA(Sm.sxx)}</b></td><td class="r"><b>${fmtA(Sm.syy)}</b></td><td class="r"><b>${fmtA(Sm.sr2)}</b></td></tr></table>`;
+    LsA.forEach(L => { const l = E.lastfaelle[R.lf.indexOf(L)] || E.lastfaelle[0];
+      const iMax = L.N.indexOf(Math.max(...L.N));
+      if (!L.druck && Math.abs(Sm.sxy) < 1e-6) (det() ? A.map((_, q) => q) : [iMax]).forEach(i => { const xi = A[i].x - Sm.S0.x, yi = A[i].y - Sm.S0.y;
         let t = `${esc(L.name)}: N<sub>${i + 1}</sub> = ${fmt(l.N)}/${n}`;
         if (Sm.sxx > 0 && l.My) t += ` + ${fmtA(l.My * 1000)}·${fmtA(xi)}/${fmtA(Sm.sxx)}`;
         if (Sm.syy > 0 && l.Mx) t += ` + ${fmtA(l.Mx * 1000)}·${fmtA(yi)}/${fmtA(Sm.syy)}`;
-        h += zl(t + ` = <b>${fmt(L.N[i])} kN</b> (höchstbeanspruchter Anker)`, "M in kN·mm");
-      }
+        h += zl(t + ` = <b>${fmt(L.N[i])} kN</b>${i === iMax ? " (höchstbeanspruchter Anker)" : ""}`, "M in kN·mm");
+      });
       if (L.druck) {
         h += zl(`elastisch: ${L.druck.elastisch.map((x, j) => `N<sub>${j + 1}</sub> = ${fmt(x)}`).join(", ")} kN → Anker ${L.druck.elastisch.map((x, j) => x < -1e-9 ? j + 1 : 0).filter(Boolean).join(", ")} gedrückt`, kurzRef(K.REF.druck));
         const ug = L.druck.auto ? "" : UNG(K.PRUEFEN.druck);
@@ -2185,25 +2193,25 @@ function ankerkraefte(E, R, L) {
         h += zl(`→ ${L.N.map((x, j) => `N<sub>${j + 1}</sub> = ${fmt(x)}`).join(", ")} kN; C = ${fmt(L.N.reduce((a, b) => a + b, 0))} − ${fmt(l.N)} = <b>${fmt(L.druck.C)} kN</b>`, "");
         h += L.druck.auto ? zl(fx(K.TEXT.druckReihe) + ` Überstand ü = ${fmtA(E.geo.ueberstand)} mm > 0.`, "6.2.1 (1) d)", true) : zl(fx(K.TEXT.druck), ug, true);
       }
-      const iv = L.V.map(v => Math.hypot(v[0], v[1])), j = iv.indexOf(Math.max(...iv));
-      if (iv[j] > 1e-9 && n > 1) { const xj = A[j].x - Sm.S0.x, yj = A[j].y - Sm.S0.y, T = l.T * 1000;
+      const iv = L.V.map(v => Math.hypot(v[0], v[1])), jMax = iv.indexOf(Math.max(...iv));
+      if (iv[jMax] > 1e-9 && n > 1) (det() ? A.map((_, q) => q) : [jMax]).forEach(j => { const xj = A[j].x - Sm.S0.x, yj = A[j].y - Sm.S0.y, T = l.T * 1000;
         const tx = T ? ` − ${fmtA(T)}·${fmtA(yj)}/${fmtA(Sm.sr2)}` : "", ty = T ? ` + ${fmtA(T)}·${fmtA(xj)}/${fmtA(Sm.sr2)}` : "";
-        h += zl(`${esc(L.name)}: V<sub>${j + 1},x</sub> = ${fmt(l.Vx)}/${n}${tx} = ${fmt(L.V[j][0])} kN; V<sub>${j + 1},y</sub> = ${fmt(l.Vy)}/${n}${ty} = ${fmt(L.V[j][1])} kN → |V<sub>${j + 1}</sub>| = <b>${fmt(iv[j])} kN</b>`, T ? "T in kN·mm" : ""); }
-    }
+        h += zl(`${esc(L.name)}: V<sub>${j + 1},x</sub> = ${fmt(l.Vx)}/${n}${tx} = ${fmt(L.V[j][0])} kN; V<sub>${j + 1},y</sub> = ${fmt(l.Vy)}/${n}${ty} = ${fmt(L.V[j][1])} kN → |V<sub>${j + 1}</sub>| = <b>${fmt(iv[j])} kN</b>`, T ? "T in kN·mm" : ""); });
+    });
   } else h += zl(fx(K.TEXT.jeAnker), "Übergabe", true);
   // Tabelle je Kombination
   h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th><th class="r">|V<sub>Ed,i</sub>| [kN]</th></tr>`;
   R.lf.forEach(lf => { if (!lf.N) return; A.forEach((p, i) => { h += `<tr><td>${i ? "" : esc(lf.name)}</td><td>${i + 1}</td><td class="r">${fmt(lf.N[i])}</td><td class="r">${fmt(lf.V[i][0])}</td><td class="r">${fmt(lf.V[i][1])}</td><td class="r">${fmt(Math.hypot(lf.V[i][0], lf.V[i][1]))}</td></tr>`; }); });
   h += "</table>";
   // Gruppengrößen der maßgebenden Kombination
-  if (L && L.G) { const G = L.G;
+  (det() ? R.lf.filter(x => x.G) : (L && L.G ? [L] : [])).forEach(L => { const G = L.G;
     h += `<h3>Gruppengrößen, Kombination ${esc(L.name)}</h3>`;
     h += zl(`N<sub>Ed</sub><sup>h</sup> = max N<sub>Ed,i</sub> = <b>${fmt(G.Nh)} kN</b>; N<sub>Ed</sub><sup>g</sup> = Σ N<sub>Ed,i</sub> (Zuganker) = <b>${fmt(G.Ng)} kN</b>`, "Tab. 7.1");
     if (G.SZ) h += zl(`e<sub>N</sub> = Abstand der Zugresultierenden vom Schwerpunkt der Zuganker (${fmtA(G.SZ.x)}; ${fmtA(G.SZ.y)}): e<sub>N,x</sub> = ${fmt(G.eN.x, 1)} mm, e<sub>N,y</sub> = ${fmt(G.eN.y, 1)} mm`, kurzRef(K.REF.exz));
     h += zl(`V<sub>Ed</sub><sup>h</sup> = max |V<sub>Ed,i</sub>| = <b>${fmt(G.Vh)} kN</b>; V<sub>Ed</sub><sup>g</sup> = |Σ V<sub>Ed,i</sub>| = <b>${fmt(G.Vg)} kN</b>; e<sub>V</sub> = T/V<sup>g</sup> = ${fmt(G.eV, 1)} mm`, "Tab. 7.2");
     if (!R.beton || Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && (Array.isArray(w) ? w.some(v => v && v.art !== "b") : w.art !== "b")))
       h += zl(`Die Exzentrizitäten e<sub>N</sub> und e<sub>V</sub> müssen in den eingegebenen Betonwiderständen (ψ<sub>ec,N</sub>, ψ<sub>ec,V</sub>) berücksichtigt sein.`, "7.2.1.4, 7.2.2.5", true);
-  }
+  });
   return h;
 }
 
@@ -2236,6 +2244,74 @@ const f3 = x => fmt(x, 3), f1 = x => fmt(x, 1), mm = x => x === Infinity || x ==
 const ankerListe = idx => idx.length === 1 ? "Anker " + idx[0] : "Anker " + idx.join(", ");
 const rdL = (X, i, x, gsym) => zl(`Widerstand: ${sub(X, "Rd," + i)} = ${sub(X, "Rk," + i)}/γ<sub>${gsym}</sub> = ${fmt(x.Rk)}/${fmt(x.gM)} = <b>${fmt(x.Rd)} kN</b>`, "Tab. 4.1");
 
+// ------------------------------------------------------------------ Protokollumfang „Detailliert“: Erläuterungen, Flächen mit Maßen und Skizze
+let PE = null;   // Kerneingabe des laufenden Protokolls (Ankerlage für die Flächenskizzen)
+const det = () => stufe() === "detailliert";
+const erl = (t, ref) => det() ? `<div class="zl t erl"><div>${t}</div><div class="nb">${ref || ""}</div></div>` : "";
+const massH = (x1, x2, y, t) => `<path d="M${x1} ${y}H${x2}M${x1} ${y - 4}v8M${x2} ${y - 4}v8" stroke="#000" stroke-width=".7" fill="none"/><text x="${(x1 + x2) / 2}" y="${y - 3}" text-anchor="middle">${t}</text>`;
+const massV = (x, y1, y2, t) => `<path d="M${x} ${y1}V${y2}M${x - 4} ${y1}h8M${x - 4} ${y2}h8" stroke="#000" stroke-width=".7" fill="none"/><text transform="translate(${x + 11} ${(y1 + y2) / 2}) rotate(-90)" text-anchor="middle">${t}</text>`;
+// Grundriss der projizierten Fläche: Rechtecke je Anker [x0, x1, y0, y1], Bauteilränder, Gesamtmaße
+function flaecheSkizze(rs, idx, titel) {
+  const A = PE.anker, KL = K.kantenLage(A, PE.geo.raender);
+  const x0 = Math.min(...rs.map(r => r[0])), x1 = Math.max(...rs.map(r => r[1])), y0 = Math.min(...rs.map(r => r[2])), y1 = Math.max(...rs.map(r => r[3]));
+  const w = x1 - x0, hh = y1 - y0; if (!(w > 0 && hh > 0)) return "";
+  const sc = Math.min(300 / w, 130 / hh), pl = 16, pt = 12, X = x => pl + (x - x0) * sc, Y = y => pt + (y1 - y) * sc, W = w * sc + pl + 34, H = hh * sc + pt + 26;
+  let g = rs.map(r => `<rect x="${X(r[0])}" y="${Y(r[3])}" width="${(r[1] - r[0]) * sc}" height="${(r[3] - r[2]) * sc}" fill="#d9d9d9"/>`).join("");
+  g += rs.map(r => `<rect x="${X(r[0])}" y="${Y(r[3])}" width="${(r[1] - r[0]) * sc}" height="${(r[3] - r[2]) * sc}" fill="none" stroke="#555" stroke-width=".6" stroke-dasharray="3 2"/>`).join("");
+  const nah = (a, b) => Math.abs(a - b) < 1e-6;
+  if (nah(KL["+x"], x1)) g += `<path d="M${X(x1)} ${Y(y1) - 6}V${Y(y0) + 6}" stroke="#000" stroke-width="2"/>`;
+  if (nah(KL["-x"], x0)) g += `<path d="M${X(x0)} ${Y(y1) - 6}V${Y(y0) + 6}" stroke="#000" stroke-width="2"/>`;
+  if (nah(KL["+y"], y1)) g += `<path d="M${X(x0) - 6} ${Y(y1)}H${X(x1) + 6}" stroke="#000" stroke-width="2"/>`;
+  if (nah(KL["-y"], y0)) g += `<path d="M${X(x0) - 6} ${Y(y0)}H${X(x1) + 6}" stroke="#000" stroke-width="2"/>`;
+  A.forEach((p, i) => { const drin = idx.includes(i + 1); if (p.x < x0 - 1e-6 || p.x > x1 + 1e-6 || p.y < y0 - 1e-6 || p.y > y1 + 1e-6) return;
+    g += `<circle cx="${X(p.x)}" cy="${Y(p.y)}" r="3" fill="${drin ? "#000" : "#fff"}" stroke="#000" stroke-width=".8"/><text x="${X(p.x) + 5}" y="${Y(p.y) - 4}">${i + 1}</text>`; });
+  g += massH(X(x0), X(x1), H - 6, fmtA(w)) + massV(W - 20, Y(y1), Y(y0), fmtA(hh));
+  return `<figure class="figs fl"><svg viewBox="0 0 ${W} ${H}" width="${W * 0.26}mm" font-family="Arial" font-size="8.5">${g}</svg><figcaption>${titel} (grau) · schwarze Punkte = betrachtete Anker · dicke Linie = Bauteilrand · Maße in mm</figcaption></figure>`;
+}
+// A_c,N bzw. A_p,N mit Maßen: Rechteck b_x·b_y, sonst Liste der Rechtecke je Anker
+function flaecheDetail(x, o) {
+  const rs = x.rechtecke; if (!det() || !rs || !rs.length || !PE) return "";
+  const A = PE.anker, P = o.idx.map(i => A[i - 1]), aSym = sub("A", o.aSym);
+  const x0 = Math.min(...rs.map(r => r[0])), x1 = Math.max(...rs.map(r => r[1])), y0 = Math.min(...rs.map(r => r[2])), y1 = Math.max(...rs.map(r => r[3]));
+  const ax0 = Math.min(...P.map(p => p.x)), ax1 = Math.max(...P.map(p => p.x)), ay0 = Math.min(...P.map(p => p.y)), ay1 = Math.max(...P.map(p => p.y));
+  let h = "";
+  if (Math.abs((x1 - x0) * (y1 - y0) - x.Ac) <= 1e-6 * x.Ac) {
+    const teil = (a, m, b) => m > 1e-9 ? `${fmtA(a)} + ${fmtA(m)} + ${fmtA(b)}` : `${fmtA(a)} + ${fmtA(b)}`;
+    h += zl(`b<sub>x</sub> = ${teil(ax0 - x0, ax1 - ax0, x1 - ax1)} = ${fmtA(x1 - x0)} mm; b<sub>y</sub> = ${teil(ay0 - y0, ay1 - ay0, y1 - ay1)} = ${fmtA(y1 - y0)} mm`, "je Seite min{" + o.ccrSym + "; c}, dazwischen Achsabstände");
+    h += zl(`${aSym} = b<sub>x</sub>·b<sub>y</sub> = ${fmtA(x1 - x0)}·${fmtA(y1 - y0)} = ${fmtA(x.Ac)} mm²`, o.refA);
+  } else {
+    h += zl(`${aSym} = Vereinigung der Rechtecke: ${rs.map((r, k) => `Anker ${o.idx[k]}: ${fmtA(r[1] - r[0])}·${fmtA(r[3] - r[2])}`).join("; ")} mm; Summe ${fmtA(rs.reduce((a, r) => a + (r[1] - r[0]) * (r[3] - r[2]), 0))} mm², Überschneidungen abgezogen → ${fmtA(x.Ac)} mm²`, o.refA);
+  }
+  return h + flaecheSkizze(rs, o.idx, `${o.aTxt || "Projizierte Fläche"} um ${ankerListe(o.idx)}`);
+}
+// A_c,V als Ansicht der Bauteilkante: Abschnitte längs des Randes × min{h; 1,5·c₁}
+function kanteSkizze(x, kt, hBauteil) {
+  if (!det() || !x.abschnitte || !x.abschnitte.length) return "";
+  const a0 = x.abschnitte[0][0], a1 = x.abschnitte[x.abschnitte.length - 1][1], w = a1 - a0, hh = Math.max(hBauteil, x.tief);
+  const sc = Math.min(300 / w, 90 / hh), pl = 16, pt = 22, X = t => pl + (t - a0) * sc, W = w * sc + pl + 34, H = hh * sc + pt + 26;
+  let g = `<path d="M${X(a0) - 8} ${pt}H${X(a1) + 8}" stroke="#000" stroke-width="2"/><path d="M${X(a0) - 8} ${pt + hBauteil * sc}H${X(a1) + 8}" stroke="#000" stroke-width="1.2"/>`;
+  g += x.abschnitte.map(q => `<rect x="${X(q[0])}" y="${pt}" width="${(q[1] - q[0]) * sc}" height="${x.tief * sc}" fill="#d9d9d9" stroke="#555" stroke-width=".6" stroke-dasharray="3 2"/>`).join("");
+  x.tAnker.forEach((t, k) => { g += `<path d="M${X(t)} ${pt - 7}v14" stroke="#000" stroke-width="1.2"/><text x="${X(t)}" y="${pt - 10}" text-anchor="middle">${kt.anker[k]}</text>`; });
+  g += x.abschnitte.map(q => massH(X(q[0]), X(q[1]), H - 6, fmtA(q[1] - q[0]))).join("") + massV(W - 20, pt, pt + x.tief * sc, fmtA(x.tief));
+  return `<figure class="figs fl"><svg viewBox="0 0 ${W} ${H}" width="${W * 0.26}mm" font-family="Arial" font-size="8.5">${g}</svg><figcaption>Ansicht der Bauteilkante, Rand ${kt.richtung}: A<sub>c,V</sub> grau, Striche = randnahe Anker, untere Linie = Bauteilunterseite (h = ${fmtA(hBauteil)} mm) · Maße in mm</figcaption></figure>`;
+}
+// Dübelkennwerte der ETA mit Fundstelle
+function kennwertTabelle() {
+  const e = S.dub.lib; if (!e) return "";
+  const z = LIBF.filter(([k]) => !["hersteller", "produkt", "eta", "etaDatum", "notiz", "quelle"].includes(k) && e[k] !== "" && e[k] != null && e[k] !== false);
+  if (!z.length) return "";
+  // interne Schreibweisen der Bibliothek lesbar ausgeben
+  const klar = { typ: v => v === "verbund" ? "Verbunddübel" : "mechanischer Dübel", spArt: v => ({ ead: "abhängig von h/h<sub>ef</sub>", faktor: "Faktor · h<sub>ef</sub>", paare: "Wertepaare (h<sub>min</sub>; c<sub>cr,sp</sub>)" })[v] || esc(v),
+    hmin: v => typeof v === "number" ? fmtA(v) : esc(String(v)).replace(/(\d+(?:\.\d+)?)hef/, "$1·hef").replace("hef", "h<sub>ef</sub>").replace("+", " + ").replace("&gt;=", " ≥ ").replace(/\./g, ","),
+    psic: v => { const m = String(v).match(/^exp:(.+)$/); return m ? "(f<sub>ck</sub>/20)<sup>" + esc(m[1]) + "</sup>" : esc(v); } };
+  klar.psicU = klar.psic;
+  const wert = k => klar[k] ? klar[k](e[k]) : esc(e[k] === true ? "ja" : e[k] === "nm" ? "nicht maßgebend" : typeof e[k] === "number" ? fmtA(e[k]) : e[k]);
+  const hal = Math.ceil(z.length / 2); let t = "";
+  for (let i = 0; i < hal; i++) { const a = z[i], b = z[i + hal]; t += `<tr><td>${a[1].replace(/&shy;/g, "")}</td><td class="r">${wert(a[0])}</td><td>${b ? b[1].replace(/&shy;/g, "") : ""}</td><td class="r">${b ? wert(b[0]) : ""}</td></tr>`; }
+  return `<h3>Kennwerte des Dübels${e.werk ? " aus der ETA" : " (benutzerdefinierter Eintrag)"}</h3><table class="g"><tr><th>Kennwert</th><th class="r">Wert</th><th>Kennwert</th><th class="r">Wert</th></tr>${t}</table>`
+    + `<p>${e.quelle ? "Fundstelle: " + esc(e.quelle) + ". " : ""}${e.notiz ? fx(e.notiz) : ""}</p>`;
+}
+
 // Gemeinsame Größen der Widerstände
 function grundlagen(E, R, L) {
   const g = E.geo, B = R.beton; let h = "";
@@ -2244,7 +2320,7 @@ function grundlagen(E, R, L) {
     h += zl(`Zug: γ<sub>Mc</sub> = γ<sub>c</sub>·γ<sub>inst</sub> = 1,5·${fmt(B.gMc / 1.5)} = <b>${fmt(B.gMc)}</b>; γ<sub>Mp</sub> = γ<sub>Msp</sub> = γ<sub>Mc</sub>`, kurzRef(K.REF.gammaC));
     h += zl(`Querlast: γ<sub>inst</sub> = 1,0 → γ<sub>Mc</sub> = <b>1,50</b>`, "Tab. 4.1");
     h += zl(`ψ<sub>re,N</sub> = ${S.geo.bew.reN ? "<b>1,0</b> (Bewehrung nach 7.2.1.4 (5) a) bzw. b) bestätigt)" : `0,5 + h<sub>ef</sub>/200 = 0,5 + ${fmtA(g.hef)}/200 → <b>${f3(B.psiRe)}</b> ≤ 1`}`, "7.2.1.4 (5), Gl. (7.5)");
-    h += zl(`Die Betonwiderstände hängen von der Lastverteilung ab und sind für die maßgebende Kombination ${esc(L.name)} hergeleitet; die Ausnutzungen aller Kombinationen stehen in der Übersicht.`, "", true);
+    h += zl(`Die Betonwiderstände hängen von der Lastverteilung ab und sind ${det() ? "für jede Kombination" : "für die maßgebende Kombination " + esc(L.name)} hergeleitet; die Ausnutzungen aller Kombinationen stehen in der Übersicht.`, "", true);
   }
   h += zl("Teilsicherheitsbeiwerte aus der ETA bzw. Tab. 4.1; der NA übernimmt die Empfehlungen.", kurzRef(K.REF.gamma), true);
   return h;
@@ -2254,8 +2330,11 @@ function kegelZeilen(x, o) {
   let h = "";
   h += zl(`${sup(sub("A", o.aSym), "0")} = ${o.scrSym}² = ${mm(x.scr)}² = ${fmtA(x.A0)} mm²`, o.refA0 || o.refA);
   h += zl(`${sub("A", o.aSym)} = <b>${fmtA(x.Ac)} mm²</b> (Quadrate mit Seitenlänge ${o.scrSym} um ${esc(ankerListe(o.idx))}, begrenzt durch ${o.virt ? "Ränder und virtuelle Ränder c = 0,5·s" : "die Ränder"}, Überschneidungen einfach gezählt) → ${sub("A", o.aSym)}/${sup(sub("A", o.aSym), "0")} = <b>${f3(x.Ac / x.A0)}</b>`, o.refA);
+  h += flaecheDetail(x, o);
   h += zl(`${sub("ψ", o.sSym)} = 0,7 + 0,3·c/${o.ccrSym} = ${x.c === Infinity ? "1,0 (kein Rand)" : `0,7 + 0,3·${mm(x.c)}/${mm(x.ccr)} = ${f3(Math.min(0.7 + 0.3 * x.c / x.ccr, 99))}`} → <b>${f3(x.psiS)}</b> ≤ 1`, o.refS);
+  h += erl(`${sub("ψ", o.sSym)} berücksichtigt die Störung der Spannungsverteilung im Beton durch die Nähe eines Bauteilrandes; c = ${x.c === Infinity ? "∞ (kein Rand)" : mm(x.c) + " mm"} ist der kleinste Randabstand der betrachteten Anker${o.virt ? " einschließlich der virtuellen Ränder" : ""}.`, o.erlS);
   h += zl(`${sub("ψ", o.ecSym)} = 1/(1 + 2·e<sub>x</sub>/${o.scrSym})·1/(1 + 2·e<sub>y</sub>/${o.scrSym}) = 1/(1 + 2·${f1(Math.abs(x.e.x))}/${mm(x.scr)})·1/(1 + 2·${f1(Math.abs(x.e.y))}/${mm(x.scr)}) = <b>${f3(x.psiEc)}</b>${o.ecTxt ? " " + o.ecTxt : ""}`, o.refEc);
+  h += erl(`${sub("ψ", o.ecSym)} berücksichtigt den Gruppeneffekt bei unterschiedlichen Lasten der einzelnen Anker; e<sub>x</sub>, e<sub>y</sub> = Abstand der Resultierenden vom Schwerpunkt der betrachteten Anker, je Richtung getrennt angesetzt.`, o.erlEc);
   return h;
 }
 // Herleitung der berechneten Betonwiderstände (maßgebende Kombination): je Zeile Formel → Werte → Ergebnis
@@ -2267,6 +2346,7 @@ function herleitung(E, R, L) {
     h += zl(`${sup(sub("N", "Rk,c"), "0")} = k<sub>1</sub>·√f<sub>ck</sub>·h<sub>ef</sub><sup>1,5</sup> = ${fmt(x.k1, 1)}·√${fmtA(B.fck)}·${fmtA(g.hef)}<sup>1,5</sup> = <b>${fmt(x.N0)} kN</b> (k<sub>1</sub> = k<sub>${g.zustand === "gerissen" ? "cr" : "ucr"},N</sub>)`, "7.2.1.4 (2), Gl. (7.2); ETA");
     h += zl(`c<sub>cr,N</sub> = ${fmtA(B.ccrN / g.hef)}·h<sub>ef</sub> = ${mm(B.ccrN)} mm; s<sub>cr,N</sub> = 2·c<sub>cr,N</sub> = ${mm(2 * B.ccrN)} mm`, "7.2.1.4 (3); ETA");
     h += kegelZeilen(x, { aSym: "c,N", ccrSym: "c<sub>cr,N</sub>", scrSym: "s<sub>cr,N</sub>", sSym: "s,N", ecSym: "ec,N", idx: zug, refA: "Gl. (7.3), Bild 7.4", refS: "Gl. (7.4)", refEc: "Gl. (7.6)", ecTxt: "(e<sub>N</sub> s. Gruppengrößen)" });
+    h += erl(`ψ<sub>re,N</sub> = ${f3(x.psiRe)} (Schalenabplatzfaktor, s. Grundlagen der Widerstände).`, "7.2.1.4 (5)");
     h += zl(fx(K.TEXT.psiM), "7.2.1.4 (7)", true);
     h += zl(`N<sub>Rk,c</sub> = ${sup(sub("N", "Rk,c"), "0")}·A<sub>c,N</sub>/${sup(sub("A", "c,N"), "0")}·ψ<sub>s,N</sub>·ψ<sub>re,N</sub>·ψ<sub>ec,N</sub>·ψ<sub>M,N</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)}·1,0 = <b>${fmt(x.Rk)} kN</b>`, "Gl. (7.1)");
     H.Nc = h + rdL("N", "c", x, "Mc");
@@ -2288,6 +2368,7 @@ function herleitung(E, R, L) {
         h += zl(`τ<sub>Rk,c</sub> = k<sub>3</sub>/(π·d)·(h<sub>ef</sub>·f<sub>ck</sub>)<sup>0,5</sup> = ${fmt(x.k3, 1)}/(π·${fmtA(g.d)})·(${fmtA(g.hef)}·${fmtA(B.fck)})<sup>0,5</sup> = <b>${fmt(x.tauC)} N/mm²</b>`, "Gl. (7.19)");
         h += zl(`${sup(sub("ψ", "g,Np"), "0")} = √n − (√n − 1)·(τ<sub>Rk</sub>/τ<sub>Rk,c</sub>)<sup>1,5</sup> = √${zug.length} − (√${zug.length} − 1)·(${fmt(x.tau)}/${fmt(x.tauC)})<sup>1,5</sup> → <b>${f3(x.psiG0)}</b> ≥ 1`, "Gl. (7.18)");
         h += zl(`ψ<sub>g,Np</sub> = ${sup(sub("ψ", "g,Np"), "0")} − (s/s<sub>cr,Np</sub>)<sup>0,5</sup>·(${sup(sub("ψ", "g,Np"), "0")} − 1): mit s = ${f1(x.sRaster)} mm (Rasterabstände) → ${f3(x.psiGA)}; mit s = ${f1(x.sPaare)} mm (alle Achsabstände) → ${f3(x.psiGB)}; maßgebend <b>${f3(x.psiG)}</b> ≥ 1`, "Gl. (7.17); Auslegung s. Hinweise");
+        h += erl(`ψ<sub>g,Np</sub> berücksichtigt den Gruppeneffekt bei geringem Achsabstand. ${fx(K.TEXT.sMittel)}`, "7.2.1.6 (4)");
       } else h += zl("ψ<sub>g,Np</sub> = <b>1,0</b> (ein zugbeanspruchter Anker)", "Gl. (7.17)");
       h += zl(`N<sub>Rk,p</sub> = ${sup(sub("N", "Rk,p"), "0")}·A<sub>p,N</sub>/${sup(sub("A", "p,N"), "0")}·ψ<sub>g,Np</sub>·ψ<sub>s,Np</sub>·ψ<sub>re,N</sub>·ψ<sub>ec,Np</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiG)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)} = <b>${fmt(x.Rk)} kN</b>`, "Gl. (7.13)");
       h += rdL("N", "p", x, "Mp");
@@ -2304,6 +2385,7 @@ function herleitung(E, R, L) {
       h += kegelZeilen(x, { aSym: "c,N", ccrSym: "c<sub>cr,sp</sub>", scrSym: "s<sub>cr,sp</sub>", sSym: "s,N", ecSym: "ec,N", idx: zug, refA: "7.2.1.7 (2) c)", refS: "Gl. (7.4) mit c<sub>cr,sp</sub>", refEc: "Gl. (7.6) mit s<sub>cr,sp</sub>" });
       h += x.abhH ? zl("ψ<sub>h,sp</sub> = <b>1,0</b>: c<sub>cr,sp</sub> nach ETA bereits für die vorhandene Dicke h ermittelt (h<sub>min</sub> = h)", "Gl. (7.24); 7.2.1.7 (2) d)", true)
         : zl(`ψ<sub>h,sp</sub> = (h/h<sub>min</sub>)<sup>2/3</sup> ≤ max{1; ((h<sub>ef</sub> + 1,5·c<sub>1</sub>)/h<sub>min</sub>)<sup>2/3</sup>} ≤ 2 = min{(${fmtA(g.h)}/${fmtA(x.hmin)})<sup>2/3</sup>; max[1; ((${fmtA(g.hef)} + 1,5·${mm(x.c1)})/${fmtA(x.hmin)})<sup>2/3</sup>]; 2} = <b>${f3(x.psiH)}</b> (c<sub>1</sub> = min{${mm(x.c1A)} Zuganker; ${mm(x.c1B)} Gruppe})`, "Gl. (7.24); Auslegung s. Hinweise");
+      if (!x.abhH) h += erl(`${fx(K.TEXT.psiHsp)} Mit c<sub>1</sub> = ${mm(x.c1A)} mm → ψ<sub>h,sp</sub> = ${f3(K.psiHsp(g.h, x.hmin, g.hef, x.c1A))}; mit c<sub>1</sub> = ${mm(x.c1B)} mm → ${f3(K.psiHsp(g.h, x.hmin, g.hef, x.c1B))}.`, "Gl. (7.24)");
       h += zl(`N<sub>Rk,sp</sub> = ${sup(sub("N", "Rk,sp"), "0")}·A<sub>c,N</sub>/${sup(sub("A", "c,N"), "0")}·ψ<sub>s,N</sub>·ψ<sub>re,N</sub>·ψ<sub>ec,N</sub>·ψ<sub>h,sp</sub> = ${fmt(x.N0)}·${f3(x.Ac / x.A0)}·${f3(x.psiS)}·${f3(x.psiRe)}·${f3(x.psiEc)}·${f3(x.psiH)} = <b>${fmt(x.Rk)} kN</b>`, "Gl. (7.23)");
       h += rdL("N", "sp", x, "Msp");
     }
@@ -2329,10 +2411,16 @@ function herleitung(E, R, L) {
     h += zl(`${sup(sub("V", "Rk,c"), "0")} = k<sub>9</sub>·d<sub>nom</sub><sup>α</sup>·l<sub>f</sub><sup>β</sup>·√f<sub>ck</sub>·c<sub>1</sub><sup>1,5</sup> = ${fmt(x.k9, 1)}·${fmtA(x.dnom)}<sup>${fmt(x.alpha, 4)}</sup>·${fmtA(x.lf)}<sup>${fmt(x.beta, 4)}</sup>·√${fmtA(B.fck)}·${fmtA(x.c1)}<sup>1,5</sup> = <b>${fmt(x.V0)} kN</b> (k<sub>9</sub> = ${fmt(x.k9, 1)}, ${g.zustand})`, "Gl. (7.41)");
     h += zl(`${sup(sub("A", "c,V"), "0")} = 4,5·c<sub>1</sub>² = 4,5·${fmtA(x.c1)}² = ${fmtA(x.A0)} mm²`, "Gl. (7.44), Bild 7.13");
     h += zl(`A<sub>c,V</sub> = Länge am Rand · min{h; 1,5·c<sub>1</sub>} = ${fmtA(x.L)}·${fmtA(x.tief)} = <b>${fmtA(x.Ac)} mm²</b> (${esc(ankerListe(kt.anker))}) → A<sub>c,V</sub>/${sup(sub("A", "c,V"), "0")} = <b>${f3(x.Ac / x.A0)}</b>`, "Bild 7.14");
+    h += erl(`Länge am Rand: je randnahem Anker 1,5·c<sub>1</sub> = ${fmtA(1.5 * x.c1)} mm nach beiden Seiten, begrenzt durch Seitenränder, Überschneidungen einfach gezählt: ${x.abschnitte.map(q => fmtA(q[1] - q[0])).join(" + ")} mm. Tiefe min{h; 1,5·c<sub>1</sub>} = min{${fmtA(g.h)}; ${fmtA(1.5 * x.c1)}} = ${fmtA(x.tief)} mm.`, "Bild 7.14");
+    h += kanteSkizze(x, kt, g.h);
     h += zl(`ψ<sub>s,V</sub> = 0,7 + 0,3·c<sub>2</sub>/(1,5·c<sub>1</sub>) = ${x.c2 === Infinity ? "1,0 (kein Seitenrand)" : `0,7 + 0,3·${mm(x.c2)}/${fmtA(1.5 * x.c1)}`} → <b>${f3(x.psiS)}</b> ≤ 1`, "Gl. (7.45)");
+    h += erl(`ψ<sub>s,V</sub> berücksichtigt die Störung der Spannungsverteilung durch weitere Ränder; c<sub>2</sub> = ${x.c2 === Infinity ? "∞ (kein Seitenrand)" : mm(x.c2) + " mm"} ist der kleinere Abstand zu einem Rand parallel zur Lastrichtung.`, "7.2.2.5 (9)");
     h += zl(`ψ<sub>h,V</sub> = (1,5·c<sub>1</sub>/h)<sup>0,5</sup> = (${fmtA(1.5 * x.c1)}/${fmtA(g.h)})<sup>0,5</sup> → <b>${f3(x.psiH)}</b> ≥ 1`, "Gl. (7.46)");
+    h += erl(`ψ<sub>h,V</sub> berücksichtigt, dass der Widerstand nicht proportional zur Bauteildicke abnimmt, wie es das Verhältnis A<sub>c,V</sub>/${sup(sub("A", "c,V"), "0")} annimmt.`, "7.2.2.5 (10)");
     h += zl(`ψ<sub>ec,V</sub> = 1/(1 + 2·e<sub>V</sub>/(3·c<sub>1</sub>)) = 1/(1 + 2·${f1(x.ev)}/${fmtA(3 * x.c1)}) = <b>${f3(x.psiEc)}</b>`, "Gl. (7.47)");
+    h += erl(`ψ<sub>ec,V</sub> berücksichtigt den Gruppeneffekt bei unterschiedlichen Querlasten der Anker; e<sub>V</sub> = ${f1(x.ev)} mm ist der Abstand der Resultierenden vom Schwerpunkt der randnahen Anker längs des Randes.`, "7.2.2.5 (11)");
     h += zl(`ψ<sub>α,V</sub> = (1/((cos α<sub>V</sub>)² + (0,5·sin α<sub>V</sub>)²))<sup>0,5</sup> mit α<sub>V</sub> = ${f1(x.alphaV)}° → <b>${f3(x.psiA)}</b> ≥ 1`, "Gl. (7.48)");
+    h += erl(`ψ<sub>α,V</sub> berücksichtigt eine gegenüber dem Rand geneigte Querlast; α<sub>V</sub> = Winkel zwischen der Last und der Senkrechten zum Rand: cos α<sub>V</sub> = ${fmt(kt.perp)}/${fmt(kt.VE)}.`, "7.2.2.5 (12)");
     h += zl(`ψ<sub>re,V</sub> = <b>${fmt(x.psiRe, 1)}</b>${x.psiRe > 1 ? " (Randbewehrung bestätigt)" : " (ungerissener Beton bzw. gerissener Beton ohne Rand- oder Bügelbewehrung)"}`, "7.2.2.5 (13)");
     h += zl(`V<sub>Rk,c</sub> = ${sup(sub("V", "Rk,c"), "0")}·A<sub>c,V</sub>/${sup(sub("A", "c,V"), "0")}·ψ<sub>s,V</sub>·ψ<sub>h,V</sub>·ψ<sub>ec,V</sub>·ψ<sub>α,V</sub>·ψ<sub>re,V</sub>${x.f08 < 1 ? "·0,8" : ""} = ${fmt(x.V0)}·${f3(x.Ac / x.A0)}·${f3(x.psiS)}·${f3(x.psiH)}·${f3(x.psiEc)}·${f3(x.psiA)}·${fmt(x.psiRe, 1)}${x.f08 < 1 ? "·0,8" : ""} = <b>${fmt(x.Rk)} kN</b>`, "Gl. (7.40)" + (x.f08 < 1 ? "; 7.2.2.5 (8)" : ""));
     H.Vc[kt.richtung] = h + rdL("V", "c", x, "Mc");

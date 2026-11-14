@@ -693,3 +693,22 @@ test("ETA-20/0867 HUS4: Stichproben, l_f = h_nom, γ_inst = 1,2", () => {
   const R = A.nachweis(Z.kernEingabe(s)); assert.deepEqual([...R.fehler], []);
   nah(R.beton.lf, 100, "l_f = h_nom (≤ 12·d_nom = 144)");
 });
+
+// Quelle: Handrechnung nach DIN EN 1992-4, Bild 7.4 und Bild 7.14. Die Rechtecke dienen der Darstellung im Protokoll
+// (Stufe „Detailliert“) und müssen dieselbe Fläche ergeben wie A_c,N bzw. A_c,V.
+//   2 Anker (±75; 0), c_cr,N = 165, Rand +y mit c = 100: je Anker [x ± 165] × [−165; 100]
+//   → Vereinigung [−240; 240] × [−165; 100] = 480·265 = 127.200 mm²
+//   Kantenbruch Rand +y, c₁ = 100: je Anker ±1,5·c₁ = ±150 längs des Randes → ein Abschnitt [−225; 225], L = 450 mm
+test("Protokoll: Rechtecke von A_c,N und Abschnitte von A_c,V", () => {
+  const P = [{ x: -75, y: 0 }, { x: 75, y: 0 }], K = A.kantenLage(P, [{ richtung: "+y", c: 100 }]);
+  const f = A.kegelFaktoren(P, [0, 1], 165, K, { x: 0, y: 0 });
+  assert.deepEqual(JSON.parse(JSON.stringify(f.rechtecke)), [[-240, 90, -165, 100], [-90, 240, -165, 100]]);
+  nah(f.Ac, 127200, "A_c,N"); nah(A.vereinigung(f.rechtecke), f.Ac, "Vereinigung der Rechtecke = A_c,N", 1e-12);
+  const s = zustandAusEintrag(etaEintrag("eta120164-8.8-m12"), 110); s.geo.h = 200; s.geo.rand = { "+x": "", "-x": "", "+y": 100, "-y": "" };
+  s.lf = [{ name: "LK", N: 8, Vx: 0, Vy: 4, Mx: 0, My: 0, T: 0, je: [] }];
+  const R = A.nachweis(Z.kernEingabe(s)); assert.deepEqual([...R.fehler], []);
+  const x = R.lf[0].kante[0].Rd;
+  assert.deepEqual(JSON.parse(JSON.stringify(x.abschnitte)), [[-225, 225]]); assert.deepEqual(JSON.parse(JSON.stringify(x.tAnker)), [-75, 75]);
+  nah(x.abschnitte.reduce((a, q) => a + q[1] - q[0], 0) * x.tief, x.Ac, "Σ Abschnitte · Tiefe = A_c,V", 1e-12);
+  nah(x.Ac, 450 * 150, "A_c,V");
+});

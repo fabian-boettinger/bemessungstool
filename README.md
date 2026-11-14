@@ -21,6 +21,12 @@ Zustand, Projektdatei und Direktlink (ebenfalls ohne DOM), `<script id="app">` O
 ersten Blöcke direkt aus der HTML-Datei. Unsichere Annahmen sind im Code mit `// PRÜFEN` markiert und erscheinen in
 Oberfläche und Protokoll als „ungeprüft“.
 
+Protokoll von `anker/index.html`: je Versagensart ein Block aus Einwirkung, Widerstand (Formel → Werte → Ergebnis,
+Normbezug in der Randspalte) und Nachweiskasten mit η. Der Umfang wird im Reiter „Bericht“ gewählt und mit der Position
+gespeichert: **Kurz** (Eingaben, Ergebnistabelle, Ergebnis; ohne Herleitung), **Standard** (Herleitung der maßgebenden
+Kombination), **Detailliert** (jede Kombination, jeder Anker, ETA-Kennwerte mit Fundstelle, projizierte Flächen mit Maßen
+und Skizze, Erläuterung der Beiwerte). Gerechnet wird in allen Stufen dasselbe.
+
 ## Direktlinks
 
 - `rothoblaas/index.html#produkt=<id>` wählt das Produkt, z. B. `titann`, `titansx` (mit XYLOFON), `whtc`, `alumega`;
