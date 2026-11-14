@@ -565,3 +565,28 @@ test("V2-7: fehlende Kennwerte, Beton außerhalb der ETA, ψ_c-Tabelle", () => {
   nah(A.psiC("exp:0,5", "C40/50").psi, Math.sqrt(2), "ψ_c = (40/20)^0,5");
   assert.equal(A.psiC("Unsinn", "C25/30"), null);
 });
+
+// ================================================================================ Mitgelieferte ETA-Einträge
+// Quelle: jeweilige ETA (Fundstelle im Feld „quelle“); hier Stichproben gegen die abgelesenen Werte und Rechenlauf ohne fehlende Kennwerte.
+const ed = html.slice(html.indexOf("/* ETA-DATEN-START */") + 21, html.indexOf("/* ETA-DATEN-ENDE */"));
+const ETA = vm.runInContext("[" + ed + "]", ctx);
+const etaEintrag = id => { const e = ETA.find(x => x.id === id); assert.ok(e, "Eintrag " + id); return e; };
+function zustandAusEintrag(e, hef) {
+  const s = Z.vorgabe();
+  Object.keys(s.dub).forEach(k => { if (e[k] !== undefined && k !== "lib") s.dub[k] = e[k]; });
+  s.dub.hef = hef; s.geo.alphaSus = 0.6; s.geo.lochspiel = "ohne"; s.geo.h = 250;
+  s.w.Ns = { art: "k", Rk: e.NRks, gM: e.gMs }; s.w.Vs = { art: "k", Rk: e.VRks, gM: e.gMsV };
+  s.w.Vc = { "+y": Z.wB() };
+  return s;
+}
+test("ETA-19/0601 HIT-HY 200: Stichproben und Rechenlauf", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-19/0601").length, 18);
+  const e = etaEintrag("eta190601-8.8-m12");
+  assert.equal(e.NRks, 67.4); assert.equal(e.M0Rks, 104.6); nah(e.VRks, 33.7, "V_Rk,s = 0,5·67,4"); assert.equal(e.tauCr, 9.5); assert.equal(e.hefMin, 70); assert.equal(e.hefMax, 240);
+  assert.equal(etaEintrag("eta190601-8.8-m8").tauCr, 7.5); assert.equal(etaEintrag("eta190601-A4-70-m24").gMs, 1.87);
+  assert.equal(Z.hminWert("hef+30>=100", 60), 100); assert.equal(Z.hminWert("hef+30>=100", 100), 130); assert.equal(Z.hminWert("hef+36", 100), 136);
+  const s = zustandAusEintrag(e, 100);
+  const R = A.nachweis(Z.kernEingabe(s));
+  assert.deepEqual([...R.fehler], []); assert.ok(R.etaMax > 0 && R.etaMax < 5);
+  nah(R.lf[0].ber.Np.tau, 9.5 * Math.pow(25 / 20, 0.1), "τ_Rk,cr·ψ_c");
+});
