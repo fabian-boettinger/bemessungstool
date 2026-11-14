@@ -850,6 +850,11 @@ function nachweis(e) {
   const Rd = {};
   for (const k of ["Ns", "Np", "Nc", "Nsp", "Vcp"]) Rd[k] = bemessungswert(k === "Np" && g.typ === "verbund" ? "Npv" : k, W[k], fehler);
   if (!H.mit) Rd.Vs = bemessungswert("Vs", W.Vs, fehler);
+  // Gl. (7.35): V_Rk,s = k₇·V⁰_Rk,s für Anker in einer Gruppe (k₇ laut ETA; Einzelanker k₇ = 1)
+  const k7 = num((e.kw || {}).k7) && e.kw.k7 > 0 && e.kw.k7 < 1 ? e.kw.k7 : 1;
+  if (Rd.Vs && n > 1 && k7 < 1 && !Rd.Vs.fehlt && !Rd.Vs.entfaellt) {
+    Rd.Vs = Object.assign({}, Rd.Vs, { k7, V0: Rd.Vs.art === "k" ? Rd.Vs.Rk : null, Rk: Rd.Vs.art === "k" ? k7 * Rd.Vs.Rk : Rd.Vs.Rk, Rd: k7 * Rd.Vs.Rd });
+  }
   const Vc = raender.map((r, k) => bemessungswert("Vc", (W.Vc || [])[k], fehler));
   Object.assign(out, { raender, la, Rd, Vc, dnom, hatQuer, mitLochspiel });
   if (fehler.length) return fertig();
@@ -1078,7 +1083,7 @@ function vorlageAnker(v, s1, s2) {
 const wLeer = () => ({ art: "k", Rk: "", gM: "", Rd: "", quelle: "", grund: "" });
 const wB = () => ({ art: "b", Rk: "", gM: "", Rd: "", quelle: "", grund: "" });
 // ETA-Kennwerte für berechnete Betonwiderstände (Felder des Dübels; Text: psic, spArt, betonMin, betonMax; "nm" bei N_Rk,p)
-const KWF = ["gInst", "kcr", "kucr", "ccrNf", "NRkpCr", "NRkpUcr", "psic", "psicU", "tauCr", "tauUcr", "psi0sus", "spArt", "sp1h", "sp1c", "sp2h", "sp2c", "N0Rksp", "k8", "lf", "betonMin", "betonMax", "hefMin", "hefMax"];
+const KWF = ["gInst", "kcr", "kucr", "ccrNf", "NRkpCr", "NRkpUcr", "psic", "psicU", "k7", "tauCr", "tauUcr", "psi0sus", "spArt", "sp1h", "sp1c", "sp2h", "sp2c", "N0Rksp", "k8", "lf", "betonMin", "betonMax", "hefMin", "hefMax"];
 const KWTEXT = new Set(["psic", "psicU", "spArt", "betonMin", "betonMax"]);
 const kwLeer = () => { const o = {}; KWF.forEach(k => o[k] = ""); o.spArt = "paare"; o.betonMin = "C20/25"; o.betonMax = "C50/60"; return o; };
 // h_min als Zahl oder als Regel der ETA abhängig von h_ef: "hef+30>=100" (h_ef + 30 ≥ 100 mm), "hef+36"
@@ -1256,7 +1261,7 @@ const LIBF = [ // [Schlüssel, Kopf, Art]
   ["typ", "Dübelart", "typ"], ["d", "d", "n"], ["dnom", "d<sub>nom</sub>", "n"], ["hef", "h<sub>ef</sub>", "n"], ["fuk", "f<sub>uk</sub>", "n"], ["schraube", "Beton&shy;schraube", "b"],
   ["smin", "s<sub>min</sub>", "n"], ["cmin", "c<sub>min</sub>", "n"], ["hmin", "h<sub>min</sub>", "hm"], ["dfETA", "d<sub>f,max</sub>", "n"],
   ["NRks", "N<sub>Rk,s</sub> [kN]", "n"], ["gMs", "γ<sub>Ms</sub>", "n"], ["VRks", "V<sub>Rk,s</sub> [kN]", "n"], ["gMsV", "γ<sub>Ms,V</sub>", "n"], ["M0Rks", "M<sup>0</sup><sub>Rk,s</sub> [Nm]", "n"],
-  ["gInst", "γ<sub>inst</sub>", "n"], ["kcr", "k<sub>cr,N</sub>", "n"], ["kucr", "k<sub>ucr,N</sub>", "n"], ["ccrNf", "c<sub>cr,N</sub>/h<sub>ef</sub>", "n"],
+  ["k7", "k<sub>7</sub> (Gruppe)", "n"], ["gInst", "γ<sub>inst</sub>", "n"], ["kcr", "k<sub>cr,N</sub>", "n"], ["kucr", "k<sub>ucr,N</sub>", "n"], ["ccrNf", "c<sub>cr,N</sub>/h<sub>ef</sub>", "n"],
   ["NRkpCr", "N<sub>Rk,p</sub> geriss. [kN]", "np"], ["NRkpUcr", "N<sub>Rk,p</sub> ungeriss. [kN]", "np"], ["psic", "ψ<sub>c</sub>", "t"], ["psicU", "ψ<sub>c</sub> ungeriss. (falls abweichend)", "t"],
   ["tauCr", "τ<sub>Rk,cr</sub> [N/mm²]", "n"], ["tauUcr", "τ<sub>Rk,ucr</sub> [N/mm²]", "n"], ["psi0sus", "ψ<sup>0</sup><sub>sus</sub>", "n"],
   ["spArt", "c<sub>cr,sp</sub> Art", "sp"], ["sp1h", "h<sub>min,1</sub>", "n"], ["sp1c", "c<sub>cr,sp,1</sub>", "n"], ["sp2h", "h<sub>min,2</sub>", "n"], ["sp2c", "c<sub>cr,sp,2</sub>", "n"],
@@ -1388,6 +1393,24 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       tauCr: "", tauUcr: "", psi0sus: "", spArt: "paare", sp1h: "", sp1c: "", sp2h: "", sp2c: "", N0Rksp: "", k8: k8[i], lf: "", betonMin: "C20/25", betonMax: "C50/60", spEingabe: true,
       quelle: "ETA-20/0229: Anh. B4 (S. 20), C1 (S. 30), C3 (S. 32)",
       notiz: "Spalten: c_cr,sp = min{(A_sp + 0,8·(h_sp − h_ef)²)/(3,41·h_sp − 0,59·h_ef); A_sp/(h_sp·√8)} ≥ 1,5·h_ef mit h_sp, A_sp nach Anh. B4, N⁰_Rk,sp = min(N_Rk,p; N⁰_Rk,c), ψ_h,sp = 1,0 – N_Rk,sp je Position eingeben. s_min/c_min mit A_sp-Nachweis (Tab. B2/B4) eintragen. V_Rk,s unverfüllter Ringspalt; k₈ = min(k₈,cr; k₈,ucr). ETA gilt bis C80/95, hier bis C50/60 hinterlegt" }));
+  })(),
+
+  // ---- Würth Betonschraube W-BS (Stahl verzinkt), ETA-16/0043 vom 07.07.2021, Größen 8–14 mm, je Einschraubtiefe h_nom
+  // Anhang B3 (PDF-S. 11): d_f; B4 (S. 12): h_min, c_min, s_min; C1 (S. 16), C2 (S. 17): N_Rk,s, V⁰_Rk,s, k₇ = 0,8, M⁰_Rk,s, N_Rk,p
+  // („≥ N⁰_Rk,c“ = nicht maßgebend), ψ_c-Tabelle, h_ef, k_cr/ucr, c_cr,N, N⁰_Rk,sp, c_cr,sp (bei h_min), k₈, l_f = h_ef, d_nom
+  ...(() => {
+    const R = [ // [Größe, h_nom, h_ef, h_min, c_min, s_min, d_f, N_Rk,s, V⁰_Rk,s, M⁰, N_Rk,p cr, ucr, N⁰_Rk,sp, c_cr,sp, k₈]
+      [8, 45, 35, 80, 40, 40, 12, 27, 13.5, 26, 5, 7.5, 7.5, 60, 1.0], [8, 55, 43, 80, 50, 50, 12, 27, 13.5, 26, 9, 12, 12, 70, 1.0], [8, 65, 52, 80, 50, 50, 12, 27, 17.0, 26, 12, 16, 16, 75, 1.0],
+      [10, 55, 43, 80, 50, 50, 14, 45, 22.5, 56, 9, 12, 12, 70, 1.0], [10, 75, 60, 90, 50, 50, 14, 45, 34.0, 56, "nm", 20, 20, 90, 2.0], [10, 85, 68, 102, 50, 50, 14, 45, 34.0, 56, "nm", 26, 26, 105, 2.0],
+      [12, 65, 50, 80, 50, 50, 16, 67, 33.5, 113, 12, 16, 16, 75, 1.0], [12, 85, 67, 101, 50, 50, 16, 67, 42.0, 113, "nm", "nm", 27, 105, 2.0], [12, 100, 80, 120, 70, 70, 16, 67, 42.0, 113, "nm", "nm", 35, 120, 2.0],
+      [14, 75, 58, 87, 50, 50, 18, 94, 56.0, 185, "nm", "nm", 21.5, 90, 1.0], [14, 100, 79, 119, 70, 70, 18, 94, 56.0, 185, "nm", "nm", 34.5, 120, 2.0], [14, 115, 92, 138, 70, 70, 18, 94, 56.0, 185, "nm", "nm", 43.5, 140, 2.0]];
+    return R.map(([d, hn, hef, hmin, cmin, smin, df, N, V, M, Pc, Pu, Nsp, csp, k8]) => ({ id: `eta160043-wbs${d}-${hn}`, hersteller: "Würth", produkt: `W-BS ${d} (verzinkt), h_nom = ${hn} mm`,
+      eta: "ETA-16/0043", etaDatum: "07.07.2021", typ: "mechanisch", d, dnom: d, hef, hefMin: "", hefMax: "", fuk: "", schraube: true,
+      smin, cmin, hmin, dfETA: df, NRks: N, gMs: 1.5, VRks: V, gMsV: 1.25, M0Rks: M, k7: 0.8,
+      gInst: 1.0, kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: Pc, NRkpUcr: Pu, psic: "C25/30=1,12; C30/37=1,22; C40/50=1,41; C50/60=1,58", psicU: "",
+      tauCr: "", tauUcr: "", psi0sus: "", spArt: "paare", sp1h: hmin, sp1c: csp, sp2h: "", sp2c: "", N0Rksp: Nsp, k8, lf: "", betonMin: "C20/25", betonMax: "C50/60",
+      quelle: "ETA-16/0043: Anh. B3 (S. 11), B4 (S. 12), " + (d <= 10 ? "C1 (S. 16)" : "C2 (S. 17)"),
+      notiz: `Betonschraube ${d} mm (kein metrisches Gewinde), h_nom = ${hn} mm, d₀ = ${d} mm; N_Rk,p „nm“ = laut ETA ≥ N⁰_Rk,c; k₇ = 0,8 für Gruppen` }));
   })(),
   /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
 const clone = o => JSON.parse(JSON.stringify(o));
@@ -1537,6 +1560,7 @@ function baue() {
     ${d.spArt === "ead" || d.spArt === "faktor" ? "" : fld(sub("h", "min,1") + " [mm]", "dub.sp1h") + fld(sub("c", "cr,sp,1") + " [mm]", "dub.sp1c") + fld(sub("h", "min,2") + " [mm] (optional)", "dub.sp2h") + fld(sub("c", "cr,sp,2") + " [mm]", "dub.sp2c")}
     ${fld(sup(sub("N", "Rk,sp"), "0") + " ungerissen [kN] (optional)", "dub.N0Rksp", { fh: "gerissen bzw. leer: Anm. zu 7.2.1.7 (2)" })}
     ${fld(sub("k", "8") + " lastabgewandte Seite", "dub.k8")}
+    ${fld(sub("k", "7") + " Duktilität (Gruppe)", "dub.k7", { fh: "Gl. (7.35); leer = 1,0" })}
     ${fld(sub("l", "f") + " [mm] (optional)", "dub.lf", { fh: "leer: l<sub>f</sub> = h<sub>ef</sub> ≤ 12·d<sub>nom</sub>" })}
     ${fld("Beton laut ETA von", "dub.betonMin", { sel: Object.keys(K.BETON).map(k => [k, k]) })}${fld("bis", "dub.betonMax", { sel: Object.keys(K.BETON).map(k => [k, k]) })}
     ${fld(sub("h", "ef,min") + " (optional)", "dub.hefMin", { fh: "Verbunddübel: Bereich laut ETA" })}${fld(sub("h", "ef,max"), "dub.hefMax")}
@@ -2037,7 +2061,8 @@ function widerstaende(E, R, L) {
   h += rdZeile(sub("N", "Rd,p"), Rd.Np, kurzRef(E.geo.typ === "verbund" ? K.REF.Npv : K.REF.Np));
   h += rdZeile(sub("N", "Rd,c"), Rd.Nc, kurzRef(K.REF.Nc));
   h += rdZeile(sub("N", "Rd,sp"), Rd.Nsp, kurzRef(K.REF.Nsp));
-  if (!H.mit) h += rdZeile(sub("V", "Rd,s"), Rd.Vs, kurzRef(K.REF.Vs));
+  if (!H.mit) h += Rd.Vs && Rd.Vs.k7 && Rd.Vs.art === "k" ? zl(`V<sub>Rk,s</sub> = k<sub>7</sub>·V<sup>0</sup><sub>Rk,s</sub> = ${fmt(Rd.Vs.k7)}·${fmt(Rd.Vs.V0)} = ${fmt(Rd.Vs.Rk)} kN (Gruppe); V<sub>Rd,s</sub> = ${fmt(Rd.Vs.Rk)}/${fmt(Rd.Vs.gM)} = <b>${fmt(Rd.Vs.Rd)} kN</b>`, "7.2.2.3.1 (2), Gl. (7.35)")
+    : rdZeile(sub("V", "Rd,s"), Rd.Vs, kurzRef(K.REF.Vs));
   h += rdZeile(sub("V", "Rd,cp"), Rd.Vcp, kurzRef(K.REF.Vcp));
   (R.raender || []).forEach((r, i) => { const kt = L && L.kante ? L.kante[i] : null; h += rdZeile(sub("V", "Rd,c") + " (Rand " + r.richtung + ")", R.Vc[i].art === "b" ? (kt && kt.Rd && kt.Rd.art === "b" ? kt.Rd : { art: "b" }) : R.Vc[i], kurzRef(K.REF.Vc)); });
   h += zl("Teilsicherheitsbeiwerte aus der ETA bzw. Tab. 4.1; der NA übernimmt die Empfehlungen.", kurzRef(K.REF.gamma), true);

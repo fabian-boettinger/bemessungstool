@@ -669,3 +669,16 @@ test("ETA-20/0229 W-FAZ PRO/S: ψ_c je Zustand, h_min = max(1,5·h_ef; …), Spa
   s.geo.zustand = "gerissen"; s.dub.psic = "exp:0,439"; const R2 = A.nachweis(Z.kernEingabe(s));
   nah(R2.lf[0].ber.Np.Rk, 22.6 * Math.pow(2, 0.439), "gerissen mit eigenem Exponenten");
 });
+
+// Quelle: ETA-16/0043, Anh. C1/C2; DIN EN 1992-4, Gl. (7.35): V_Rk,s = k₇·V⁰_Rk,s für Anker einer Gruppe.
+test("ETA-16/0043 W-BS: Stichproben, k₇ = 0,8 nur in der Gruppe", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-16/0043").length, 12);
+  const e = etaEintrag("eta160043-wbs12-100");
+  assert.equal(e.hef, 80); assert.equal(e.N0Rksp, 35); assert.equal(e.sp1c, 120); assert.equal(e.sp1h, 120); assert.equal(e.NRkpCr, "nm"); assert.equal(e.k7, 0.8);
+  const s = zustandAusEintrag(e, 80); s.geo.h = 200; s.geo.rand = { "+x": "", "-x": "", "+y": 150, "-y": "" }; s.geo.vorlage = "1"; s.geo.anker = Z.vorlageAnker("1", 0, 0);
+  s.lf = [{ name: "LK", N: 5, Vx: 0, Vy: 6, Mx: 0, My: 0, T: 0, je: [] }];
+  const R1 = A.nachweis(Z.kernEingabe(s)); assert.deepEqual([...R1.fehler], []); nah(R1.Rd.Vs.Rd, 42 / 1.25, "Einzelanker k₇ = 1");
+  s.geo.anker = Z.vorlageAnker("2x", 150, 0); s.geo.vorlage = "2x";
+  const R2 = A.nachweis(Z.kernEingabe(s)); assert.deepEqual([...R2.fehler], []); nah(R2.Rd.Vs.Rd, 0.8 * 42 / 1.25, "Gruppe k₇ = 0,8");
+  assert.equal(R2.lf[0].ber.Np.entfaellt, true);
+});
