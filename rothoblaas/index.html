@@ -2308,7 +2308,7 @@ function ankerHash(o){
   const enc=encodeURIComponent, z=x=>String(Math.round(x*1000)/1000), nm=t=>enc(String(t||"").replace(/[~|,;&#]/g," "));
   const lcg=o.zeilen.map(r=>nm(r.name)+"~"+[r.N,r.Vx,r.Vy,r.Mx,r.My,r.T].map(z).join(",")).join("|");
   return "von=rb&prod="+enc(o.prod)+"&typ="+enc(o.typ)+(o.ausg?"&ausg="+enc(o.ausg):"")+(o.pos?"&pos="+enc(o.pos):"")+(o.bez?"&bez="+enc(o.bez):"")
-    +"&n="+o.xy.length+"&xy="+o.xy.map(q=>q.map(z).join(",")).join(";")+(o.ue!=null?"&ue="+z(o.ue):"")+"&lcg="+lcg;
+    +"&n="+o.xy.length+"&xy="+o.xy.map(q=>q.map(z).join(",")).join(";")+(o.ue!=null?"&ue="+z(o.ue):"")+(o.ey!=null?"&wy="+z(-o.ey):"")+"&lcg="+lcg;
 }
 /* ANKER-KOPPLUNG-ENDE */
 function ninoAnkerGeo(typ){

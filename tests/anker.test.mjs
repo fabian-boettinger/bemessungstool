@@ -422,6 +422,7 @@ test("Kopplung Rothoblaas: TCN240 mit TCW, Vorzeichen von M_y und höchstbelaste
   const h = RB.ankerHash(Object.assign({ pos: "108.101", bez: "Wand A", zeilen: [Object.assign({ name: "LK 1" }, g), Object.assign({ name: "LK2" }, RB.ankerGruppe(p, { F1: 10, F23: 20, F4: 0, F5: 0 }))] }, p));
   const q = A.leseHash("#" + h);
   assert.deepEqual([...q.fehler], []); assert.equal(q.modus, "starr"); assert.equal(q.ausg, "07-26"); assert.equal(q.ue, 39); assert.equal(q.lastfaelle[0].name, "LK 1");
+  assert.equal(q.wy, -39.5, "Lage des Winkelschenkels y = −e_y (Isometrie)");
   const s = Z.hashAnwenden(zustandFall2(), q);
   Object.assign(s.dub, { d: 16, dnom: 16 }); s.geo.df = 18;
   const k = (Rk, gM) => ({ art: "k", Rk, gM, Rd: "", quelle: "Test", grund: "" });

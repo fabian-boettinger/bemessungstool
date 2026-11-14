@@ -213,7 +213,7 @@ table.lib input:disabled,table.lib select:disabled{background:transparent;border
     <div class="warns" id="warns" style="margin-top:10px"></div>
   </div>
   <div class="card"><h2>Anwendungsgrenzen und Mindestwerte</h2><div class="scroll"><table class="limt" id="limT"></table></div></div>
-  <div class="card"><h2>System (Grundriss, maßgebende Kombination)</h2><div id="viz"></div></div>
+  <div class="card"><h2>System (Grundriss und Isometrie, maßgebende Kombination)</h2><div id="viz"></div><div id="iso" style="margin-top:8px"></div></div>
   <div class="sheetwrap">
     <div class="sheetbar"><span>Protokoll – Vorschau des Ausdrucks</span><button class="btn" id="bPrint2">Drucken</button></div>
     <div id="report" class="rep"></div>
@@ -982,7 +982,7 @@ function fmtz(x) { return (Math.round(x * 10) / 10).toString().replace(".", ",")
 // #pos=…&bez=…&n=2&xy=39,0;201,0&lc=LK1~N1,V1x,V1y;N2,V2x,V2y|LK2~…        Kräfte je Anker [kN]
 //                               &lcg=LK1~N,Vx,Vy,Mx,My,T|…                    Schnittgrößen am Gruppenschwerpunkt [kN, kNm]
 // optional: von=rb&prod=…&typ=…&ausg=… (Herkunft, Datenblatt-Ausgabe), ue=<Überstand des Anbauteils über den äußersten Anker mm>,
-// hb=<Zwischenschicht unter dem Anbauteil mm>, zw=moertel|sonstige, tfix=<Blechdicke mm>. Betonwiderstände kommen nie über den Link.
+// hb=<Zwischenschicht unter dem Anbauteil mm>, zw=moertel|sonstige, tfix=<Blechdicke mm>, wy=<y der Wand bzw. des Winkelschenkels mm>. Betonwiderstände kommen nie über den Link.
 function leseHash(h) {
   const s = String(h || "").replace(/^#/, "");
   const q = {};
@@ -997,6 +997,8 @@ function leseHash(h) {
   if ("n" in q && (!(out.n >= 1) || out.n !== out.anker.length)) out.fehler.push(`Ankeranzahl n = ${q.n} passt nicht zum Lochbild (${out.anker.length} Anker).`);
   if (out.anker.length > 9) out.fehler.push("Mehr als 9 Anker (Bild 1.2).");
   out.ausg = q.ausg || "";
+  out.wy = q.wy === undefined ? null : zahl(q.wy);   // Lage der Wand bzw. des Winkelschenkels (y) für die Isometrie
+  if (q.wy !== undefined && isNaN(out.wy)) out.fehler.push("Wandlage wy unlesbar.");
   out.ue = q.ue === undefined ? null : zahl(q.ue);
   if (q.ue !== undefined && !(out.ue >= 0)) out.fehler.push("Überstand ue unlesbar.");
   out.zw = q.zw === "moertel" ? "moertel" : q.zw === undefined ? null : "sonstige";
@@ -1185,7 +1187,7 @@ function hashAnwenden(s, q) {
   s.w.Vc = {};
   if (s.dub.typ === "verbund" && s.w.Np.art !== "b") s.w.Np = wLeer();
   s.geoSchluessel = null;
-  s.herkunft = q.von ? { von: q.von, prod: q.prod, typ: q.typ, ausg: q.ausg, modus: q.modus } : { von: "Link" };
+  s.herkunft = q.von ? { von: q.von, prod: q.prod, typ: q.typ, ausg: q.ausg, modus: q.modus, wy: q.wy } : { von: "Link" };
   return s;
 }
 return { FORMAT, DIRS, VORL_N, KWF, KWTEXT, kwLeer, npWert, wB, vorlageAnker, vorgabe, raender, e1, a3Null, kernEingabe, beispielAktiv, titel, dateiname, packe, projektHtml, embBlock, leseText,
@@ -1542,6 +1544,7 @@ function rechne() {
   $("warns").insertAdjacentHTML("afterbegin", zusatz.join(""));
   const L = massgebend(R);
   $("viz").innerHTML = skizze(E, R, L);
+  $("iso").innerHTML = isometrie(E, R, L);
   $("report").innerHTML = paginate(report(E, R, L), beispielAktiv(S));
   document.title = Z.titel(S);
   fileInfo();
@@ -1621,6 +1624,120 @@ function skizze(E, R, L) {
   return s + "</svg>";
 }
 
+// ------------------------------------------------------------------ Isometrie (schiefe Parallelprojektion, Kabinett 30°)
+// Betonbauteil mit Rändern (fehlender Rand: Bauteil abgeschnitten, gestrichelt), Ankerplatte, Anker bis h_ef, Bemaßung c, s, h, h_ef,
+// Schnittgrößen der maßgebenden Kombination am Gruppenschwerpunkt, höchstbelasteter Anker rot. Bei Rothoblaas-Kopplung: Winkel mit Wand.
+function isometrie(E, R, L) {
+  const A = E.anker.filter(p => isFinite(p.x) && isFinite(p.y)), g = E.geo;
+  if (!A.length || !(g.h > 0) || !(g.hef > 0)) return "";
+  const xs = A.map(p => p.x), ys = A.map(p => p.y), x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const span = Math.max(x1 - x0, y1 - y0, 2 * g.hef, 150), frei = Math.max(0.6 * span, 1.5 * g.hef);
+  const rc = r => { const q = (g.raender || []).find(k => k.richtung === r); return q ? q.c : null; };
+  const zeigC = c => Math.min(c, frei * 1.6);   // sehr große Randabstände verkürzt
+  const B = { xa: rc("-x") != null ? x0 - zeigC(rc("-x")) : x0 - frei, xb: rc("+x") != null ? x1 + zeigC(rc("+x")) : x1 + frei,
+              ya: rc("-y") != null ? y0 - zeigC(rc("-y")) : y0 - frei, yb: rc("+y") != null ? y1 + zeigC(rc("+y")) : y1 + frei };
+  const real = { "-x": rc("-x") != null, "+x": rc("+x") != null, "-y": rc("-y") != null, "+y": rc("+y") != null };
+  const H = g.h, k = 0.9, ca = Math.cos(Math.PI / 6), sa = Math.sin(Math.PI / 6);
+  const rbH = S.herkunft && S.herkunft.von === "rb" && isFinite(S.herkunft.wy);
+  const fy = rbH ? -1 : 1;   // Rothoblaas: Blick von der Seite gegenüber der Wand (Wand hinten)
+  const P = (x, y, z) => [x + k * fy * y * ca, -z - k * fy * y * sa];
+  const yF = fy > 0 ? B.ya : B.yb, yR = fy > 0 ? B.yb : B.ya, rF = fy > 0 ? "-y" : "+y", rR = fy > 0 ? "+y" : "-y";
+  // Ankerplatte bzw. Winkel
+  const ue = isFinite(g.ueberstand) && g.ueberstand > 0 ? g.ueberstand : Math.max(0.25 * span, 2 * (g.dnom || g.d) + 10);
+  const pl = { xa: x0 - ue, xb: x1 + ue, ya: y0 - Math.max(0.25 * span, 30), yb: y1 + Math.max(0.25 * span, 30), t: Math.max(6, 0.04 * span) };
+  const rb = rbH;
+  if (rb) { pl.ya = S.herkunft.wy; pl.yb = y1 + Math.max(0.35 * span, 30); }
+  const hw = rb ? Math.max(1.4 * span, 2.5 * g.hef) : 0;
+  // Bildausschnitt
+  const pts = [];
+  for (const x of [B.xa, B.xb]) for (const y of [B.ya, B.yb]) for (const z of [0, -H, rb ? hw : pl.t + 0.8 * span]) pts.push(P(x, y, z));
+  const us = pts.map(p => p[0]), vs = pts.map(p => p[1]);
+  const W = 520, Hh = 400, pad = 46;
+  const sc = Math.min((W - 2 * pad) / (Math.max(...us) - Math.min(...us)), (Hh - 2 * pad) / (Math.max(...vs) - Math.min(...vs)));
+  const ou = pad - Math.min(...us) * sc + ((W - 2 * pad) - (Math.max(...us) - Math.min(...us)) * sc) / 2, ov = pad - Math.min(...vs) * sc;
+  const Q = (x, y, z) => { const p = P(x, y, z); return [ou + p[0] * sc, ov + p[1] * sc]; };
+  const pt = q => q[0].toFixed(1) + "," + q[1].toFixed(1);
+  const poly = (ps, a) => `<polygon points="${ps.map(pt).join(" ")}" ${a}/>`;
+  const lin = (a, b, at) => `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" ${at}/>`;
+  const txt = (q, t, at = "") => `<text x="${q[0].toFixed(1)}" y="${q[1].toFixed(1)}" ${at}>${t}</text>`;
+  const pfeil = (a, b, farbe, w = 1.8) => { const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, ux = dx / l, uy = dy / l;
+    return lin(a, b, `stroke="${farbe}" stroke-width="${w}"`) + `<polygon points="${pt(b)} ${pt([b[0] - 8 * ux - 3.5 * uy, b[1] - 8 * uy + 3.5 * ux])} ${pt([b[0] - 8 * ux + 3.5 * uy, b[1] - 8 * uy - 3.5 * ux])}" fill="${farbe}"/>`; };
+  const masz = (a, b, t, off, farbe = "#0b5a7a") => { const m = [(a[0] + b[0]) / 2 + off[0], (a[1] + b[1]) / 2 + off[1]];
+    return lin(a, b, `stroke="${farbe}" stroke-width=".9"`) + `<circle cx="${a[0].toFixed(1)}" cy="${a[1].toFixed(1)}" r="1.8" fill="${farbe}"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="1.8" fill="${farbe}"/>` + txt(m, t, `fill="${farbe}" font-size="10" text-anchor="middle"`); };
+  let s = `<svg viewBox="0 0 ${W} ${Hh}" width="${W}" height="${Hh}" xmlns="http://www.w3.org/2000/svg" font-family="Arial,Helvetica,sans-serif" font-size="11">`;
+  // Betonkörper: Oberseite, Vorderseite (y = ya), rechte Seite (x = xb)
+  const kante = (a, b, ist) => lin(a, b, ist ? `stroke="#1b2430" stroke-width="2"` : `stroke="#7a8592" stroke-width="1" stroke-dasharray="5 3"`);
+  s += poly([Q(B.xa, yF, -H), Q(B.xb, yF, -H), Q(B.xb, yF, 0), Q(B.xa, yF, 0)], `fill="#cfd5dc"`);
+  s += poly([Q(B.xb, yF, -H), Q(B.xb, yR, -H), Q(B.xb, yR, 0), Q(B.xb, yF, 0)], `fill="#bcc4cd"`);
+  s += poly([Q(B.xa, yF, 0), Q(B.xb, yF, 0), Q(B.xb, yR, 0), Q(B.xa, yR, 0)], `fill="#e9ecef"`);
+  s += kante(Q(B.xa, yF, 0), Q(B.xb, yF, 0), real[rF]) + kante(Q(B.xa, yR, 0), Q(B.xb, yR, 0), real[rR]);
+  s += kante(Q(B.xa, yF, 0), Q(B.xa, yR, 0), real["-x"]) + kante(Q(B.xb, yF, 0), Q(B.xb, yR, 0), real["+x"]);
+  s += kante(Q(B.xa, yF, -H), Q(B.xb, yF, -H), real[rF]) + kante(Q(B.xb, yF, -H), Q(B.xb, yR, -H), real["+x"]);
+  s += kante(Q(B.xa, yF, 0), Q(B.xa, yF, -H), real[rF] && real["-x"]) + kante(Q(B.xb, yF, 0), Q(B.xb, yF, -H), real[rF] || real["+x"]) + kante(Q(B.xb, yR, 0), Q(B.xb, yR, -H), real["+x"] && real[rR]);
+  // Wand (Holz) bei Rothoblaas-Kopplung hinter dem Winkel
+  if (rb) {
+    const wy = S.herkunft.wy, wd = Math.max(0.5 * span, 60);
+    s += poly([Q(B.xa, wy - wd, hw), Q(B.xb, wy - wd, hw), Q(B.xb, wy, hw), Q(B.xa, wy, hw)], `fill="#ead7b7" stroke="#8a6a3a" stroke-width=".8"`);
+    s += poly([Q(B.xb, wy - wd, 0), Q(B.xb, wy, 0), Q(B.xb, wy, hw), Q(B.xb, wy - wd, hw)], `fill="#d9bf94" stroke="#8a6a3a" stroke-width=".8"`);
+    s += poly([Q(B.xa, wy, 0), Q(B.xb, wy, 0), Q(B.xb, wy, hw), Q(B.xa, wy, hw)], `fill="#f1e3c8" stroke="#8a6a3a" stroke-width=".8"`);
+    s += txt(Q(B.xb - 0.05 * span, wy, hw * 0.85), "Holzwand", `fill="#6b4f22" font-size="10" text-anchor="end"`);
+  }
+  // Bauteildicke h
+  s += masz(Q(B.xa, yF, 0), Q(B.xa, yF, -H), `h = ${fmtA(H)}`, [-24, 0]);
+  // Anker im Beton (verdeckt, gestrichelt) bis h_ef
+  const N = L && L.N, V = L && L.V, iN = N ? N.indexOf(Math.max(...N)) : -1;
+  const farbe = i => i === iN && N[i] > 1e-9 ? "#b3261e" : "#1b2430";
+  A.forEach((p, i) => { s += lin(Q(p.x, p.y, 0), Q(p.x, p.y, -g.hef), `stroke="${farbe(i)}" stroke-width="2.2" stroke-dasharray="4 2" opacity=".85"`);
+    s += lin(Q(p.x - 4, p.y, -g.hef), Q(p.x + 4, p.y, -g.hef), `stroke="${farbe(i)}" stroke-width="2.2"`); });
+  const iMax = A.reduce((m, p, i) => p.x > A[m].x || (p.x === A[m].x && p.y < A[m].y) ? i : m, 0);
+  s += masz(Q(A[iMax].x + 0.12 * span, A[iMax].y, 0), Q(A[iMax].x + 0.12 * span, A[iMax].y, -g.hef), `h<tspan font-size="8" dy="2">ef</tspan><tspan dy="-2"> = ${fmtA(g.hef)}</tspan>`, [26, 3], "#5d6875");
+  // Ankerplatte bzw. Winkel
+  s += poly([Q(pl.xa, pl.ya, pl.t), Q(pl.xb, pl.ya, pl.t), Q(pl.xb, pl.yb, pl.t), Q(pl.xa, pl.yb, pl.t)], `fill="#dbe9f0" stroke="#0b5a7a" stroke-width="1.2"`);
+  const pF = fy > 0 ? pl.ya : pl.yb;
+  s += poly([Q(pl.xa, pF, 0), Q(pl.xb, pF, 0), Q(pl.xb, pF, pl.t), Q(pl.xa, pF, pl.t)], `fill="#b9d3df" stroke="#0b5a7a" stroke-width="1"`);
+  if (rb) s += poly([Q(pl.xa, pl.ya, pl.t), Q(pl.xb, pl.ya, pl.t), Q(pl.xb, pl.ya, 0.8 * hw), Q(pl.xa, pl.ya, 0.8 * hw)], `fill="#c9dde7" stroke="#0b5a7a" stroke-width="1.2" opacity=".95"`)
+    + txt(Q(pl.xa, pl.ya, 0.8 * hw + 0.06 * span), esc([S.herkunft.prod, S.herkunft.typ].filter(Boolean).join(" ")), `fill="#0b5a7a" font-size="10"`);
+  // Ankerköpfe
+  A.forEach((p, i) => { const q = Q(p.x, p.y, pl.t); s += `<ellipse cx="${q[0].toFixed(1)}" cy="${q[1].toFixed(1)}" rx="5.5" ry="3.6" fill="#fff" stroke="${farbe(i)}" stroke-width="${i === iN ? 2.2 : 1.3}"/>` + txt([q[0] + 6, q[1] - 5], String(i + 1), `font-size="9" font-weight="bold" fill="${farbe(i)}"`); });
+  // Bemaßung c zu den Rändern (auf der Oberseite)
+  (g.raender || []).forEach(r => {
+    const nv = K.RICHTUNG[r.richtung], proj = A.map(q => q.x * nv[0] + q.y * nv[1]), j = proj.indexOf(Math.max(...proj)), a = A[j];
+    const e = r.richtung === "+x" ? [B.xb, a.y] : r.richtung === "-x" ? [B.xa, a.y] : r.richtung === "+y" ? [a.x, B.yb] : [a.x, B.ya];
+    s += masz(Q(a.x, a.y, 0), Q(e[0], e[1], 0), `c = ${fmtA(r.c)}${zeigC(r.c) < r.c ? " (verk.)" : ""}`, r.richtung.endsWith("x") ? [0, -7] : [26, 12]);
+  });
+  // Achsabstände s (Rasterlinien)
+  const lin1 = v => { const u = []; [...v].sort((a, b) => a - b).forEach(w => { if (!u.length || w - u[u.length - 1] > 1) u.push(w); }); return u; };
+  const lx = lin1(xs), ly = lin1(ys);
+  // auf der Plattenoberseite durch die Ankerachsen der vordersten Reihe bzw. der linken Spalte
+  const yv = fy > 0 ? ly[0] : ly[ly.length - 1];
+  for (let i = 0; i + 1 < lx.length; i++) s += masz(Q(lx[i], yv, pl.t), Q(lx[i + 1], yv, pl.t), `s = ${fmtA(lx[i + 1] - lx[i])}`, [0, -7]);
+  for (let i = 0; i + 1 < ly.length; i++) s += masz(Q(lx[0], ly[i], pl.t), Q(lx[0], ly[i + 1], pl.t), `s = ${fmtA(ly[i + 1] - ly[i])}`, [-24, 0]);
+  // Schnittgrößen am Gruppenschwerpunkt (maßgebende Kombination)
+  const l = L && E.lastfaelle[R.lf.indexOf(L)];
+  if (l) {
+    const S0 = K.schwerpunkt(A), z0 = pl.t + (rb ? 0.45 * hw : 0), c0 = Q(S0.x, S0.y, z0), lenF = 0.45 * span;
+    if (E.modus === "starr") {
+      if (Math.abs(l.N) > 1e-9) { const a = Q(S0.x, S0.y, z0 + (l.N > 0 ? 0 : lenF)), b = Q(S0.x, S0.y, z0 + (l.N > 0 ? lenF : 0)); s += pfeil(a, b, "#b3261e", 2.2) + txt([b[0] - 6, b[1] + 4], `N = ${fmt(l.N, 1)} kN`, `fill="#b3261e" font-size="10" text-anchor="end"`); }
+      const Vm = Math.hypot(l.Vx, l.Vy);
+      if (Vm > 1e-9) { const b = Q(S0.x + lenF * l.Vx / Vm, S0.y + lenF * l.Vy / Vm, z0); s += pfeil(c0, b, "#0b5a7a", 2.2) + txt([b[0] + 5, b[1] + 12], `V = ${fmt(Vm, 1)} kN`, `fill="#0b5a7a" font-size="10"`); }
+      const mom = [];
+      if (Math.abs(l.My) > 1e-9) mom.push(`M<tspan font-size="8" dy="2">y</tspan><tspan dy="-2"> = ${fmt(l.My, 2)} kNm</tspan>`);
+      if (Math.abs(l.Mx) > 1e-9) mom.push(`M<tspan font-size="8" dy="2">x</tspan><tspan dy="-2"> = ${fmt(l.Mx, 2)} kNm</tspan>`);
+      if (Math.abs(l.T) > 1e-9) { const r0 = 0.22 * span, arc = []; for (let t = 0; t <= 300; t += 15) { const w = (l.T > 0 ? t : -t) * Math.PI / 180; arc.push(Q(S0.x + r0 * Math.cos(w), S0.y + r0 * Math.sin(w), pl.t)); }
+        s += `<polyline points="${arc.map(pt).join(" ")}" fill="none" stroke="#6a3d9a" stroke-width="1.6"/>` + pfeil(arc[arc.length - 2], arc[arc.length - 1], "#6a3d9a", 1.6);
+        mom.push(`T = ${fmt(l.T, 2)} kNm`); }
+      mom.forEach((t, i) => { s += txt([W - 10, 20 + 14 * i], t, `text-anchor="end" fill="#6a3d9a" font-size="10.5"`); });
+    } else if (N && V) A.forEach((p, i) => { if (N[i] > 1e-9) { const a = Q(p.x, p.y, pl.t), b = Q(p.x, p.y, pl.t + 0.3 * span * N[i] / Math.max(...N)); s += pfeil(a, b, farbe(i), 1.8); } });
+    if (iN >= 0 && N[iN] > 1e-9) s += txt([10, 18], `höchstbelasteter Anker ${iN + 1}: N<tspan font-size="8" dy="2">Ed</tspan><tspan dy="-2"> = ${fmt(N[iN], 2)} kN</tspan>`, `fill="#b3261e" font-size="10.5" font-weight="bold"`);
+  }
+  // Legende, Achsen
+  const o = [fy > 0 ? 16 : 40, Hh - (fy > 0 ? 18 : 34)];
+  s += pfeil(o, [o[0] + 26, o[1]], "#1b2430", 1) + pfeil(o, [o[0] + fy * 26 * k * ca * 1.4, o[1] - fy * 26 * k * sa * 1.4], "#1b2430", 1) + pfeil(o, [o[0], o[1] - 26], "#1b2430", 1);
+  s += txt([o[0] + 30, o[1] + 4], "x", `font-size="10"`) + txt([o[0] + fy * 20 + 4, o[1] - fy * 12 + 3], "y", `font-size="10"`) + txt([o[0] - 4, o[1] - 30], "z", `font-size="10"`);
+  s += `<text x="${W - 6}" y="${Hh - 6}" text-anchor="end" font-size="9.5" fill="#5d6875">${L ? "Kombination " + esc(L.name) + " · " : ""}Maße in mm · gestrichelte Kante = Bauteil geht weiter</text>`;
+  return s + "</svg>";
+}
+
 // ------------------------------------------------------------------ Protokoll
 const zl = (inhalt, nb, text) => `<div class="zl${text ? " t" : ""}"><div>${inhalt}</div><div class="nb">${nb || ""}</div></div>`;
 const kurzRef = r => String(r || "").replace(/^DIN EN 1992-4, /, "");
@@ -1639,6 +1756,8 @@ function report(E, R, L) {
   h += `<p>Befestigung mit ${n} ${n === 1 ? "Dübel" : "Dübeln"} ${esc(dn)}${etaT ? " (" + etaT + ")" : ""}. Stahlwiderstände aus der ETA; Betonwiderstände ${R.beton ? "nach DIN EN 1992-4 aus den ETA-Kennwerten berechnet" : ""}${R.beton && Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && !Array.isArray(w) && w.art && w.art !== "b") ? " bzw. " : ""}${Object.entries(E.widerstand).some(([k, w]) => !["Ns", "Vs"].includes(k) && w && !Array.isArray(w) && w.art && w.art !== "b") ? "aus ETA bzw. Herstellersoftware eingegeben" : ""}; Nachweise nach DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04, ständige und vorübergehende Bemessungssituation, statische Einwirkungen.</p>`;
   // 1 System
   h += H2("System und Annahmen") + `<figure class="figs">${skizze(E, R, L)}<figcaption>Grundriss der Ankergruppe mit Rändern; Kräfte der maßgebenden Kombination</figcaption></figure>`;
+  const iso = isometrie(E, R, L);
+  if (iso) h += `<figure class="figs">${iso}<figcaption>Isometrie: Betonbauteil, ${S.herkunft && S.herkunft.von === "rb" && isFinite(S.herkunft.wy) ? "Winkel an der Holzwand, " : "Anbauteil, "}Anker bis h<sub>ef</sub>, Schnittgrößen der maßgebenden Kombination; höchstbelasteter Anker rot</figcaption></figure>`;
   const rd = g.raender.length ? g.raender.map(r => `${r.richtung}: c = ${fmtA(r.c)} mm`).join("; ") : "keine Ränder (große Randabstände)";
   h += `<table class="kv">
     <tr><td>Dübel</td><td>${esc(dn)}${etaT ? ", " + etaT : ""}; ${d.typ === "verbund" ? "Verbunddübel" : "mechanischer Dübel"}${fe.length && !(d.lib && d.lib.beispiel) ? `; <b>⚠ unvollständig: ${esc(fe.join(", "))} fehlt</b>` : ""}</td></tr>
