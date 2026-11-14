@@ -1625,6 +1625,7 @@ function widZeile(p, nm, beton) {
 
 // ------------------------------------------------------------------ Formulare aufbauen
 function baue() {
+  const fokAlt = document.activeElement, fokP = fokAlt && fokAlt.dataset && $("left").contains(fokAlt) ? (fokAlt.dataset.p || (fokAlt.id ? "#" + fokAlt.id : "")) : "";
   syncJe();
   const d = S.dub, g = S.geo, H = S.hebel;
   $("fPos").innerHTML = fld("Position (Dateiname, Kopf des Ausdrucks)", "pos", { text: true }) + fld("Bezeichnung / Bauteil", "bez", { text: true, wide: true });
@@ -1711,6 +1712,10 @@ function baue() {
     <div class="hint">Teilsicherheitsbeiwerte nach ETA bzw. Tab. 4.1: γ<sub>Mc</sub> = 1,5·γ<sub>inst</sub>, γ<sub>Msp</sub> = γ<sub>Mp</sub> = γ<sub>Mc</sub>; γ<sub>Ms</sub> aus f<sub>uk</sub>/f<sub>yk</sub>. Der NA übernimmt die Empfehlungen (NDP zu 4.4.2.2 (2)).</div>`;
   if (S.geoSchluessel == null) S.geoSchluessel = K.geoSchluessel(kernEingabe());
   rechne();
+  if (fokP && !$("left").contains(document.activeElement)) {   // Fokus über den Neuaufbau erhalten
+    const neu = fokP[0] === "#" ? $(fokP.slice(1)) : [...$("left").querySelectorAll("[data-p]")].find(x => x.dataset.p === fokP);
+    if (neu) { neu.focus({ preventScroll: true }); if (neu.tagName === "INPUT" && neu.select && neu.type !== "checkbox") neu.select(); }
+  }
 }
 
 // ------------------------------------------------------------------ Ereignisse
@@ -1720,7 +1725,7 @@ function leseWert(el) {
   return el.value;
 }
 function nachEingabe(el) {
-  const p = el.dataset.p;
+  const p = el.dataset.p, tippt = el.tagName === "INPUT" && el.type !== "checkbox";   // beim Tippen kein Neuaufbau: das Feld behielte den Fokus nicht
   touch();
   setP(p, leseWert(el));
   if (p === "geo.vorlage" || p === "geo.s1" || p === "geo.s2") {
@@ -1731,11 +1736,14 @@ function nachEingabe(el) {
   if (p === "geo.zustand" && S.geo.zustand !== "gerissen") { S.geo.bew.reV = false; S.geo.bew.spalt = false; }
   // eigene Eingabe ersetzt einen Beispielwert
   const mw = p.match(/^(w\.(?:Vc\.[+-][xy]|\w+))\.(Rk|gM|Rd|art|grund)$/); if (mw) { const w = getP(mw[1]); if (w) w.bsp = false; }
-  if (el.hasAttribute("data-rb") || p === "geo.zustand" || p === "dub.typ") baue(); else rechne();
+  if (!tippt && (el.hasAttribute("data-rb") || p === "geo.zustand" || p === "dub.typ")) baue(); else rechne();
 }
 const L0 = $("left");
 L0.addEventListener("input", ev => { const el = ev.target; if (!el.dataset.p || el.tagName === "SELECT" || el.type === "checkbox") return; nachEingabe(el); });
-L0.addEventListener("change", ev => { const el = ev.target; if (!el.dataset.p || !(el.tagName === "SELECT" || el.type === "checkbox")) return; nachEingabe(el); });
+L0.addEventListener("change", ev => { const el = ev.target; if (!el.dataset.p) return;
+  if (el.tagName === "SELECT" || el.type === "checkbox") { nachEingabe(el); return; }
+  if (el.hasAttribute("data-rb")) setTimeout(baue, 0);   // Eingabe abgeschlossen (Tab, Enter, Klick): abhängige Felder neu aufbauen, nachdem der Fokus gewechselt hat
+});
 L0.addEventListener("click", ev => {
   const b = ev.target.closest("button"); if (!b) return;
   if (b.dataset.seg || b.id === "bLf" || b.dataset.delLf != null || b.id === "bAnker" || b.dataset.delAnker != null || b.id === "bStempel") touch();
@@ -2075,7 +2083,8 @@ let isoBreite = 0; window.addEventListener("resize", () => { const el = $("iso")
 isoInteraktiv($("iso"));
 
 // ------------------------------------------------------------------ Protokoll
-const zl = (inhalt, nb, text) => `<div class="zl${text ? " t" : ""}"><div>${inhalt}</div><div class="nb">${nb || ""}</div></div>`;
+const etaRef = t => S.dub.eta ? String(t || "").replace(/\bETA\b(?!-)/g, esc(S.dub.eta)) : (t || "");   // Randspalte: Nummer der ETA statt „ETA“
+const zl = (inhalt, nb, text) => `<div class="zl${text ? " t" : ""}"><div>${inhalt}</div><div class="nb">${etaRef(nb)}</div></div>`;
 const kurzRef = r => String(r || "").replace(/^DIN EN 1992-4, /, "");
 function sumsRel(A) {
   const S0 = K.schwerpunkt(A); let sxx = 0, syy = 0, sxy = 0;
@@ -2115,7 +2124,7 @@ function report(E, R, L) {
   h += H2("Anwendungsgrenzen und Mindestwerte");
   if (ku) h += `<p>${GR.length} Bedingungen geprüft (Geltungsbereich der Norm, Mindestwerte der ETA, Lochbild, Durchgangsloch): ${GR.filter(x => x.ok === true).length} erfüllt, <b>${GR.filter(x => x.ok === false).length} nicht erfüllt</b>${grK.length ? "; nicht erfüllte Bedingungen und Einstufungen:" : "."}</p>`;
   if (grK.length) h += `<table class="g"><tr><th>Bedingung</th><th class="r">vorhanden</th><th class="r">Grenze</th><th>Bewertung</th><th>Normbezug</th></tr>`
-    + grK.map(x => `<tr><td>${x.t}</td><td class="r">${x.v}</td><td class="r">${x.g}</td><td class="${x.ok === false ? "nok" : ""}">${x.ok === true ? "erfüllt" : x.ok === false ? "nicht erfüllt" : (x.s || "")}</td><td>${x.ref || ""}</td></tr>`).join("") + "</table>";
+    + grK.map(x => `<tr><td>${x.t}</td><td class="r">${x.v}</td><td class="r">${x.g}</td><td class="${x.ok === false ? "nok" : ""}">${x.ok === true ? "erfüllt" : x.ok === false ? "nicht erfüllt" : (x.s || "")}</td><td>${etaRef(x.ref)}</td></tr>`).join("") + "</table>";
   // 3 Einwirkungen
   h += H2("Einwirkungen (Bemessungswerte)");
   if (E.modus === "jeAnker") h += `<table class="g"><tr><th>Kombination</th><th>Anker</th><th class="r">N<sub>Ed,i</sub> [kN]</th><th class="r">V<sub>Ed,x,i</sub> [kN]</th><th class="r">V<sub>Ed,y,i</sub> [kN]</th></tr>` + E.lastfaelle.map(l => l.je.map((a, j) => `<tr><td>${j ? "" : esc(l.name)}</td><td>${j + 1}</td><td class="r">${fmt(a.N)}</td><td class="r">${fmt(a.Vx)}</td><td class="r">${fmt(a.Vy)}</td></tr>`).join("")).join("") + "</table>";
@@ -2228,7 +2237,7 @@ const STUFEN = [["kurz", "Kurz"], ["standard", "Standard"], ["detailliert", "Det
 const stufe = () => STUFEN.some(x => x[0] === S.prot) ? S.prot : "standard";
 const okz = b => b <= 1 + 1e-9;
 // Nachweiskasten: Einwirkung / Widerstand und Ausnutzung η, Normbezug in der Randspalte
-const kasten = (formel, b, ref) => `<div class="zl nwz"><div class="nwk${okz(b) ? "" : " nok"}"><span>${formel}</span><span>η = ${etaTxt(b)} ${okz(b) ? "≤ 1 – erfüllt" : "&gt; 1 – NICHT erfüllt"}</span></div><div class="nb">${ref || ""}</div></div>`;
+const kasten = (formel, b, ref) => `<div class="zl nwz"><div class="nwk${okz(b) ? "" : " nok"}"><span>${formel}</span><span>η = ${etaTxt(b)} ${okz(b) ? "≤ 1 – erfüllt" : "&gt; 1 – NICHT erfüllt"}</span></div><div class="nb">${etaRef(ref)}</div></div>`;
 // Block je Versagensart: Einwirkung → Widerstand (Herleitung oder Kennwert) → Nachweiskasten
 function nwBlock(o) {
   let h = `<h3>${o.titel}</h3>`;
@@ -2247,7 +2256,7 @@ const rdL = (X, i, x, gsym) => zl(`Widerstand: ${sub(X, "Rd," + i)} = ${sub(X, "
 // ------------------------------------------------------------------ Protokollumfang „Detailliert“: Erläuterungen, Flächen mit Maßen und Skizze
 let PE = null;   // Kerneingabe des laufenden Protokolls (Ankerlage für die Flächenskizzen)
 const det = () => stufe() === "detailliert";
-const erl = (t, ref) => det() ? `<div class="zl t erl"><div>${t}</div><div class="nb">${ref || ""}</div></div>` : "";
+const erl = (t, ref) => det() ? `<div class="zl t erl"><div>${t}</div><div class="nb">${etaRef(ref)}</div></div>` : "";
 const massH = (x1, x2, y, t) => `<path d="M${x1} ${y}H${x2}M${x1} ${y - 4}v8M${x2} ${y - 4}v8" stroke="#000" stroke-width=".7" fill="none"/><text x="${(x1 + x2) / 2}" y="${y - 3}" text-anchor="middle">${t}</text>`;
 const massV = (x, y1, y2, t) => `<path d="M${x} ${y1}V${y2}M${x - 4} ${y1}h8M${x - 4} ${y2}h8" stroke="#000" stroke-width=".7" fill="none"/><text transform="translate(${x + 11} ${(y1 + y2) / 2}) rotate(-90)" text-anchor="middle">${t}</text>`;
 // Grundriss der projizierten Fläche: Rechtecke je Anker [x0, x1, y0, y1], Bauteilränder, Gesamtmaße
@@ -2504,7 +2513,7 @@ function zusammenstellung(E, R, L) {
   z.push(["Interaktion Beton", "", "", "", I.c, I.gl === "7.56" ? K.REF.intC12 : K.REF.intC]);
   const mx = Math.max(...z.map(x => x[4] == null ? 0 : x[4]));
   let h = `<table class="g"><tr><th>Versagensart (${esc(L.name)})</th><th></th><th class="r">E<sub>d</sub> [kN]</th><th class="r">R<sub>d</sub> [kN]</th><th class="r">η</th><th>Normbezug</th></tr>`
-    + z.map(x => `<tr><td>${x[0]}</td><td>${x[1]}</td><td class="r">${x[2]}</td><td class="r">${x[3]}</td><td class="r ${x[4] != null && !okz(x[4]) ? "nok" : ""}">${x[4] == null ? "–" : x[4] === mx && mx > 0 ? "<b>" + etaTxt(x[4]) + "</b>" : etaTxt(x[4])}</td><td>${kurzRef(x[5])}</td></tr>`).join("") + "</table>";
+    + z.map(x => `<tr><td>${x[0]}</td><td>${x[1]}</td><td class="r">${x[2]}</td><td class="r">${x[3]}</td><td class="r ${x[4] != null && !okz(x[4]) ? "nok" : ""}">${x[4] == null ? "–" : x[4] === mx && mx > 0 ? "<b>" + etaTxt(x[4]) + "</b>" : etaTxt(x[4])}</td><td>${etaRef(kurzRef(x[5]))}</td></tr>`).join("") + "</table>";
   const sp = [["Ns", "N,s"], ["Np", "N,p"], ["Nc", "N,c"], ["Nsp", "N,sp"], ["Vs", H.mit ? "V,s,M" : "V,s"], ["Vcp", "V,cp"], ["Vc", "V,c"]];
   h += `<h3>Übersicht aller Kombinationen</h3><table class="g"><tr><th>Kombination</th>${sp.map(([, t]) => `<th class="r">β<sub>${t}</sub></th>`).join("")}${H.mit ? "" : '<th class="r">Int. Stahl</th>'}<th class="r">Int. Beton</th><th class="r">η</th></tr>`;
   R.lf.forEach(l => { if (!l.beta) return; h += `<tr><td>${esc(l.name)}</td>${sp.map(([kk]) => `<td class="r">${etaTxt(l.beta[kk])}</td>`).join("")}${H.mit ? "" : `<td class="r">${etaTxt(l.int.s)}</td>`}<td class="r">${etaTxt(l.int.c)}</td><td class="r ${l.ok ? "" : "nok"}"><b>${etaTxt(l.eta)}</b></td></tr>`; });
