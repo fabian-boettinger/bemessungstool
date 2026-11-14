@@ -1330,6 +1330,28 @@ const ETA_LIB = [ /* ETA-DATEN-START */
       notiz: `Temperaturbereich I (24/40 °C), 50 Jahre, trockener/feuchter Beton, Hammer- oder Pressluftbohren (γ_inst = ${String(gi[i]).replace(".", ",")}); d₀ = ${d0[i]} mm; d_f Vorsteckmontage` }));
     return out;
   })(),
+
+  // ---- Würth WIT-PE 1000 mit Gewindestangen, ETA-19/0542 vom 20.04.2026
+  // Anhang B3 (PDF-S. 12): d₀, h_ef, d_f, h_min, s_min, c_min; C1 (S. 19): Stahlwerte wie ETA-12/0164 (Werte ohne Klammer);
+  // C2 (S. 20): k_cr/ucr,N, c_cr,N, c_cr,sp bis 2,4·h_ef; C3 (S. 21): τ_Rk HD/CD, Temperaturbereich I, trockener/feuchter Beton, 50 Jahre,
+  // ψ⁰_sus = 0,99, ψ_c = (f_ck/20)^0,1 bis C50/60 (darüber 1,1, hier nicht genutzt), γ_inst = 1,0; C7 (S. 25): k₈ = 2,0, l_f
+  ...(() => {
+    const G = [8, 10, 12, 16, 20, 24], d0 = [10, 12, 14, 18, 22, 28], hmi = [60, 60, 70, 80, 90, 96], hma = [160, 200, 240, 320, 400, 480],
+      df = [9, 12, 14, 18, 22, 26], smin = [40, 50, 60, 75, 95, 115], cmin = [35, 40, 45, 50, 60, 65], tu = [20, 20, 19, 19, 18, 17], tc = [7.0, 7.0, 8.5, 8.5, 8.5, 8.5];
+    const ST = { "5.8": { fuk: 500, N: [18, 29, 42, 78, 122, 176], gN: 1.5, V: [11, 17, 25, 47, 74, 106], gV: 1.25, M: [19, 37, 65, 166, 324, 560] },
+                 "8.8": { fuk: 800, N: [29, 46, 67, 125, 196, 282], gN: 1.5, V: [15, 23, 34, 63, 98, 141], gV: 1.25, M: [30, 60, 105, 266, 519, 896] },
+                 "A4-70": { fuk: 700, N: [26, 41, 59, 110, 171, 247], gN: 1.87, V: [13, 20, 30, 55, 86, 124], gV: 1.56, M: [26, 52, 92, 232, 454, 784] } };
+    const out = [];
+    for (const [st, w] of Object.entries(ST)) G.forEach((d, i) => out.push({ id: `eta190542-${st}-m${d}`, hersteller: "Würth", produkt: `WIT-PE 1000, Gewindestange M${d} ${st}`,
+      eta: "ETA-19/0542", etaDatum: "20.04.2026", typ: "verbund", d, dnom: d, hef: "", hefMin: hmi[i], hefMax: hma[i], fuk: w.fuk, schraube: false,
+      smin: smin[i], cmin: cmin[i], hmin: d <= 12 ? "hef+30>=100" : "hef+" + 2 * d0[i], dfETA: df[i],
+      NRks: w.N[i], gMs: w.gN, VRks: w.V[i], gMsV: w.gV, M0Rks: w.M[i],
+      gInst: 1.0, kcr: 7.7, kucr: 11.0, ccrNf: 1.5, NRkpCr: "", NRkpUcr: "", psic: "exp:0,1", tauCr: tc[i], tauUcr: tu[i], psi0sus: 0.99,
+      spArt: "ead", sp1h: "", sp1c: 2.4, sp2h: "", sp2c: "", N0Rksp: "", k8: 2.0, lf: "", betonMin: "C20/25", betonMax: "C50/60",
+      quelle: "ETA-19/0542: Anh. B3 (S. 12), C1 (S. 19), C2 (S. 20), C3 (S. 21), C7 (S. 25)",
+      notiz: `Temperaturbereich I (24/40 °C), 50 Jahre, trockener/feuchter Beton, Hammer- oder Pressluftbohren (HD, CD); d₀ = ${d0[i]} mm; ETA gilt bis C90/105, hier bis C50/60 hinterlegt` }));
+    return out;
+  })(),
   /* ETA-DATEN-ENDE */ ].map(e => Object.assign({ werk: true }, e));
 const clone = o => JSON.parse(JSON.stringify(o));
 const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); return true; } catch (er) { return null; } };

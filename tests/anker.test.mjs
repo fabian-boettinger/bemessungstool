@@ -636,3 +636,12 @@ test("ETA-12/0164 WIT-VM 250: Stichproben, c_cr,sp = 2·h_ef·(2,5 − h/h_ef)",
   assert.deepEqual([...R.fehler], []);
   nah(R.lf[0].ber.Np.gM, 1.5 * 1.2, "γ_Mp = 1,5·γ_inst");
 });
+
+test("ETA-19/0542 WIT-PE 1000: Stichproben", () => {
+  assert.equal(ETA.filter(e => e.eta === "ETA-19/0542").length, 18);
+  const e = etaEintrag("eta190542-8.8-m20");
+  assert.equal(e.tauUcr, 18); assert.equal(e.tauCr, 8.5); assert.equal(e.psi0sus, 0.99); assert.equal(e.smin, 95); assert.equal(e.cmin, 60); assert.equal(e.hmin, "hef+44");
+  assert.equal(etaEintrag("eta190542-5.8-m8").tauCr, 7.0);
+  const R = A.nachweis(Z.kernEingabe(zustandAusEintrag(e, 170)));
+  assert.deepEqual([...R.fehler], []);
+});
