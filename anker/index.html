@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Verankerung in Beton – DIN EN 1992-4</title>
+</head>
+<body>
+<p>Werkzeug in Arbeit: Oberfläche folgt. Rechenkern siehe Quelltext (<code>script id="kern"</code>), Tests in <code>tests/anker.test.mjs</code>.</p>
+
+<script id="kern">
+"use strict";
+/* =====================================================================================================
+   Rechenkern Verankerung in Beton – DIN EN 1992-4:2019-04 mit DIN EN 1992-4/NA:2019-04
+   Version 1: Widerstände je Versagensart aus ETA bzw. Herstellersoftware (Eingabe), Nachweise nach
+   Tab. 7.1, 7.2 und 7.3. Reine Funktionen ohne DOM; im Browser global ANKER, in Node über tests/anker.test.mjs.
+   Einheiten: Kräfte kN, Längen mm, Momente kNm (Eingabe), intern kN·mm. M⁰Rk,s in Nm (= kN·mm).
+   NA: Für statische und quasi-statische Bemessung gelten die Empfehlungen der Norm (NDP zu 4.4.2.2 (2)).
+   ===================================================================================================== */
+const ANKER = (() => {
+const VERSION = "1.0", STAND = "14.11.2026";
+const EPS = 1e-9;
+
+// Ungeprüfte Annahmen: im Code mit PRÜFEN markiert, in der Oberfläche als „ungeprüft“ angezeigt
+const PRUEFEN = {
+  druck: "Gedrückte Anker: Druckresultierende an der äußeren gedrückten Ankerreihe, Gleichgewicht neu gelöst. Vereinfachter Ansatz auf der sicheren Seite statt Druckzone nach 6.2.1 (1) und Bild 6.2.", // PRÜFEN
+  druck2d: "Gedrückte Anker bei zweiachsiger Biegung: Druckpunkt im Schwerpunkt der äußersten gedrückten Anker (Ecke).", // PRÜFEN
+  e1HB: "Hebelarm aus der Zwischenschicht: e₁ = H_B + t_fix/2 (Querlast in Mitte Winkelschenkel angesetzt; Bild 6.6 nicht ausgewertet).", // PRÜFEN
+  kanteNah: "Kantenbruch, randnahe Anker: senkrechter Lastanteil der ganzen Gruppe auf die randnahen Anker, paralleler Anteil je Anker (Auslegung von 6.2.2.2 Anm. 2 und Bild 6.5).", // PRÜFEN
+  bild12: "Anordnung randnaher Gruppen mit Lochspiel: Abdeckung durch Bild 1.2 b) nicht geprüft (Bild nicht ausgewertet).", // PRÜFEN
+};
+
+// Normbezüge für die Randspalte
+const REF = {
+  geltung: "DIN EN 1992-4, 1.2 (4), 1.3 (1)–(3)",
+  zug: "DIN EN 1992-4, 6.2.1 (1)",
+  druck: "DIN EN 1992-4, 6.2.1 (1) d); Ansatz s. Hinweise",
+  exz: "DIN EN 1992-4, 6.2.1 (3) [als f) gedruckt], Bild 6.3",
+  quer: "DIN EN 1992-4, 6.2.2.2 (1) a), Bild 6.4",
+  lochspiel: "DIN EN 1992-4, 6.2.2.1, Tab. 6.1",
+  hebel: "DIN EN 1992-4, 6.2.2.3, Gl. (6.1), (6.2)",
+  gamma: "DIN EN 1992-4, Tab. 4.1; NA: NDP zu 4.4.2.2 (2)",
+  Ns: "DIN EN 1992-4, Tab. 7.1 Z. 1; 7.2.1.3",
+  Np: "DIN EN 1992-4, Tab. 7.1 Z. 3; 7.2.1.5",
+  Npv: "DIN EN 1992-4, Tab. 7.1 Z. 4; 7.2.1.6",
+  Nc: "DIN EN 1992-4, Tab. 7.1 Z. 2; 7.2.1.4",
+  Nsp: "DIN EN 1992-4, Tab. 7.1 Z. 5; 7.2.1.7",
+  Vs: "DIN EN 1992-4, Tab. 7.2 Z. 1; 7.2.2.3.1",
+  VsM: "DIN EN 1992-4, Tab. 7.2 Z. 2; 7.2.2.3.2, Gl. (7.37), (7.38)",
+  Vcp: "DIN EN 1992-4, Tab. 7.2 Z. 3; 7.2.2.4",
+  Vc: "DIN EN 1992-4, Tab. 7.2 Z. 4; 7.2.2.5",
+  intS: "DIN EN 1992-4, 7.2.3.1, Tab. 7.3 Z. 1, Gl. (7.54)",
+  intC: "DIN EN 1992-4, 7.2.3.1, Tab. 7.3 Z. 2, Gl. (7.55)",
+  intC12: "DIN EN 1992-4, 7.2.3.1, Tab. 7.3 Z. 2, Gl. (7.56)",
+};
+
+const NAME = {
+  Ns: "Stahlbruch (Zug)", Np: "Herausziehen", Npv: "Herausziehen und Betonbruch (Verbunddübel)",
+  Nc: "Kegelförmiger Betonausbruch", Nsp: "Spalten", Vs: "Stahlbruch ohne Hebelarm", VsM: "Stahlbruch mit Hebelarm",
+  Vcp: "Betonausbruch auf der lastabgewandten Seite", Vc: "Betonkantenbruch",
+};
+
+// Betonfestigkeitsklassen (fck in N/mm²); fck wird in V1 nur angezeigt. Für V2: fck ≤ 60 nach 7.1 (2).
+const BETON = { "C12/15": 12, "C16/20": 16, "C20/25": 20, "C25/30": 25, "C30/37": 30, "C35/45": 35, "C40/50": 40,
+  "C45/55": 45, "C50/60": 50, "C55/67": 55, "C60/75": 60, "C70/85": 70, "C80/95": 80, "C90/105": 90 };
+
+// Tab. 6.1 – Durchmesser d bzw. dnom → größter Durchmesser df des Durchgangslochs [mm]; über 30 mm: d + 3
+const TAB61 = { 6: 7, 8: 9, 10: 12, 12: 14, 14: 16, 16: 18, 18: 20, 20: 22, 22: 24, 24: 26, 27: 30, 30: 33 };
+function dfMax(d) {
+  if (d > 30) return d + 3;
+  return Object.prototype.hasOwnProperty.call(TAB61, d) ? TAB61[d] : null;  // Zwischenwerte nennt die Tabelle nicht
+}
+
+// Teilsicherheitsbeiwerte nach Tab. 4.1, ständige und vorübergehende Bemessungssituation
+function gammaMsN(fuk, fyk) { return fuk <= 800 && fyk / fuk <= 0.8 ? Math.max(1.2 * fuk / fyk, 1.4) : 1.5; }
+function gammaMsV(fuk, fyk) { return fuk <= 800 && fyk / fuk <= 0.8 ? Math.max(1.0 * fuk / fyk, 1.25) : 1.5; }
+function gammaMc(gInst) { return 1.5 * gInst; }   // γc = 1,5; γMsp = γMp = γMc
+
+// Hebelarm la = a3 + e1 (Gl. 6.2); a3 = 0,5·dnom, = 0 bei Scheibe+Mutter direkt gegen Beton bzw. Mörtel ≤ d/2
+function hebelarm(dnom, e1, a3Null) { const a3 = a3Null ? 0 : 0.5 * dnom; return { a3, e1, la: a3 + e1 }; }
+// e1 aus der Zwischenschicht des Rothoblaas-Winkels – PRÜFEN (PRUEFEN.e1HB)
+function e1AusZwischenschicht(HB, tfix) { return HB + tfix / 2; }
+
+const num = x => typeof x === "number" && isFinite(x);
+const hyp = Math.hypot;
+
+// ------------------------------------------------------------------ lineare Algebra 2×2 (symmetrisch)
+// Löst [a11 a12; a12 a22]·x = r. Bei Rang 1 Lösung mit kleinster Norm, sofern r im Bildraum liegt; sonst null.
+function loese2(a11, a12, a22, r1, r2) {
+  const det = a11 * a22 - a12 * a12, sk = Math.max(Math.abs(a11), Math.abs(a22));
+  const rtol = 1e-6 * Math.max(hyp(r1, r2), 1);
+  if (sk > 0 && Math.abs(det) > 1e-10 * sk * sk) return [(r1 * a22 - r2 * a12) / det, (a11 * r2 - a12 * r1) / det];
+  const tr = a11 + a22;
+  if (tr <= 1e-12) return hyp(r1, r2) <= rtol ? [0, 0] : null;
+  let ex = Math.sqrt(Math.max(a11, 0) / tr), ey = Math.sqrt(Math.max(a22, 0) / tr);
+  if (a12 < 0) ey = -ey;
+  const p = r1 * ex + r2 * ey;
+  if (hyp(r1 - p * ex, r2 - p * ey) > rtol) return null;
+  return [p / tr * ex, p / tr * ey];
+}
+
+// ------------------------------------------------------------------ Lastaufteilung, starres Anbauteil
+// Koordinaten bezogen auf den Schwerpunkt der Gruppe. Vorzeichen: N Zug positiv; My erzeugt Zug auf der +x-Seite
+// (My = Σ Ni·xi), Mx Zug auf der +y-Seite (Mx = Σ Ni·yi); T gegen den Uhrzeigersinn positiv.
+function schwerpunkt(pk) { const n = pk.length; return { x: pk.reduce((a, p) => a + p.x, 0) / n, y: pk.reduce((a, p) => a + p.y, 0) / n }; }
+
+function zugElastisch(d, N, My, Mx) {
+  const n = d.length;
+  let sxx = 0, sxy = 0, syy = 0;
+  d.forEach(p => { sxx += p.x * p.x; sxy += p.x * p.y; syy += p.y * p.y; });
+  const ab = loese2(sxx, sxy, syy, My, Mx);
+  if (!ab) return null;
+  return { a: ab[0], b: ab[1], N: d.map(p => N / n + ab[0] * p.x + ab[1] * p.y) };
+}
+
+// Neuverteilung bei gedrückten Ankern – PRÜFEN (PRUEFEN.druck): Druckresultierende C im Schwerpunkt P der
+// äußeren gedrückten Ankerreihe (Ankern mit kleinstem Wert der elastischen Kraftverteilung, Toleranz 1 mm).
+// Starre Platte dreht um P: Ni = b·ui + c·vi ≥ 0 (u, v ab P); Gleichgewicht ΣNi − C = N, Σ Ni·ui = My − N·xP, Σ Ni·vi = Mx − N·yP.
+function zugNeuverteilt(d, N, My, Mx, el) {
+  const n = d.length, g = hyp(el.a, el.b);
+  if (g < 1e-12) return { N: d.map(() => 0), C: Math.max(-N, 0), P: { x: 0, y: 0 }, reihe: d.map((_, i) => i), zweiachsig: false };
+  const proj = d.map(p => el.a * p.x + el.b * p.y), pmin = Math.min(...proj);
+  const reihe = []; proj.forEach((v, i) => { if (v - pmin <= 1.0 * g) reihe.push(i); });
+  const P = { x: reihe.reduce((s, i) => s + d[i].x, 0) / reihe.length, y: reihe.reduce((s, i) => s + d[i].y, 0) / reihe.length };
+  const u = d.map(p => p.x - P.x), v = d.map(p => p.y - P.y);
+  const r1 = My - N * P.x, r2 = Mx - N * P.y;
+  let aktiv = d.map((_, i) => el.N[i] > EPS && !reihe.includes(i)), bc = [0, 0];
+  for (let it = 0; it < 50; it++) {
+    let suu = 0, suv = 0, svv = 0;
+    aktiv.forEach((a, i) => { if (a) { suu += u[i] * u[i]; suv += u[i] * v[i]; svv += v[i] * v[i]; } });
+    const l = loese2(suu, suv, svv, r1, r2);
+    if (!l) return null;
+    bc = l;
+    const w = d.map((_, i) => bc[0] * u[i] + bc[1] * v[i]);
+    const neu = w.map(x => x > 1e-9);
+    if (neu.every((x, i) => x === aktiv[i])) break;
+    aktiv = neu;
+  }
+  const Ni = d.map((_, i) => aktiv[i] ? Math.max(bc[0] * u[i] + bc[1] * v[i], 0) : 0);
+  const C = Ni.reduce((s, x) => s + x, 0) - N;
+  // Gleichgewicht prüfen
+  const m1 = Ni.reduce((s, x, i) => s + x * u[i], 0) - r1, m2 = Ni.reduce((s, x, i) => s + x * v[i], 0) - r2;
+  if (C < -1e-6 || hyp(m1, m2) > 1e-6 * Math.max(hyp(r1, r2), 1)) return null;
+  const zweiachsig = Math.abs(el.a) > 1e-6 * g && Math.abs(el.b) > 1e-6 * g;
+  return { N: Ni, C, P, reihe, zweiachsig };
+}
+
+// Aufteilung eines Lastfalls bei starrer Platte (direkte Eingabe der Schnittgrößen am Gruppenschwerpunkt)
+// opt.druck: "ablehnen" (Vorgabe) | "neuverteilen"
+function aufteilen(anker, lf, opt) {
+  opt = opt || {};
+  const fehler = [], hinweise = [], ungeprueft = [];
+  const n = anker.length, S = schwerpunkt(anker), d = anker.map(p => ({ x: p.x - S.x, y: p.y - S.y }));
+  const N = lf.N || 0, My = (lf.My || 0) * 1000, Mx = (lf.Mx || 0) * 1000, T = (lf.T || 0) * 1000, Vx = lf.Vx || 0, Vy = lf.Vy || 0;
+  let druck = null, Ni;
+  const el = zugElastisch(d, N, My, Mx);
+  if (!el) { fehler.push("Biegemoment um die Ankerachse kann von den Ankern allein nicht aufgenommen werden (Anker liegen in einer Linie bzw. Einzelanker)."); return { fehler, hinweise, ungeprueft }; }
+  const minN = Math.min(...el.N);
+  if (minN >= -EPS) Ni = el.N.map(x => Math.max(x, 0));
+  else if (Math.max(...el.N) <= EPS) { Ni = el.N.map(() => 0); hinweise.push("Alle Anker rechnerisch gedrückt: keine Zugkräfte; Druck über das Anbauteil in den Beton."); }
+  else if (opt.druck === "neuverteilen") {
+    const r = zugNeuverteilt(d, N, My, Mx, el);
+    if (!r) { fehler.push("Neuverteilung bei gedrückten Ankern ohne Gleichgewichtslösung."); return { fehler, hinweise, ungeprueft }; }
+    Ni = r.N; druck = { C: r.C, P: { x: r.P.x + S.x, y: r.P.y + S.y }, reihe: r.reihe.map(i => i + 1), elastisch: el.N.slice() };
+    ungeprueft.push("druck"); if (r.zweiachsig) ungeprueft.push("druck2d");
+  } else {
+    const ids = el.N.map((x, i) => x < -EPS ? `${i + 1} (N = ${x.toFixed(2)} kN)` : null).filter(Boolean).join(", ");
+    fehler.push(`Anker ${ids} rechnerisch gedrückt. Druck unter dem Anbauteil ist noch nicht freigegeben; Fall abgelehnt.`);
+    return { fehler, hinweise, ungeprueft, elastisch: el.N };
+  }
+  // Querlast: gleichmäßig + Torsion (Bild 6.4)
+  const sr2 = d.reduce((s, p) => s + p.x * p.x + p.y * p.y, 0);
+  if (Math.abs(T) > EPS && sr2 < 1e-9) { fehler.push("Torsionsmoment an einem Einzelanker nicht aufnehmbar."); return { fehler, hinweise, ungeprueft }; }
+  const V = d.map(p => sr2 > 0 ? [Vx / n - T * p.y / sr2, Vy / n + T * p.x / sr2] : [Vx / n, Vy / n]);
+  return { fehler, hinweise, ungeprueft, N: Ni, V, druck, weg: "starr", torsion: Math.abs(T) > EPS };
+}
+
+// Gruppengrößen aus den Ankerkräften (beide Wege): N^h, N^g, eN (6.2.1 (3)), V^h, V^g, eV
+function gruppe(anker, Ni, Vi) {
+  const S = schwerpunkt(anker);
+  const zug = Ni.map((x, i) => x > EPS ? i : -1).filter(i => i >= 0);
+  const Ng = zug.reduce((s, i) => s + Ni[i], 0), Nh = Math.max(0, ...Ni);
+  let eN = { x: 0, y: 0 }, SZ = null;
+  if (zug.length) {
+    SZ = { x: zug.reduce((s, i) => s + anker[i].x, 0) / zug.length, y: zug.reduce((s, i) => s + anker[i].y, 0) / zug.length };
+    const R = { x: zug.reduce((s, i) => s + Ni[i] * anker[i].x, 0) / Ng, y: zug.reduce((s, i) => s + Ni[i] * anker[i].y, 0) / Ng };
+    eN = { x: R.x - SZ.x, y: R.y - SZ.y };
+  }
+  const Vsum = Vi.reduce((s, v) => [s[0] + v[0], s[1] + v[1]], [0, 0]);
+  const Vg = hyp(Vsum[0], Vsum[1]), Vh = Math.max(0, ...Vi.map(v => hyp(v[0], v[1])));
+  const T = Vi.reduce((s, v, i) => s + (anker[i].x - S.x) * v[1] - (anker[i].y - S.y) * v[0], 0);
+  let gegen = false;
+  for (let i = 0; i < Vi.length; i++) for (let j = i + 1; j < Vi.length; j++) if (Vi[i][0] * Vi[j][0] + Vi[i][1] * Vi[j][1] < -EPS) gegen = true;
+  const gleich = Vi.every(v => hyp(v[0] - Vi[0][0], v[1] - Vi[0][1]) <= 1e-6 * Math.max(Vh, 1));
+  return { Nh, Ng, eN, SZ, Vh, Vg, Vsum, T, eV: Vg > EPS ? T / Vg : 0, gegen, gleich, S };
+}
+
+// ------------------------------------------------------------------ Widerstände
+// w: {art:"k", Rk, gM} | {art:"d", Rd} | {art:"entfaellt", grund}; quelle optional
+function bemessungswert(key, w, fehler) {
+  if (!w || !w.art) return { fehlt: true };
+  const nm = NAME[key] || key;
+  if (w.art === "entfaellt") {
+    if (key === "Ns" || key === "Vs" || key === "VsM") { fehler.push(`${nm}: Stahlversagen kann nicht entfallen.`); return { fehlt: true }; }
+    if (!String(w.grund || "").trim()) { fehler.push(`${nm}: „entfällt“ nur mit Begründung.`); return { fehlt: true }; }
+    return { entfaellt: true, grund: String(w.grund).trim() };
+  }
+  if (w.art === "k") {
+    if (!num(w.Rk) || w.Rk <= 0) { fehler.push(`${nm}: charakteristischer Widerstand fehlt oder ≤ 0.`); return { fehlt: true }; }
+    if (!num(w.gM) || w.gM < 1) { fehler.push(`${nm}: Teilsicherheitsbeiwert γM fehlt oder < 1,0.`); return { fehlt: true }; }
+    return { art: "k", Rk: w.Rk, gM: w.gM, Rd: w.Rk / w.gM, quelle: w.quelle || "" };
+  }
+  if (w.art === "d") {
+    if (!num(w.Rd) || w.Rd <= 0) { fehler.push(`${nm}: Bemessungswert fehlt oder ≤ 0.`); return { fehlt: true }; }
+    return { art: "d", Rd: w.Rd, quelle: w.quelle || "" };
+  }
+  fehler.push(`${nm}: unbekannte Eingabeart.`); return { fehlt: true };
+}
+// Ausnutzung; fehlender Widerstand bei vorhandener Einwirkung → Fehler
+function quote(E, R, key, fehler) {
+  if (E <= EPS) return 0;
+  if (R.entfaellt) return 0;
+  if (R.fehlt) { fehler.push(`${NAME[key] || key}: Widerstand fehlt, Einwirkung ${E.toFixed(2)} kN.`); return NaN; }
+  return E / R.Rd;
+}
+
+// Geometrieschlüssel: gehören die eingegebenen Betonwiderstände noch zur Geometrie?
+function geoSchluessel(e) {
+  const g = e.geo || {}, r = x => Math.round(x * 10) / 10;
+  return JSON.stringify({ a: (e.anker || []).map(p => [r(p.x), r(p.y)]), r: (g.raender || []).map(x => [x.richtung, r(x.c)]).sort(),
+    h: r(g.h), hef: r(g.hef), b: g.beton, z: g.zustand });
+}
+
+const RICHTUNG = { "+x": [1, 0], "-x": [-1, 0], "+y": [0, 1], "-y": [0, -1] };
+
+// ------------------------------------------------------------------ Gesamtnachweis
+/* e = {
+     anker: [{x, y}],                        Lage [mm]
+     modus: "starr" | "jeAnker",             starre Platte (Schnittgrößen) oder Kräfte je Anker (Übergabe)
+     druck: "ablehnen" | "neuverteilen",
+     interaktion: "7.55" | "7.56",
+     geo: { h, hef, d, dnom, beton, zustand, typ: "mechanisch"|"verbund", fuk, betonschraube,
+            raender: [{richtung: "+x"|"-x"|"+y"|"-y", c}], lochspiel: "ohne"|"tab61", df },
+     mindest: { smin, cmin, hmin },
+     lastfaelle: [{ name, N, Vx, Vy, Mx, My, T }]  bzw. [{ name, je: [{N, Vx, Vy}] }],
+     widerstand: { Ns, Np, Nc, Nsp, Vs, Vcp, Vc: [je Rand] },
+     hebel: { mit: bool, M0Rks [Nm], alphaM, gMs, e1, a3Null },
+     geoSchluessel
+   } */
+function nachweis(e) {
+  const fehler = [], warn = [], hinweise = [], ung = new Set();
+  const out = { version: VERSION, fehler, warn, hinweise, ungeprueft: [], mindest: [], lf: [], etaMax: null, ok: null };
+  const fertig = () => { out.ungeprueft = [...ung].map(k => ({ key: k, text: PRUEFEN[k] })); return out; };
+  const A = e.anker || [], g = e.geo || {}, W = e.widerstand || {}, H = e.hebel || {};
+  const n = A.length;
+  // Eingaben und Geltungsbereich
+  if (n < 1) { fehler.push("Keine Anker eingegeben."); return fertig(); }
+  if (n > 12) fehler.push("Mehr als 12 Anker sind im Werkzeug nicht vorgesehen.");
+  if (A.some(p => !num(p.x) || !num(p.y))) { fehler.push("Ankerkoordinaten unvollständig."); return fertig(); }
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (hyp(A[i].x - A[j].x, A[i].y - A[j].y) < 1) fehler.push(`Anker ${i + 1} und ${j + 1} liegen aufeinander.`);
+  for (const [k, t] of [["h", "Bauteildicke h"], ["hef", "Verankerungstiefe hef"], ["d", "Durchmesser d"]]) if (!num(g[k]) || g[k] <= 0) fehler.push(`${t} fehlt.`);
+  const dnom = num(g.dnom) && g.dnom > 0 ? g.dnom : g.d;
+  if (!Object.prototype.hasOwnProperty.call(BETON, g.beton)) fehler.push("Betonfestigkeitsklasse fehlt oder unbekannt.");
+  if (g.zustand !== "gerissen" && g.zustand !== "ungerissen") fehler.push("Betonzustand (gerissen/ungerissen) fehlt.");
+  if (g.typ !== "mechanisch" && g.typ !== "verbund") fehler.push("Dübelart (mechanisch / Verbunddübel) fehlt.");
+  if (fehler.length) return fertig();
+  if (g.hef >= g.h) fehler.push(`h_ef = ${g.hef} mm ≥ h = ${g.h} mm.`);
+  if (g.d < 6) fehler.push(`d = ${g.d} mm < 6 mm (M6): außerhalb des Anwendungsbereichs, 1.3 (1).`);
+  if (g.d > 60 && (e.lastfaelle || []).some(l => (l.Vx || l.Vy || (l.je || []).some(a => a.Vx || a.Vy)))) fehler.push(`d = ${g.d} mm > 60 mm bei Querlast: außerhalb des Anwendungsbereichs, 1.3 (1).`);
+  if (g.hef < 40) fehler.push(`h_ef = ${g.hef} mm < 40 mm: außerhalb des Anwendungsbereichs für tragende Befestigungen, 1.3 (2).`);
+  if (g.typ === "verbund" && g.hef > 20 * g.d) fehler.push(`Verbunddübel mit h_ef = ${g.hef} mm > 20·d = ${20 * g.d} mm: nicht abgedeckt, 1.3 (2).`);
+  if (num(g.fuk) && g.fuk > 1000 && !g.betonschraube) fehler.push(`f_uk = ${g.fuk} N/mm² > 1000 N/mm²: nicht abgedeckt, 1.3 (3).`);
+  const R = g.raender || [];
+  R.forEach((r, i) => { if (!RICHTUNG[r.richtung] || !num(r.c) || r.c <= 0) fehler.push(`Rand ${i + 1}: Richtung oder Randabstand fehlt.`); });
+  if (new Set(R.map(r => r.richtung)).size < R.length) fehler.push("Je Richtung ist nur ein Rand möglich.");
+  // Mindestwerte aus ETA
+  const M = e.mindest || {};
+  const chk = (t, ist, min, ref) => { const ok = ist >= min - 1e-9; out.mindest.push({ t, ist, min, ok, ref }); if (!ok) fehler.push(`${t}: ${fmtz(ist)} mm < ${fmtz(min)} mm.`); };
+  if (!num(M.hmin) || !num(M.cmin) || (n > 1 && !num(M.smin))) fehler.push("Mindestwerte s_min, c_min, h_min aus der ETA eingeben.");
+  else {
+    chk("Bauteildicke h ≥ h_min", g.h, M.hmin, "ETA");
+    R.forEach((r, i) => chk(`Randabstand c (Rand ${i + 1}, ${r.richtung}) ≥ c_min`, r.c, M.cmin, "ETA"));
+    if (n > 1) { let s = Infinity; for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) s = Math.min(s, hyp(A[i].x - A[j].x, A[i].y - A[j].y)); chk("Achsabstand s ≥ s_min", s, M.smin, "ETA"); out.smin = s; }
+  }
+  if (fehler.length) return fertig();
+
+  // Ränder: Randabstand je Anker, randnahe Anker
+  const S = schwerpunkt(A);
+  const raender = R.map((r, k) => {
+    const nv = RICHTUNG[r.richtung], proj = A.map(p => p.x * nv[0] + p.y * nv[1]), pmax = Math.max(...proj);
+    const ci = proj.map(p => r.c + pmax - p), cgr = Math.max(10 * g.hef, 60 * dnom);
+    return { k, richtung: r.richtung, n: nv, c: r.c, ci, nah: ci.map(c => c - r.c <= 1), gross: r.c >= cgr, cgr };
+  });
+  // Lochspiel (6.2.2.1, Tab. 6.1)
+  const hatQuer = (e.lastfaelle || []).some(l => hyp(l.Vx || 0, l.Vy || 0) > EPS || Math.abs(l.T || 0) > EPS || (l.je || []).some(a => hyp(a.Vx || 0, a.Vy || 0) > EPS));
+  let mitLochspiel = false;
+  if (hatQuer) {
+    if (g.lochspiel === "tab61") {
+      const dm = dfMax(dnom);
+      if (dm == null) fehler.push(`Tab. 6.1 nennt für d = ${dnom} mm kein Lochspiel; Durchmesser prüfen oder „ohne Lochspiel“ wählen.`);
+      else if (!num(g.df)) fehler.push("Durchmesser des Durchgangslochs d_f fehlt.");
+      else if (g.df > dm + 1e-9) fehler.push(`d_f = ${g.df} mm > ${dm} mm nach Tab. 6.1: Befestigungen mit größerem Lochspiel behandelt die Norm nicht (6.2.2.1).`);
+      mitLochspiel = true;
+    } else if (g.lochspiel !== "ohne") fehler.push("Angabe zum Lochspiel fehlt (ohne Lochspiel / nach Tab. 6.1).");
+  }
+  // Hebelarm
+  let la = null;
+  if (H.mit) {
+    if (!num(H.e1) || H.e1 < 0) fehler.push("Abstand e₁ der Querlast von der Betonoberfläche fehlt.");
+    if (!num(H.M0Rks) || H.M0Rks <= 0) fehler.push("M⁰_Rk,s aus der ETA fehlt.");
+    if (!num(H.alphaM) || !(H.alphaM === 1 || H.alphaM === 2)) fehler.push("α_M = 1,0 (freie Verdrehung) oder 2,0 (volle Einspannung) wählen, 6.2.2.3 (3).");
+    if (!num(H.gMs) || H.gMs < 1) fehler.push("γ_Ms für Querlast fehlt.");
+    if (!fehler.length) la = hebelarm(dnom, H.e1, !!H.a3Null);
+    if (H.e1HB) ung.add("e1HB");
+    raender.forEach(r => { if (hatQuer && r.c <= Math.max(10 * g.hef, 60 * g.d)) fehler.push(`Betonkantenbruch bei Querlast mit Hebelarm nur für c > max{10·h_ef; 60·d} = ${fmtz(Math.max(10 * g.hef, 60 * g.d))} mm gültig (7.2.2.5 (1)); Rand ${r.k + 1}: c = ${fmtz(r.c)} mm.`); });
+  }
+  if (num(H.e1) && H.e1 > 0 && !H.mit) fehler.push("Zwischenschicht bzw. Abstand e₁ > 0: Querlast ohne Hebelarm nur unter den Bedingungen von 6.2.2.3 (1) – Hebelarm ansetzen.");
+  if (fehler.length) return fertig();
+  if (mitLochspiel && n > 1 && raender.some(r => !r.gross)) ung.add("bild12");
+  if (n > 1 && raender.some(r => !r.gross) && hatQuer && out.smin < 4 * dnom) warn.push(`Achsabstand s = ${fmtz(out.smin)} mm < 4·d_nom = ${fmtz(4 * dnom)} mm: Kantenbruch für Gruppen dann nicht abgedeckt, 7.2.2.5 (4).`);
+  if (e.geoSchluessel && e.geoSchluessel !== geoSchluessel(e)) { out.geoAbweichung = true; warn.push("Die Betonwiderstände wurden für eine andere Geometrie eingegeben (Rand-/Achsabstände, h, h_ef, Beton). Werte neu ermitteln oder bestätigen."); }
+
+  // Widerstände
+  const Rd = {};
+  for (const k of ["Ns", "Np", "Nc", "Nsp", "Vcp"]) Rd[k] = bemessungswert(k === "Np" && g.typ === "verbund" ? "Npv" : k, W[k], fehler);
+  if (!H.mit) Rd.Vs = bemessungswert("Vs", W.Vs, fehler);
+  const Vc = raender.map((r, k) => bemessungswert("Vc", (W.Vc || [])[k], fehler));
+  if (fehler.length) return fertig();
+  const NRds = Rd.Ns.fehlt ? null : Rd.Ns.Rd;
+  const kNp = g.typ === "verbund" ? "Npv" : "Np";
+
+  // Lastfälle
+  let etaMax = 0, okAlle = true;
+  for (const lf of (e.lastfaelle || [])) {
+    const L = { name: lf.name || "", fehler: [], hinweise: [] };
+    let Ni, Vi, auf = null;
+    if (e.modus === "jeAnker") {
+      const je = lf.je || [];
+      if (je.length !== n) { L.fehler.push(`Lastfall ${L.name}: ${je.length} Ankerkräfte für ${n} Anker.`); }
+      else if (je.some(a => !num(a.N) || !num(a.Vx) || !num(a.Vy))) L.fehler.push(`Lastfall ${L.name}: Ankerkräfte unvollständig.`);
+      else if (je.some(a => a.N < -EPS)) L.fehler.push(`Lastfall ${L.name}: Druckkraft je Anker ist bei Übergabe je Anker nicht vorgesehen.`);
+      else { Ni = je.map(a => Math.max(a.N, 0)); Vi = je.map(a => [a.Vx, a.Vy]); }
+      L.weg = "jeAnker";
+    } else {
+      auf = aufteilen(A, lf, { druck: e.druck });
+      L.fehler.push(...auf.fehler); L.hinweise.push(...auf.hinweise); auf.ungeprueft.forEach(k => ung.add(k));
+      if (!auf.fehler.length) { Ni = auf.N; Vi = auf.V; L.druck = auf.druck; }
+      L.weg = "starr"; if (auf.elastisch) L.elastisch = auf.elastisch;
+    }
+    if (L.fehler.length) { fehler.push(...L.fehler); out.lf.push(L); okAlle = false; continue; }
+    const G = gruppe(A, Ni, Vi);
+    Object.assign(L, { N: Ni, V: Vi, G });
+    const f = [];
+    const b = {};
+    // Zug (Tab. 7.1)
+    b.Ns = quote(G.Nh, Rd.Ns, "Ns", f);
+    b.Np = quote(g.typ === "verbund" ? G.Ng : G.Nh, Rd.Np, kNp, f);
+    b.Nc = quote(G.Ng, Rd.Nc, "Nc", f);
+    b.Nsp = quote(G.Ng, Rd.Nsp, "Nsp", f);
+    // Quer – Stahl (Tab. 7.2 Z. 1/2)
+    const jeAnker = Ni.map((N, i) => ({ i, N, V: hyp(Vi[i][0], Vi[i][1]) }));
+    if (H.mit) {
+      jeAnker.forEach(a => {
+        if (a.V <= EPS) { a.bV = 0; return; }
+        if (NRds == null) { f.push("Stahl mit Hebelarm: N_Rd,s erforderlich."); a.bV = NaN; return; }
+        a.MRks = H.M0Rks * (1 - a.N / NRds);                       // Gl. (7.38)
+        a.VRksM = Math.max(H.alphaM * a.MRks / la.la, 0);           // Gl. (7.37)
+        a.VRdsM = a.VRksM / H.gMs;
+        a.bV = a.VRdsM > 0 ? a.V / a.VRdsM : Infinity;
+      });
+    } else jeAnker.forEach(a => { a.bV = quote(a.V, Rd.Vs, "Vs", f); });
+    jeAnker.forEach(a => { a.bN = quote(a.N, Rd.Ns, "Ns", f); a.int = H.mit ? null : a.bN * a.bN + a.bV * a.bV; });  // Gl. (7.54)
+    b.Vs = Math.max(0, ...jeAnker.map(a => a.bV));
+    // Quer – Beton, lastabgewandte Seite (Tab. 7.2 Z. 3; 7.2.2.4 (4))
+    L.VcpE = G.gegen ? G.Vh : G.Vg;
+    if (G.gegen && G.Vh > EPS) L.hinweise.push("Querkräfte der Anker wirken teils entgegengesetzt: Betonausbruch auf der lastabgewandten Seite für den höchstbeanspruchten Anker; V_Rk,c,p mit virtuellem Rand c = 0,5·s ermitteln (7.2.2.4 (4)).");
+    b.Vcp = quote(L.VcpE, Rd.Vcp, "Vcp", f);
+    // Quer – Betonkantenbruch je Rand (Tab. 7.2 Z. 4; 6.2.2.2; 7.2.2.5 (2), (3))
+    L.kante = raender.map((r, k) => {
+      const alleWirksam = r.gross || !mitLochspiel || !G.gleich;   // 6.2.2.2 (1) a) 1) bzw. 3), Bild 1.2 a)
+      let VE;
+      if (alleWirksam) VE = G.Vsum;
+      else {
+        ung.add("kanteNah");
+        const vs = G.Vsum[0] * r.n[0] + G.Vsum[1] * r.n[1], perp = Math.max(vs, 0);   // Anteil vom Rand weg vernachlässigt
+        const par = Vi.reduce((s, v, i) => { if (!r.nah[i]) return s; const vn = v[0] * r.n[0] + v[1] * r.n[1]; return [s[0] + v[0] - vn * r.n[0], s[1] + v[1] - vn * r.n[1]]; }, [0, 0]);
+        VE = [perp * r.n[0] + par[0], perp * r.n[1] + par[1]];
+      }
+      const E = hyp(VE[0], VE[1]), zumRand = VE[0] * r.n[0] + VE[1] * r.n[1];
+      return { k, richtung: r.richtung, c: r.c, alleWirksam, anker: alleWirksam ? A.map((_, i) => i + 1) : r.nah.map((x, i) => x ? i + 1 : 0).filter(Boolean),
+        VE: E, zumRand, beta: quote(E, Vc[k], "Vc", f), Rd: Vc[k] };
+    });
+    b.Vc = Math.max(0, ...L.kante.map(x => x.beta));
+    if (f.length) { fehler.push(...f.map(t => `Lastfall ${L.name}: ${t}`)); okAlle = false; out.lf.push(L); continue; }
+    // Interaktion (Tab. 7.3)
+    const intS = H.mit ? null : Math.max(0, ...jeAnker.map(a => a.int));
+    const mS = H.mit ? null : jeAnker.reduce((m, a) => a.int > m.int ? a : m, jeAnker[0]);
+    const bN = Math.max(b.Np, b.Nc, b.Nsp), bV = Math.max(b.Vcp, b.Vc);
+    const intC = e.interaktion === "7.56" ? (bN + bV) / 1.2 : Math.pow(bN, 1.5) + Math.pow(bV, 1.5);
+    L.anker = jeAnker; L.beta = b; L.int = { s: intS, sAnker: mS ? mS.i + 1 : null, bN, bV, c: intC, gl: e.interaktion === "7.56" ? "7.56" : "7.55" };
+    const kand = [["Ns", b.Ns], [kNp, b.Np], ["Nc", b.Nc], ["Nsp", b.Nsp], [H.mit ? "VsM" : "Vs", b.Vs], ["Vcp", b.Vcp], ["Vc", b.Vc], ["intC", intC]];
+    if (intS != null) kand.push(["intS", intS]);
+    const [mk, mv] = kand.reduce((m, x) => x[1] > m[1] ? x : m, ["", -1]);
+    L.eta = mv; L.massgebend = mk; L.ok = mv <= 1 + 1e-9;
+    etaMax = Math.max(etaMax, mv); if (!L.ok) okAlle = false;
+    out.lf.push(L);
+  }
+  if (!(e.lastfaelle || []).length) fehler.push("Keine Lastfälle.");
+  if (!fehler.length) { out.etaMax = etaMax; out.ok = okAlle; }
+  return fertig();
+}
+function fmtz(x) { return (Math.round(x * 10) / 10).toString().replace(".", ","); }
+
+// ------------------------------------------------------------------ Direktlink / Übergabe aus dem Rothoblaas-Tool
+// #von=rb&prod=…&typ=…&n=2&xy=39,0;201,0&hb=10&pos=…&lc=LK1~N1,V1x,V1y;N2,V2x,V2y|LK2~…   (kN, mm)
+function leseHash(h) {
+  const s = String(h || "").replace(/^#/, "");
+  const q = {};
+  for (const t of s.split("&")) { if (!t) continue; const i = t.indexOf("="), dec = x => { try { return decodeURIComponent(x.replace(/\+/g, " ")); } catch (er) { return x; } };
+    q[dec(i < 0 ? t : t.slice(0, i))] = i < 0 ? "" : dec(t.slice(i + 1)); }
+  if (!("von" in q)) return null;
+  const out = { von: q.von, prod: q.prod || "", typ: q.typ || "", pos: q.pos || "", fehler: [] };
+  const zahl = x => { const v = Number(String(x).trim()); return String(x).trim() !== "" && isFinite(v) ? v : NaN; };
+  out.n = zahl(q.n);
+  out.anker = String(q.xy || "").split(";").filter(Boolean).map(p => { const [x, y] = p.split(",").map(zahl); return { x, y }; });
+  if (out.anker.some(p => isNaN(p.x) || isNaN(p.y))) out.fehler.push("Lochbild (xy) unlesbar.");
+  if (!(out.n >= 1) || out.n !== out.anker.length) out.fehler.push(`Ankeranzahl n = ${q.n} passt nicht zum Lochbild (${out.anker.length} Anker).`);
+  out.hb = q.hb === undefined ? null : zahl(q.hb);
+  if (q.hb !== undefined && !(out.hb >= 0)) out.fehler.push("Zwischenschicht hb unlesbar.");
+  out.lastfaelle = String(q.lc || "").split("|").filter(Boolean).map(t => {
+    const i = t.indexOf("~"), name = i < 0 ? "" : t.slice(0, i), je = (i < 0 ? t : t.slice(i + 1)).split(";").map(a => { const [N, Vx, Vy] = a.split(",").map(zahl); return { N, Vx, Vy }; });
+    if (je.length !== out.anker.length) out.fehler.push(`Lastfall ${name}: ${je.length} Ankerkräfte für ${out.anker.length} Anker.`);
+    if (je.some(a => isNaN(a.N) || isNaN(a.Vx) || isNaN(a.Vy))) out.fehler.push(`Lastfall ${name}: Kräfte unlesbar.`);
+    return { name, je };
+  });
+  if (!out.lastfaelle.length) out.fehler.push("Keine Lastfälle (lc) übergeben.");
+  return out;
+}
+
+return { VERSION, STAND, PRUEFEN, REF, NAME, BETON, TAB61, dfMax, gammaMsN, gammaMsV, gammaMc, hebelarm, e1AusZwischenschicht,
+  loese2, schwerpunkt, zugElastisch, zugNeuverteilt, aufteilen, gruppe, bemessungswert, geoSchluessel, nachweis, leseHash };
+})();
+if (typeof globalThis !== "undefined") globalThis.ANKER = ANKER;
+</script>
+</body>
+</html>
