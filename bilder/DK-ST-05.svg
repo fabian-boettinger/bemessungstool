@@ -16,9 +16,9 @@
 <polygon points="302.5,142.3 367.5,142.3 367.5,249.8 312.5,249.8 312.5,266 302.5,266" fill="#cfd9e5" stroke="#1f2937" stroke-width="1.2"/>
 <line x1="304" y1="142.3" x2="304" y2="266" stroke="#1f4e79" stroke-width="3"/>
 <line x1="302.5" y1="264.5" x2="312.5" y2="264.5" stroke="#1f4e79" stroke-width="3"/>
-<circle cx="342.5" cy="164.5" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
+<circle cx="342.5" cy="163.5" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
 <circle cx="342.5" cy="196" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
-<circle cx="342.5" cy="227.5" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
+<circle cx="342.5" cy="228.5" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
 <line x1="211.3" y1="66" x2="211.3" y2="290" stroke="#1f4e79" stroke-width="1" stroke-dasharray="12 3 2 3"/>
 <line x1="342.5" y1="70" x2="342.5" y2="112" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
 <path d="M194.3,210.2 A18,18 0 1 1 220.3,219.6" fill="none" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>

@@ -191,7 +191,7 @@ function baueFormular() {
     let f;
     if (d.typ === "profil") f = `<select id="${id}" data-key="${esc(d.key)}">${profilOptionen(d, p[d.key])}</select>`;
     else if (d.typ === "auswahl") f = `<select id="${id}" data-key="${esc(d.key)}">${d.optionen.map((o) => `<option value="${esc(o.wert)}"${String(o.wert) === String(p[d.key]) ? " selected" : ""}>${esc(o.text)}</option>`).join("")}</select>`;
-    else f = `<input id="${id}" data-key="${esc(d.key)}" type="text" inputmode="${d.typ === "zahl" ? "decimal" : "text"}" value="${esc(K.alsText(d, p[d.key]))}" autocomplete="off" spellcheck="false">`;
+    else f = `<input id="${id}" data-key="${esc(d.key)}" type="text" inputmode="${d.typ === "zahl" ? "decimal" : "text"}" value="${esc(istAuto(d, p) ? "" : K.alsText(d, p[d.key]))}" autocomplete="off" spellcheck="false">`;
     const grenzen = d.typ === "zahl" && d.min !== undefined ? ` <span class="mut" style="font-size:11px">${d.min}–${d.max}</span>` : "";
     return `<div class="f" data-feld="${esc(d.key)}"><label for="${id}">${idx(d.label)}${grenzen}</label>
       <div class="wert">${f}<span class="einheit">${esc(d.einheit || "")}</span></div>
@@ -206,10 +206,14 @@ function baueFormular() {
   $("eingaben").innerHTML = haupt + (weitere ? `<details class="weitere"${offen ? " open" : ""}><summary>Weitere Eingaben</summary>${weitere}</details>` : "");
 }
 
-function aktualisiereFormular(p, info) {
+// Parameter mit auto: true und Wert 0: das Detail ermittelt den Wert (z.auto), das Feld bleibt leer
+const istAuto = (d, p) => !!d.auto && Number(p[d.key]) === 0;
+
+function aktualisiereFormular(p, info, auto = {}) {
   for (const d of aktiv.det.parameter) {
     const el = document.querySelector(`#eingaben [data-key="${CSS.escape(d.key)}"]`);
-    if (el && document.activeElement !== el) el.value = d.typ === "profil" || d.typ === "auswahl" ? String(p[d.key] ?? "") : K.alsText(d, p[d.key]);
+    if (el && d.auto) el.placeholder = auto[d.key] !== undefined ? `${zahlDe(auto[d.key], Number.isInteger(auto[d.key]) ? 0 : 1)} (automatisch)` : "";
+    if (el && document.activeElement !== el) el.value = d.typ === "profil" || d.typ === "auswahl" ? String(p[d.key] ?? "") : istAuto(d, p) ? "" : K.alsText(d, p[d.key]);
     const box = document.querySelector(`[data-feld="${CSS.escape(d.key)}"]`);
     if (!box) continue;
     const i = info[d.key] || { status: "ok" };
@@ -237,7 +241,9 @@ const edWert = (g) => {
 };
 
 // ---------------------------------------------------------------- Protokoll
-function wertText(d, p) {
+function wertText(d, p, auto = {}) {
+  // automatisch ermittelte Eingabe: den verwendeten Wert ausweisen, nicht die 0 der Vorgabe
+  if (istAuto(d, p) && auto[d.key] !== undefined) return `${zahlDe(auto[d.key], Number.isInteger(auto[d.key]) ? 0 : 1)}${d.einheit ? " " + d.einheit : ""} (automatisch aus den Profilen)`;
   if (d.typ === "auswahl") { const o = d.optionen.find((o) => String(o.wert) === String(p[d.key])); return o ? o.text : String(p[d.key]); }
   if (d.typ === "profil") return p[d.key] || "eigene Maße";
   return `${K.alsText(d, p[d.key])}${d.einheit ? " " + d.einheit : ""}`;
@@ -248,7 +254,8 @@ function render(neuesFormular = false) {
   const { p, info } = K.loese(det.parameter, aktiv.roh, PROFILE);
   const z = det.zeichne(p, { messe });
   if (neuesFormular) baueFormular();
-  aktualisiereFormular(p, info);
+  const auto = z.auto || {}, anp = z.anpassungen || [];
+  aktualisiereFormular(p, info, auto);
   if (neuesFormular || !$("einwirkungen").contains(document.activeElement)) baueEinwirkungen(z);
 
   const m = det.meta;
@@ -273,7 +280,7 @@ function render(neuesFormular = false) {
       <td class="${eta === null ? "mut" : eta <= 1 ? "ok" : "bad"}">${eta === null ? "–" : zahlDe(eta, 2)}</td></tr>`;
   }).join("");
   const sichtbar = det.parameter.filter((d) => !d.verborgen);
-  const eingaben = sichtbar.map((d) => `<tr><td>${idx(d.label)}${d.gruppe ? ` <span class="mut">(${esc(d.gruppe)})</span>` : ""}</td><td class="l">${idx(wertText(d, p))}</td></tr>`).join("");
+  const eingaben = sichtbar.map((d) => `<tr><td>${idx(d.label)}${d.gruppe ? ` <span class="mut">(${esc(d.gruppe)})</span>` : ""}</td><td class="l">${idx(wertText(d, p, auto))}</td></tr>`).join("");
   const datum = new Date().toLocaleDateString("de-DE");
   const k = kopf();
   const svg = z.svg(modus);
@@ -294,6 +301,7 @@ function render(neuesFormular = false) {
    </div>
    <h3>Eingangswerte</h3>
    <table><tbody>${eingaben}</tbody></table>
+   ${anp.length ? `<h3>Automatische Anpassung an die Profile</h3><ul>${anp.map((t) => `<li${t.startsWith("Nicht lösbar") ? ' class="bad"' : ""}>${idx(t)}</li>`).join("")}</ul>` : ""}
    ${pr.length ? `<h3>Abstände und Maße</h3>
    <table><thead><tr><th>Prüfung</th><th>vorh.</th><th>erf.</th><th></th></tr></thead><tbody>
    ${pr.map((x) => `<tr><td>${idx(x.bez)}${x.grundlage ? `<div class="gl">${esc(x.grundlage)}</div>` : ""}</td><td>${zahlDe(x.ist)} mm</td><td>≥ ${zahlDe(x.soll)} mm</td><td class="${x.ok ? "ok" : "bad"}">${x.ok ? "eingehalten" : "nicht eingehalten"}</td></tr>`).join("")}

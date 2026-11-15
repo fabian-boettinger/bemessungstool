@@ -13,6 +13,10 @@ Online (nach Einschalten von GitHub Pages): https://fabian-boettinger.github.io/
   Betonwiderstände nach 7.2.1.4–7.2.1.7 und 7.2.2.4–7.2.2.5 aus ETA-Kennwerten berechnet oder je Versagensart eingegeben
   (Version 2), Interaktion nach Tab. 7.3, Isometrie, Ankerbibliothek mit schreibgeschützten Einträgen aus den ETAs
   (Hilti HIT-HY 200, HST3, HUS4; Würth WIT-VM 250, WIT-PE 1000, W-FAZ, W-FAZ PRO, W-BS; Fundstelle je Eintrag)
+- `detailkatalog/` – Nachweise zum Detailkatalog: Geometrie, Prüfungen und R<sub>d</sub> kommen aus dem Rechenkern des
+  Katalog-Repos (online von GitHub Pages, lokal `http://127.0.0.1:8000/`). Eingaben mit „automatisch“ (leer, z. B.
+  Schraubenzahl, Lochabstand, Wurzelmaß der Stahlanschlüsse) ermittelt der Katalog aus den Profilen; das Protokoll weist
+  die verwendeten Werte und die Anpassungen aus
 - `bilder/` – Vorschaubilder der Kacheln: die Zeichnungen der Werkzeuge selbst (Standardwerte, ohne Beschriftung) und die
   Kachelbilder des Detailkatalogs. Erzeugt mit `node werkzeug/kachelbilder.mjs` (braucht Chrome oder Edge und das
   Katalog-Repo daneben, sonst `CHROME` bzw. `DETAILKATALOG` setzen); nach Änderungen an den Zeichnungen erneut ausführen

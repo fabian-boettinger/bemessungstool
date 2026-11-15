@@ -1,22 +1,22 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 72 250 251" width="250" height="251">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="12 72 253 252" width="253" height="252">
 <defs>
 <marker id="pf-kraft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/></marker>
 <marker id="pf-mass" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6875"/></marker>
 <pattern id="schraffur" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><rect width="4" height="4" fill="#ffffff"/><line x1="0" y1="0" x2="0" y2="4" stroke="#000000" stroke-width="0.8"/></pattern>
 <pattern id="beton" patternUnits="userSpaceOnUse" width="12" height="14" patternTransform="rotate(45)"><rect width="12" height="14" fill="#ffffff"/><line x1="0" y1="0" x2="0" y2="14" stroke="#000000" stroke-width="0.6"/><line x1="6" y1="0.5" x2="6" y2="14" stroke="#000000" stroke-width="0.6" stroke-dasharray="4 3"/></pattern>
 </defs>
-<rect x="12" y="72" width="250" height="251" fill="#ffffff"/>
+<rect x="12" y="72" width="253" height="252" fill="#ffffff"/>
 <rect x="20" y="84" width="120" height="228" fill="#e6ecf3" stroke="#1f2937" stroke-width="1.2"/>
 <line x1="27.6" y1="84" x2="27.6" y2="312" stroke="#1f2937" stroke-width="0.9"/>
 <line x1="132.4" y1="84" x2="132.4" y2="312" stroke="#1f2937" stroke-width="0.9"/>
 <line x1="38.4" y1="84" x2="38.4" y2="312" stroke="#1f2937" stroke-width="0.4"/>
 <line x1="121.6" y1="84" x2="121.6" y2="312" stroke="#1f2937" stroke-width="0.4"/>
 <rect x="140" y="108" width="8" height="180" fill="#cfd9e5" stroke="#1f2937" stroke-width="1.2"/>
-<rect x="148" y="136" width="100.8" height="144" fill="#e6ecf3" stroke="#1f2937" stroke-width="1.2"/>
-<line x1="148" y1="141.1" x2="248.8" y2="141.1" stroke="#1f2937" stroke-width="0.9"/>
-<line x1="148" y1="274.9" x2="248.8" y2="274.9" stroke="#1f2937" stroke-width="0.9"/>
-<line x1="148" y1="148.3" x2="248.8" y2="148.3" stroke="#1f2937" stroke-width="0.4"/>
-<line x1="148" y1="267.7" x2="248.8" y2="267.7" stroke="#1f2937" stroke-width="0.4"/>
+<rect x="148" y="136" width="104" height="144" fill="#e6ecf3" stroke="#1f2937" stroke-width="1.2"/>
+<line x1="148" y1="141.1" x2="252" y2="141.1" stroke="#1f2937" stroke-width="0.9"/>
+<line x1="148" y1="274.9" x2="252" y2="274.9" stroke="#1f2937" stroke-width="0.9"/>
+<line x1="148" y1="148.3" x2="252" y2="148.3" stroke="#1f2937" stroke-width="0.4"/>
+<line x1="148" y1="267.7" x2="252" y2="267.7" stroke="#1f2937" stroke-width="0.4"/>
 <polygon points="148,136 151,136 148,133" fill="#1f4e79" stroke="#1f4e79" stroke-width="0.5"/>
 <polygon points="148,141.1 151,141.1 148,144.1" fill="#1f4e79" stroke="#1f4e79" stroke-width="0.5"/>
 <polygon points="148,274.9 151,274.9 148,271.9" fill="#1f4e79" stroke="#1f4e79" stroke-width="0.5"/>
@@ -31,7 +31,7 @@
 <rect x="148" y="254.5" width="5.2" height="12.8" fill="#5b6875" stroke="#1f2937" stroke-width="0.8"/>
 <rect x="126" y="254.5" width="6.4" height="12.8" fill="#5b6875" stroke="#1f2937" stroke-width="0.8"/>
 <line x1="159.2" y1="80" x2="159.2" y2="314" stroke="#1f2937" stroke-width="0.9" stroke-dasharray="12 3 2 3"/>
-<line x1="203.4" y1="90" x2="203.4" y2="132" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
-<path d="M177.7,215.5 A22,22 0 1 1 209.4,227.1" fill="none" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
-<line x1="214.8" y1="308" x2="252.8" y2="308" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
+<line x1="220.8" y1="90" x2="220.8" y2="132" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
+<path d="M166.5,215.1 A20.824175200000006,20.824175200000006 0 1 1 196.4,226.0" fill="none" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
+<line x1="218" y1="314" x2="256" y2="314" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
 </svg>
