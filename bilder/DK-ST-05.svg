@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="62 58 494 241" width="494" height="241">
+<defs>
+<marker id="pf-kraft" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c0392b"/></marker>
+<marker id="pf-mass" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6875"/></marker>
+<pattern id="schraffur" patternUnits="userSpaceOnUse" width="4" height="4" patternTransform="rotate(45)"><rect width="4" height="4" fill="#ffffff"/><line x1="0" y1="0" x2="0" y2="4" stroke="#000000" stroke-width="0.8"/></pattern>
+<pattern id="beton" patternUnits="userSpaceOnUse" width="12" height="14" patternTransform="rotate(45)"><rect width="12" height="14" fill="#ffffff"/><line x1="0" y1="0" x2="0" y2="14" stroke="#000000" stroke-width="0.6"/><line x1="6" y1="0.5" x2="6" y2="14" stroke="#000000" stroke-width="0.6" stroke-dasharray="4 3"/></pattern>
+</defs>
+<rect x="62" y="58" width="494" height="241" fill="#ffffff"/>
+<rect x="317.5" y="116" width="230" height="160" fill="#e6ecf3" stroke="#1f2937" stroke-width="1.2"/>
+<line x1="317.5" y1="126.3" x2="547.5" y2="126.3" stroke="#1f2937" stroke-width="1"/>
+<line x1="317.5" y1="265.8" x2="547.5" y2="265.8" stroke="#1f2937" stroke-width="1"/>
+<rect x="70" y="266" width="242.5" height="10" fill="#9fb3c8" stroke="#1f2937" stroke-width="1"/>
+<rect x="180" y="116" width="122.5" height="6" fill="#9fb3c8" stroke="#1f2937" stroke-width="1"/>
+<rect x="296.5" y="122" width="6" height="144" fill="#9fb3c8" stroke="#1f2937" stroke-width="1"/>
+<polygon points="184,122 180,122 120,266 124,266" fill="#9fb3c8" stroke="#1f2937" stroke-width="1"/>
+<polygon points="302.5,142.3 367.5,142.3 367.5,249.8 312.5,249.8 312.5,266 302.5,266" fill="#cfd9e5" stroke="#1f2937" stroke-width="1.2"/>
+<line x1="304" y1="142.3" x2="304" y2="266" stroke="#1f4e79" stroke-width="3"/>
+<line x1="302.5" y1="264.5" x2="312.5" y2="264.5" stroke="#1f4e79" stroke-width="3"/>
+<circle cx="342.5" cy="164.5" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
+<circle cx="342.5" cy="196" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
+<circle cx="342.5" cy="227.5" r="5" fill="#5b6875" stroke="#1f2937" stroke-width="1"/>
+<line x1="211.3" y1="66" x2="211.3" y2="290" stroke="#1f4e79" stroke-width="1" stroke-dasharray="12 3 2 3"/>
+<line x1="342.5" y1="70" x2="342.5" y2="112" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
+<path d="M194.3,210.2 A18,18 0 1 1 220.3,219.6" fill="none" stroke="#c0392b" stroke-width="2.4" marker-end="url(#pf-kraft)"/>
+</svg>

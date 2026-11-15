@@ -13,6 +13,9 @@ Online (nach Einschalten von GitHub Pages): https://fabian-boettinger.github.io/
   Betonwiderstände nach 7.2.1.4–7.2.1.7 und 7.2.2.4–7.2.2.5 aus ETA-Kennwerten berechnet oder je Versagensart eingegeben
   (Version 2), Interaktion nach Tab. 7.3, Isometrie, Ankerbibliothek mit schreibgeschützten Einträgen aus den ETAs
   (Hilti HIT-HY 200, HST3, HUS4; Würth WIT-VM 250, WIT-PE 1000, W-FAZ, W-FAZ PRO, W-BS; Fundstelle je Eintrag)
+- `bilder/` – Vorschaubilder der Kacheln: die Zeichnungen der Werkzeuge selbst (Standardwerte, ohne Beschriftung) und die
+  Kachelbilder des Detailkatalogs. Erzeugt mit `node werkzeug/kachelbilder.mjs` (braucht Chrome oder Edge und das
+  Katalog-Repo daneben, sonst `CHROME` bzw. `DETAILKATALOG` setzen); nach Änderungen an den Zeichnungen erneut ausführen
 - `tests/` – Tests der Rechenkerne mit Node (`node tests/anker.test.mjs`), Sollwerte mit Quelle und Toleranz
 
 Jedes Werkzeug ist eine eigenständige HTML-Datei in einem eigenen Ordner.
@@ -57,7 +60,8 @@ Standard: Herleitung und maßgebende Kombination mit eingesetzten Werten; Detail
 
 Links immer mit `index.html` schreiben: Beim Öffnen per Doppelklick (file://) lädt der Browser für einen Ordner keine index.html.
 
-Neuer Nachweis: Werkzeug in eigenem Ordner ablegen und in `index.html` in der Liste `GRUPPEN` eintragen.
+Neuer Nachweis: Werkzeug in eigenem Ordner ablegen und in `index.html` in der Liste `GRUPPEN` eintragen;
+für das Kachelbild einen Eintrag in `werkzeug/kachelbilder.mjs` ergänzen und unter `bild` nennen.
 Die Kennwerte auf den Kacheln sind von Hand aus den Datentabellen der Werkzeuge übernommen; bei Datenänderungen mitziehen.
 
 Lizenz: keine. © Fabian Böttinger, alle Rechte vorbehalten.
