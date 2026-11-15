@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nachweise zum Detailkatalog</title>
+<style>
+:root{--ink:#1d2329;--mut:#66707a;--line:#d5dade;--bg:#f4f5f6;--card:#fff;--acc:#1f5f8b;--ok:#2e7d32;--bad:#c62828;--warn:#b26a00;--soft:#eef3f7}
+*{box-sizing:border-box}
+body{margin:0;font:13.5px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#22303c;color:#fff;padding:10px 18px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+header h1{font-size:16px;margin:0 12px 0 0;font-weight:600}
+header h1 a{color:inherit;text-decoration:none}
+header label{font-size:11px;color:#b9c4cc;display:flex;flex-direction:column}
+header input{background:#2f3f4c;border:1px solid #3f5161;color:#fff;padding:4px 6px;border-radius:3px;width:140px}
+header .btns{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+button{font:inherit;border:1px solid var(--line);background:#fff;padding:5px 11px;border-radius:4px;cursor:pointer}
+button:hover{background:var(--soft)}
+header button{background:#2f3f4c;border-color:#3f5161;color:#fff}
+header button:hover{background:#3b4e5e}
+nav{display:flex;flex-wrap:wrap;gap:2px;padding:0 18px;background:#e6e9ec;border-bottom:1px solid var(--line)}
+nav button{border:none;border-radius:0;background:transparent;padding:9px 12px;color:var(--mut);border-bottom:3px solid transparent}
+nav button.on{color:var(--ink);border-bottom-color:var(--acc);font-weight:600}
+nav .trenner{width:1px;background:var(--line);margin:8px 6px}
+main{padding:14px 18px;max-width:1500px}
+.grid{display:grid;grid-template-columns:minmax(340px,420px) 1fr;gap:14px;align-items:start}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:12px}
+.card h2{font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;color:var(--acc)}
+fieldset{border:none;border-top:1px solid #e3e6e9;margin:8px 0 0;padding:6px 0 0}
+legend{font-size:11.5px;font-weight:600;color:var(--mut);padding:0 6px 0 0}
+.f{display:grid;grid-template-columns:1fr 160px;gap:2px 8px;align-items:center;margin:3px 0}
+.f label{color:#38424b}
+.f .wert{display:flex;align-items:center;gap:4px}
+.f .einheit{color:var(--mut);font-size:12px;min-width:30px}
+.f small{grid-column:1/-1;color:var(--mut);font-size:11.5px}
+.f small:empty{display:none}
+.f[data-status=fehler] small,.f[data-status=grenze] small{color:var(--bad)}
+.f[data-status=eigen] small{color:var(--warn)}
+input,select{font:inherit;padding:3px 5px;border:1px solid #c3cad0;border-radius:3px;width:100%;background:#fff}
+details.weitere{margin-top:8px}
+details.weitere summary{cursor:pointer;color:var(--acc);font-weight:600;font-size:12.5px}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid #e3e6e9;padding:3px 5px;text-align:right;vertical-align:top}
+th{font-weight:600;color:#38424b;background:#f7f8f9;font-size:12px}
+td:first-child,th:first-child{text-align:left}
+td.l,th.l{text-align:left}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.wrn{color:var(--warn)}
+.mut{color:var(--mut)}
+.note{background:#fff8e6;border:1px solid #f0d9a6;border-radius:4px;padding:6px 9px;margin:6px 0;font-size:12.5px}
+.err{background:#fdecec;border-color:#f3b9b9}
+.big{font-size:22px;font-weight:700}
+.sum{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:4px 0 8px}
+.skizze{width:100%;height:auto;border:1px solid #e3e6e9;background:#fff}
+.gl{color:#555;font-size:10.5px}
+tr.massg td{font-weight:600}
+.ed-zeile{display:grid;grid-template-columns:1fr 120px 46px;gap:6px;align-items:center;margin:3px 0}
+.ed-zeile .rd{grid-column:1/-1;color:var(--mut);font-size:11.5px;margin-top:-2px}
+.modus{display:flex;gap:4px}
+.modus button[aria-pressed=true]{background:var(--soft);border-color:var(--acc)}
+/* Protokoll */
+.prot{font-size:12.5px}
+.prot h3{font-size:13px;margin:14px 0 4px;border-bottom:1px solid #888;padding-bottom:2px}
+.prot table th,.prot table td{font-size:11.5px}
+.prot .res{border:1.5px solid #333;padding:5px 8px;margin:8px 0;font-weight:600}
+.prot ul{margin:4px 0;padding-left:18px}
+.phead{display:none}
+@media print{
+ @page{size:A4;margin:15mm 14mm}
+ body{background:#fff}
+ header,nav,.noprint,.grid>div:first-child{display:none!important}
+ main{padding:0}
+ .grid{display:block}
+ .card{border:none;padding:0;margin:0}
+ .phead{display:flex;justify-content:space-between;border-bottom:1.5px solid #000;margin-bottom:8px;padding-bottom:3px;font-size:11.5px}
+ .prot h3{break-after:avoid}
+ .prot table,.skizze{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<header>
+ <h1><a href="../index.html" title="Zur Übersicht">Nachweise zum Detailkatalog</a></h1>
+ <label>Projekt<input id="m_proj"></label>
+ <label>Position<input id="m_pos" placeholder="z. B. 108.101"></label>
+ <label>Bezeichnung<input id="m_bez" style="width:220px"></label>
+ <label>Bearbeiter<input id="m_bea" style="width:110px"></label>
+ <div class="btns">
+  <button id="bStd" title="Eingaben und Einwirkungen dieses Details auf Standard zurücksetzen">Standard</button>
+  <button id="bSave" title="Stand als JSON speichern (Dateiname = Position)">Speichern</button>
+  <button id="bLoad">Laden</button><input type="file" id="fLoad" accept=".json" hidden>
+  <button onclick="window.print()">Drucken / PDF</button>
+ </div>
+</header>
+<nav id="tabs" aria-label="Details"></nav>
+<main>
+ <div id="laden" class="note">Rechenkern wird aus dem Detailkatalog geladen …</div>
+ <div class="grid" id="ansicht" hidden>
+  <div>
+   <div class="card"><h2>Detail</h2>
+    <div id="d-titel" style="font-weight:600"></div>
+    <div class="mut" id="d-links" style="margin-top:4px"></div>
+   </div>
+   <div class="card"><h2>Eingaben</h2><div id="eingaben"></div></div>
+   <div class="card"><h2>Einwirkungen (Bemessungswerte)</h2>
+    <p class="mut" style="margin:0 0 6px;font-size:12px">Je Widerstandsgruppe ein E<sub>d</sub>; leer = nur R<sub>d</sub> ausgeben. Lastdauer und k<sub>mod</sub> unter „Weitere Eingaben“.</p>
+    <div id="einwirkungen"></div>
+   </div>
+  </div>
+  <div>
+   <div class="card prot" id="protokoll"></div>
+  </div>
+ </div>
+</main>
+
+<script type="module">
+// Nachweise zum Detailkatalog: Geometrie, Prüfungen und Bemessungswerte R_d kommen aus dem Rechenkern
+// des Detailkatalogs (gleiche Module wie die Katalogseite), dieses Werkzeug ergänzt Einwirkungen E_d,
+// Ausnutzung und das Druckprotokoll. Katalogadresse: ?katalog=<url> oder lokal http://127.0.0.1:8000/.
+const KATALOG = (() => {
+  const q = new URLSearchParams(location.search).get("katalog");
+  if (q) return q.replace(/\/?$/, "/");
+  if (/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) return "http://127.0.0.1:8000/";
+  return "https://fabian-boettinger.github.io/detailkatalog/";
+})();
+const SPEICHER = "bt-detailkatalog-v1";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const idx = (s) => esc(s).replace(/_\{([^}]*)\}/g, "<sub>$1</sub>");
+const zahlDe = (v, n = 1) => (v == null || !Number.isFinite(v)) ? "–" : v.toLocaleString("de-DE", { minimumFractionDigits: n, maximumFractionDigits: n });
+const rdText = (v) => zahlDe(v, v >= 100 ? 0 : 1);
+const edName = (g) => g.replace(/Rd/g, "Ed");
+const svgUrl = (svg) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+
+let K = null;          // geladene Katalogmodule
+let PROFILE = null;
+let aktiv = null;      // {det, roh, ed}
+let zustand = {};      // id -> {roh, ed}
+let modus = "sw";
+let timer = null;
+
+function lies() { try { return JSON.parse(localStorage.getItem(SPEICHER)) || {}; } catch (e) { return {}; } }
+function schreib() {
+  try {
+    const z = Object.fromEntries(Object.entries(zustand).map(([id, s]) => [id, { roh: s.roh, ed: s.ed }]));
+    localStorage.setItem(SPEICHER, JSON.stringify({ kopf: kopf(), zustand: z, id: aktiv && aktiv.det.meta.id, modus }));
+  } catch (e) { /* privat/gesperrt: ohne Speichern weiter */ }
+}
+const KOPF = ["m_proj", "m_pos", "m_bez", "m_bea"];
+const kopf = () => Object.fromEntries(KOPF.map((k) => [k, $(k).value]));
+
+// Textbreite wie auf der Katalogseite messen (gleiche Schriftliste wie im SVG)
+const leinwand = document.createElement("canvas").getContext("2d");
+function messe(s, groesse = 14, fett = false) {
+  let w = 0;
+  for (const { t, index } of K.textTeile(s)) {
+    leinwand.font = `${fett ? "bold " : ""}${groesse * (index ? 0.75 : 1)}px Inter, "DejaVu Sans", Arial, sans-serif`;
+    w += leinwand.measureText(t).width;
+  }
+  return w;
+}
+
+// ---------------------------------------------------------------- Formular
+function profilOptionen(d, gewaehlt) {
+  const r = K.holeReihe(PROFILE, d.reihe);
+  if (!r) return `<option>${esc(gewaehlt)}</option>`;
+  const nurProfil = K.fuellEintraege(d).every(([, k]) => (aktiv.det.parameter.find((x) => x.key === k) || {}).verborgen);
+  const gruppen = new Map();
+  for (const p of r.profile) {
+    const g = p.gruppe || "";
+    if (!gruppen.has(g)) gruppen.set(g, []);
+    gruppen.get(g).push(p);
+  }
+  const opt = (p) => `<option value="${esc(p.name)}"${p.name === gewaehlt ? " selected" : ""}>${esc(p.name)}</option>`;
+  return (nurProfil ? "" : `<option value=""${gewaehlt ? "" : " selected"}>— eigene Maße —</option>`) +
+    [...gruppen].map(([g, ps]) => (g ? `<optgroup label="${esc(g)}">${ps.map(opt).join("")}</optgroup>` : ps.map(opt).join(""))).join("");
+}
+
+function baueFormular() {
+  const { det, roh } = aktiv;
+  const { p } = K.loese(det.parameter, roh, PROFILE);
+  const gruppen = new Map();
+  for (const d of det.parameter.filter((d) => !d.verborgen)) {
+    const g = d.gruppe || "Eingaben";
+    if (!gruppen.has(g)) gruppen.set(g, []);
+    gruppen.get(g).push(d);
+  }
+  const feld = (d) => {
+    const id = `e-${d.key}`;
+    let f;
+    if (d.typ === "profil") f = `<select id="${id}" data-key="${esc(d.key)}">${profilOptionen(d, p[d.key])}</select>`;
+    else if (d.typ === "auswahl") f = `<select id="${id}" data-key="${esc(d.key)}">${d.optionen.map((o) => `<option value="${esc(o.wert)}"${String(o.wert) === String(p[d.key]) ? " selected" : ""}>${esc(o.text)}</option>`).join("")}</select>`;
+    else f = `<input id="${id}" data-key="${esc(d.key)}" type="text" inputmode="${d.typ === "zahl" ? "decimal" : "text"}" value="${esc(K.alsText(d, p[d.key]))}" autocomplete="off" spellcheck="false">`;
+    const grenzen = d.typ === "zahl" && d.min !== undefined ? ` <span class="mut" style="font-size:11px">${d.min}–${d.max}</span>` : "";
+    return `<div class="f" data-feld="${esc(d.key)}"><label for="${id}">${idx(d.label)}${grenzen}</label>
+      <div class="wert">${f}<span class="einheit">${esc(d.einheit || "")}</span></div>
+      <small data-hinweis="${esc(d.key)}">${esc(d.hilfe || "")}</small></div>`;
+  };
+  const block = (weitere) => [...gruppen].map(([g, ds]) => {
+    const f = ds.filter((d) => !!d.weitere === weitere);
+    return f.length ? `<fieldset><legend>${esc(g)}</legend>${f.map(feld).join("")}</fieldset>` : "";
+  }).join("");
+  const haupt = block(false), weitere = block(true);
+  const offen = det.parameter.some((d) => d.weitere && roh[d.key] !== undefined);
+  $("eingaben").innerHTML = haupt + (weitere ? `<details class="weitere"${offen ? " open" : ""}><summary>Weitere Eingaben</summary>${weitere}</details>` : "");
+}
+
+function aktualisiereFormular(p, info) {
+  for (const d of aktiv.det.parameter) {
+    const el = document.querySelector(`#eingaben [data-key="${CSS.escape(d.key)}"]`);
+    if (el && document.activeElement !== el) el.value = d.typ === "profil" || d.typ === "auswahl" ? String(p[d.key] ?? "") : K.alsText(d, p[d.key]);
+    const box = document.querySelector(`[data-feld="${CSS.escape(d.key)}"]`);
+    if (!box) continue;
+    const i = info[d.key] || { status: "ok" };
+    box.dataset.status = i.status;
+    box.querySelector("small").textContent = i.meldung || d.hilfe || "";
+  }
+}
+
+// ---------------------------------------------------------------- Einwirkungen
+function baueEinwirkungen(z) {
+  const gruppen = z.tragfaehigkeit();
+  $("einwirkungen").innerHTML = gruppen.length ? gruppen.map((g) => {
+    const rd = g.gruppe.includes("Rd");
+    return rd ? `<div class="ed-zeile"><label for="ed-${esc(g.gruppe)}">${idx(edName(g.gruppe))}</label>
+      <input id="ed-${esc(g.gruppe)}" data-ed="${esc(g.gruppe)}" inputmode="decimal" value="${esc(aktiv.ed[g.gruppe] ?? "")}" placeholder="–">
+      <span class="mut">${esc(g.einheit)}</span>
+      <span class="rd">${idx(g.gruppe)} = ${rdText(g.wert)} ${esc(g.einheit)}</span></div>`
+      : `<div class="ed-zeile"><span>${idx(g.gruppe)}</span><span class="mut" style="grid-column:2/-1">${g.gruppe.startsWith("K_") ? "Kennwert" : "Grenzwert"}, ${rdText(g.wert)} ${esc(g.einheit)}</span></div>`;
+  }).join("") : `<p class="mut">Dieses Detail gibt keine Tragfähigkeit aus.</p>`;
+}
+const edWert = (g) => {
+  const t = String(aktiv.ed[g] ?? "").trim().replace(",", ".");
+  const v = t === "" ? NaN : Number(t);
+  return Number.isFinite(v) ? Math.abs(v) : null;
+};
+
+// ---------------------------------------------------------------- Protokoll
+function wertText(d, p) {
+  if (d.typ === "auswahl") { const o = d.optionen.find((o) => String(o.wert) === String(p[d.key])); return o ? o.text : String(p[d.key]); }
+  if (d.typ === "profil") return p[d.key] || "eigene Maße";
+  return `${K.alsText(d, p[d.key])}${d.einheit ? " " + d.einheit : ""}`;
+}
+
+function render(neuesFormular = false) {
+  const { det } = aktiv;
+  const { p, info } = K.loese(det.parameter, aktiv.roh, PROFILE);
+  const z = det.zeichne(p, { messe });
+  if (neuesFormular) baueFormular();
+  aktualisiereFormular(p, info);
+  if (neuesFormular || !$("einwirkungen").contains(document.activeElement)) baueEinwirkungen(z);
+
+  const m = det.meta;
+  const katalogLink = `${KATALOG}?dk=${encodeURIComponent(m.id)}` + det.parameter.filter((d) => aktiv.roh[d.key] !== undefined && aktiv.roh[d.key] !== "")
+    .map((d) => `&${encodeURIComponent(d.key)}=${encodeURIComponent(aktiv.roh[d.key])}`).join("");
+  $("d-titel").textContent = `${m.id} · ${m.titel}`;
+  $("d-links").innerHTML = `<a href="${esc(katalogLink)}" target="_blank" rel="noopener">Im Detailkatalog öffnen</a> (gleiche Maße)`;
+
+  // Abstände
+  const pr = z.pruefungen, nein = pr.filter((x) => !x.ok);
+  // Nachweise je Gruppe
+  const massg = new Set(z.tragfaehigkeit());
+  const gruppen = [...new Set(z.widerstaende.map((w) => w.gruppe))];
+  let etaMax = null, etaZeile = "";
+  const zeilen = z.widerstaende.map((w) => {
+    const ed = w.gruppe.includes("Rd") ? edWert(w.gruppe) : null;
+    const eta = ed === null ? null : ed / w.wert;
+    if (eta !== null && (etaMax === null || eta > etaMax)) { etaMax = eta; etaZeile = `${edName(w.gruppe)} / ${w.gruppe}: ${w.bez}`; }
+    return `<tr${massg.has(w) ? ' class="massg"' : ""}><td>${idx(w.bez)}${w.grundlage ? `<div class="gl">${idx(w.grundlage)}</div>` : ""}</td>
+      <td>${idx(w.gruppe)}</td><td>${w.gruppe.includes("Rd") ? "" : "<span class=\"mut\">Kennwert</span> "}${rdText(w.wert)} ${esc(w.einheit)}</td>
+      <td>${ed === null ? "–" : `${rdText(ed)} ${esc(w.einheit)}`}</td>
+      <td class="${eta === null ? "mut" : eta <= 1 ? "ok" : "bad"}">${eta === null ? "–" : zahlDe(eta, 2)}</td></tr>`;
+  }).join("");
+  const sichtbar = det.parameter.filter((d) => !d.verborgen);
+  const eingaben = sichtbar.map((d) => `<tr><td>${idx(d.label)}${d.gruppe ? ` <span class="mut">(${esc(d.gruppe)})</span>` : ""}</td><td class="l">${idx(wertText(d, p))}</td></tr>`).join("");
+  const datum = new Date().toLocaleDateString("de-DE");
+  const k = kopf();
+  const svg = z.svg(modus);
+
+  $("protokoll").innerHTML = `
+   <div class="phead"><span>${esc(k.m_proj)}</span><span>Pos. ${esc(k.m_pos)} ${esc(k.m_bez)}</span><span>${esc(k.m_bea)} · ${datum}</span></div>
+   <div class="noprint sum" style="justify-content:space-between">
+     <h2 style="margin:0">Nachweis ${esc(m.id)}</h2>
+     <div class="modus"><button type="button" data-modus="farbe" aria-pressed="${modus === "farbe"}">Farbe</button><button type="button" data-modus="sw" aria-pressed="${modus === "sw"}">s/w</button></div>
+   </div>
+   <h3 style="margin-top:4px">${esc(m.id)} – ${esc(m.titel)}</h3>
+   <p style="margin:2px 0 6px">${esc(m.beschreibung)}</p>
+   <img class="skizze" src="${svgUrl(svg)}" width="${z.b}" height="${Math.ceil(z.h)}" alt="Skizze ${esc(m.id)}">
+   <div class="sum">
+     ${etaMax === null ? `<span class="mut">Keine Einwirkung eingegeben – nur Bemessungswerte R<sub>d</sub>.</span>`
+       : `<span class="big ${etaMax <= 1 ? "ok" : "bad"}">η = ${zahlDe(etaMax, 2)}</span><span>${etaMax <= 1 ? "Nachweise erfüllt" : "Nachweis nicht erfüllt"}<br><span class="mut" style="font-size:12px">maßgebend ${idx(etaZeile)}</span></span>`}
+     ${nein.length ? `<span class="bad"><b>${nein.length}</b> Mindestabstand/-maß nicht eingehalten</span>` : pr.length ? `<span class="ok">Abstände eingehalten (${pr.length})</span>` : ""}
+   </div>
+   <h3>Eingangswerte</h3>
+   <table><tbody>${eingaben}</tbody></table>
+   ${pr.length ? `<h3>Abstände und Maße</h3>
+   <table><thead><tr><th>Prüfung</th><th>vorh.</th><th>erf.</th><th></th></tr></thead><tbody>
+   ${pr.map((x) => `<tr><td>${idx(x.bez)}${x.grundlage ? `<div class="gl">${esc(x.grundlage)}</div>` : ""}</td><td>${zahlDe(x.ist)} mm</td><td>≥ ${zahlDe(x.soll)} mm</td><td class="${x.ok ? "ok" : "bad"}">${x.ok ? "eingehalten" : "nicht eingehalten"}</td></tr>`).join("")}
+   </tbody></table>` : ""}
+   <h3>Nachweise</h3>
+   ${z.widerstaende.length ? `<table><thead><tr><th>Komponente / Grundlage</th><th>Gruppe</th><th>R<sub>d</sub></th><th>E<sub>d</sub></th><th>η</th></tr></thead><tbody>${zeilen}</tbody></table>
+   <p class="mut" style="font-size:11.5px;margin:4px 0">Fett: maßgebende Komponente je Gruppe (kleinstes R<sub>d</sub>). ${gruppen.length} Gruppe${gruppen.length > 1 ? "n" : ""}; η = E<sub>d</sub> / R<sub>d</sub>.</p>` : `<p class="mut">Keine Bemessungswerte für dieses Detail.</p>`}
+   ${etaMax !== null ? `<div class="res">${etaMax <= 1 ? "Nachweis erfüllt" : "Nachweis NICHT erfüllt"}: η<sub>max</sub> = ${zahlDe(etaMax, 2)} ${etaMax <= 1 ? "≤" : ">"} 1,0</div>` : ""}
+   ${z.tragHinweise.length ? `<h3>Annahmen und Grenzen</h3><ul>${z.tragHinweise.map((t) => `<li>${idx(t)}</li>`).join("")}</ul>` : ""}
+   <h3>Im Projekt zusätzlich nachzuweisen</h3>
+   <ul>${m.nachweise.map((t) => `<li>${idx(t)}</li>`).join("")}</ul>
+   <p class="gl" style="margin-top:10px">Rechenkern: Detailkatalog (${esc(KATALOG)}), Detail ${esc(m.id)}. Bemessungswerte überschlägig nach Eurocode mit NA Deutschland bzw. nach der angegebenen ETA. Ungeprüft, keine Gewähr.</p>`;
+  schreib();
+}
+
+// ---------------------------------------------------------------- Ablauf
+function oeffne(id) {
+  const det = K.DETAILS.find((d) => d.meta.id === id) || K.DETAILS[0];
+  if (aktiv && aktiv.det !== det) zustand[aktiv.det.meta.id] = { roh: aktiv.roh, ed: aktiv.ed };
+  const z = zustand[det.meta.id] || {};
+  aktiv = { det, roh: { ...(z.roh || {}) }, ed: { ...(z.ed || {}) } };
+  zustand[det.meta.id] = aktiv;
+  document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.id === det.meta.id));
+  history.replaceState(null, "", "#" + det.meta.id);
+  document.title = `${det.meta.id} · Nachweise zum Detailkatalog`;
+  render(true);
+}
+
+function baueTabs() {
+  let html = "", kat = null;
+  for (const d of K.DETAILS) {
+    if (kat !== null && d.meta.kategorie !== kat) html += `<span class="trenner"></span>`;
+    kat = d.meta.kategorie;
+    html += `<button type="button" data-id="${esc(d.meta.id)}" title="${esc(d.meta.titel)}">${esc(d.meta.id.replace(/^DK-/, ""))}</button>`;
+  }
+  $("tabs").innerHTML = html;
+}
+
+$("tabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-id]"); if (b) oeffne(b.dataset.id); });
+$("eingaben").addEventListener("input", (e) => {
+  const el = e.target.closest("[data-key]");
+  if (!el || el.tagName === "SELECT") return;
+  const key = el.dataset.key;
+  const { p } = K.loese(aktiv.det.parameter, aktiv.roh, PROFILE);
+  for (const d of aktiv.det.parameter.filter((x) => x.typ === "profil")) {
+    const ziele = K.fuellEintraege(d);
+    if (!ziele.some(([, k]) => k === key)) continue;
+    for (const [, k] of ziele) if (aktiv.roh[k] === undefined) aktiv.roh[k] = K.alsText(aktiv.det.parameter.find((x) => x.key === k), p[k]);
+    delete aktiv.roh[d.key];
+  }
+  aktiv.roh[key] = el.value;
+  clearTimeout(timer);
+  timer = setTimeout(() => render(), 150);
+});
+$("eingaben").addEventListener("change", (e) => {
+  const el = e.target.closest("select[data-key]");
+  if (!el) return;
+  const d = aktiv.det.parameter.find((x) => x.key === el.dataset.key);
+  if (d.typ === "profil" && el.value === "") return;
+  aktiv.roh[d.key] = el.value;
+  if (d.typ === "profil") for (const [, key] of K.fuellEintraege(d)) delete aktiv.roh[key];
+  render();
+});
+$("einwirkungen").addEventListener("input", (e) => {
+  const el = e.target.closest("[data-ed]");
+  if (!el) return;
+  aktiv.ed[el.dataset.ed] = el.value;
+  clearTimeout(timer);
+  timer = setTimeout(() => render(), 150);
+});
+$("protokoll").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-modus]");
+  if (b) { modus = b.dataset.modus; render(); }
+});
+for (const k of KOPF) $(k).addEventListener("input", () => render());
+$("bStd").addEventListener("click", () => { aktiv.roh = {}; aktiv.ed = {}; zustand[aktiv.det.meta.id] = aktiv; render(true); });
+$("bSave").addEventListener("click", () => {
+  zustand[aktiv.det.meta.id] = aktiv;
+  const daten = { werkzeug: "Nachweise zum Detailkatalog", version: 1, kopf: kopf(), id: aktiv.det.meta.id,
+    zustand: Object.fromEntries(Object.entries(zustand).map(([id, s]) => [id, { roh: s.roh, ed: s.ed }])) };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(daten, null, 1)], { type: "application/json" }));
+  a.download = `${(kopf().m_pos || aktiv.det.meta.id).replace(/[^\w.-]+/g, "_")}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$("bLoad").addEventListener("click", () => $("fLoad").click());
+$("fLoad").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    for (const k of KOPF) $(k).value = (d.kopf || {})[k] || "";
+    zustand = d.zustand || {};
+    aktiv = null;
+    oeffne(d.id);
+  } catch (err) { alert("Datei nicht lesbar: " + err.message); }
+  e.target.value = "";
+});
+// Adresse: #DK-HO-05 oder #DK-HO-05&b_u=240&… (Eingaben wie im Katalog-Link) – Eingaben ersetzen dann den gespeicherten Stand
+function ausHash() {
+  const [id, ...rest] = location.hash.slice(1).split("&");
+  if (!id) return null;
+  const u = new URLSearchParams(rest.join("&"));
+  const roh = {};
+  for (const [k, v] of u) if (k !== "dk" && k !== "m") roh[k] = v;
+  const det = K.DETAILS.find((d) => d.meta.id === decodeURIComponent(id));
+  if (!det) return null;
+  if (rest.length) {
+    if (aktiv && aktiv.det === det) aktiv = null;
+    zustand[det.meta.id] = { roh, ed: (zustand[det.meta.id] || {}).ed || {} };
+  }
+  return det.meta.id;
+}
+window.addEventListener("hashchange", () => { const id = ausHash(); if (id && (!aktiv || id !== aktiv.det.meta.id || location.hash.includes("&"))) oeffne(id); });
+
+async function start() {
+  try {
+    const [det, par, prof, dk] = await Promise.all([
+      import(KATALOG + "details/index.js"), import(KATALOG + "js/parameter.js"), import(KATALOG + "js/profile.js"), import(KATALOG + "js/dk.js")]);
+    K = { DETAILS: det.DETAILS, ...par, ladeProfile: prof.ladeProfile, textTeile: dk.textTeile };
+  } catch (e) {
+    $("laden").className = "note err";
+    $("laden").innerHTML = `Rechenkern nicht geladen (${esc(e.message)}). Das Werkzeug braucht den Detailkatalog unter <a href="${esc(KATALOG)}">${esc(KATALOG)}</a> (Internetverbindung bzw. lokal <code>python werkzeug/server.py 8000</code> im Katalog-Repo).`;
+    return;
+  }
+  try {
+    PROFILE = await K.ladeProfile(async (datei) => {
+      const r = await fetch(KATALOG + "profile/" + datei);
+      if (!r.ok) throw new Error(`${datei}: ${r.status}`);
+      return r.json();
+    });
+  } catch (e) { PROFILE = null; }
+  const s = lies();
+  for (const k of KOPF) $(k).value = (s.kopf || {})[k] || "";
+  zustand = s.zustand || {};
+  modus = s.modus === "farbe" ? "farbe" : "sw";
+  baueTabs();
+  $("laden").hidden = !!PROFILE;
+  if (!PROFILE) $("laden").textContent = "Profilkatalog nicht geladen – Maße bitte direkt eingeben.";
+  $("ansicht").hidden = false;
+  oeffne(ausHash() || s.id || K.DETAILS[0].meta.id);
+}
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bemessungstool Tragwerksplanung</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Gestaltung wie der Detailkatalog: gleiche Farben, Schriften und Kacheln */
+:root {
+  --papier: #f3f5f7; --blatt: #ffffff; --flaeche: #ffffff; --tinte: #18212b; --grau: #5b6875;
+  --linie: #d3dae2; --akzent: #1f4e79; --akzent-text: #ffffff; --kraft: #c0392b;
+  --font-titel: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --font-text: "IBM Plex Sans", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --papier: #12171d; --flaeche: #1a2129; --tinte: #e4e9ee; --grau: #9aa7b4;
+    --linie: #2c3640; --akzent: #7fb0dc; --akzent-text: #0e1620; --kraft: #e06a5c; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --papier: #12171d; --flaeche: #1a2129; --tinte: #e4e9ee; --grau: #9aa7b4;
+  --linie: #2c3640; --akzent: #7fb0dc; --akzent-text: #0e1620; --kraft: #e06a5c; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--papier); color: var(--tinte); font-family: var(--font-text); font-size: 15px; line-height: 1.5; padding-inline: 16px; }
+[hidden] { display: none !important; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 22px; }
+header { display: grid; gap: 4px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--grau); }
+h1 { font-family: var(--font-titel); font-weight: 600; font-size: clamp(28px, 4vw, 38px); line-height: 1.1; margin: 0; }
+.lead { margin: 0; color: var(--grau); max-width: 75ch; }
+.haftung { margin: 0; font-size: 13px; color: var(--kraft); font-weight: 500; }
+
+.leiste { position: sticky; top: 0; z-index: 5; background: var(--papier); padding-block: 10px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-bottom: 1px solid var(--linie); }
+.suche { flex: 1 1 240px; min-width: 0; }
+.suche input { width: 100%; font: inherit; color: var(--tinte); background: var(--flaeche); border: 1px solid var(--linie); border-radius: 4px; padding: 8px 12px; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chips + .chips { border-left: 1px solid var(--linie); padding-left: 10px; }
+.chip { font: 500 13px var(--font-text); color: var(--tinte); background: var(--flaeche); border: 1px solid var(--linie); border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--akzent); color: var(--akzent-text); border-color: var(--akzent); }
+:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+
+.gruppen { display: grid; gap: 30px; }
+.gruppe { display: grid; gap: 10px; }
+.gruppe-kopf { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; border-bottom: 1px solid var(--linie); padding-bottom: 6px; }
+.gruppe-kopf h2 { font-family: var(--font-titel); font-weight: 600; font-size: 21px; margin: 0; }
+.gruppe-kopf .werkzeug { font-size: 13px; color: var(--grau); }
+.gruppe-kopf .werkzeug a { color: var(--akzent); }
+.gruppe-hinweis { margin: 0; font-size: 12.5px; color: var(--grau); }
+.liste { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); }
+
+.kachel { position: relative; display: grid; grid-template-rows: auto 1fr; background: var(--flaeche); border: 1px solid var(--linie); border-radius: 4px; overflow: hidden; transition: border-color .15s, box-shadow .15s; }
+.kachel:hover { border-color: var(--akzent); box-shadow: 0 2px 10px rgba(31, 78, 121, .12); }
+.vorschau { display: block; background: var(--blatt); aspect-ratio: 16 / 9; border-bottom: 1px solid var(--linie); padding: 6px 8px; }
+.vorschau svg { width: 100%; height: 100%; display: block; }
+.kachel-text { display: grid; gap: 6px; padding: 9px 12px 12px; align-content: start; }
+.kachel-titel { font-family: var(--font-titel); font-weight: 600; font-size: 17px; line-height: 1.2; }
+/* Der Titellink deckt die ganze Kachel ab; Varianten-Links liegen darüber */
+.kachel-titel a { color: inherit; text-decoration: none; }
+.kachel-titel a::after { content: ""; position: absolute; inset: 0; }
+.kachel-text p { margin: 0; font-size: 13.5px; color: var(--grau); }
+.badges { display: flex; flex-wrap: wrap; gap: 4px; }
+.badge { font: 500 11px var(--font-mono); letter-spacing: .03em; text-transform: uppercase; border-radius: 3px; padding: 1px 6px; border: 1px solid var(--linie); color: var(--grau); }
+.badge.holz { background: #f6ead2; color: #6b4d1c; border-color: #e3cc9e; }
+.badge.stahl { background: #e3ebf3; color: #24425e; border-color: #bccddd; }
+.badge.beton { background: #e7e9ec; color: #3f4954; border-color: #c9ced4; }
+.werte { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: 13px; }
+.werte dt { color: var(--grau); white-space: nowrap; }
+.werte dd { margin: 0; font-variant-numeric: tabular-nums; }
+.werte b { font-weight: 600; }
+.norm { font-family: var(--font-mono); font-size: 11.5px; color: var(--grau); }
+.varianten { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px; }
+.varianten a { font: 500 12px var(--font-text); color: var(--akzent); border: 1px solid var(--linie); border-radius: 4px; padding: 3px 9px; text-decoration: none; background: var(--flaeche); }
+.varianten a:hover { border-color: var(--akzent); }
+.leer { padding: 40px; text-align: center; color: var(--grau); border: 1px dashed var(--linie); border-radius: 4px; }
+.fuss { color: var(--grau); font-size: 13px; display: grid; gap: 4px; }
+.fuss p { margin: 0; }
+.fuss a { color: var(--akzent); }
+
+/* Skizzen: feste Farben, Zeichenfläche bleibt in beiden Themes weiß */
+.s-holz { fill: #e9c98f; stroke: #5b4a2e; stroke-width: 1.2; }
+.s-holz2 { fill: #d9b272; stroke: #5b4a2e; stroke-width: 1.2; }
+.s-beton { fill: #d4d7da; stroke: #4d5560; stroke-width: 1.2; }
+.s-stahl { fill: #eef1f4; stroke: #1f4e79; stroke-width: 2; }
+.s-blech { fill: none; stroke: #1f4e79; stroke-width: 3; stroke-linejoin: miter; }
+.s-vm { stroke: #1f4e79; stroke-width: 1.6; stroke-linecap: round; }
+.s-anker { stroke: #3a4450; stroke-width: 3.2; stroke-linecap: round; }
+.s-dicht { fill: #9b59b6; opacity: .8; }
+.s-lage { fill: none; stroke: #8a6a35; stroke-width: .8; }
+.s-text { font: 500 10px "IBM Plex Mono", Consolas, monospace; fill: #5b6875; }
+.s-kraft { fill: none; stroke: #c0392b; stroke-width: 2.2; stroke-linecap: round; }
+.s-spitze { fill: #c0392b; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Tragwerksplanung · Nachweise nach Eurocode und ETA</div>
+    <h1>Bemessungstool</h1>
+    <p class="lead">Nachweise für Verbindungsmittel und Brettsperrholz im Browser, ohne Installation. Kachel wählen, das Werkzeug öffnet sich mit dem passenden Produkt; „Holz–Holz“ oder „Holz–Beton“ wählt gleich den Anschluss vor. Ausdruck für die Statik im Werkzeug über „Drucken / an VCmaster übergeben“.</p>
+    <p class="haftung">Ungeprüft, keine Gewähr. Die Kennwerte auf den Kacheln dienen der Vorauswahl; maßgebend ist der Nachweis im Werkzeug.</p>
+  </header>
+
+  <div class="leiste">
+    <div class="suche" role="search"><input id="suche" type="search" placeholder="Suchen: TITAN, Zugplatte, Balkenträger, BSP, Holzrahmenbau, ETA-11/0496 …" aria-label="Nachweise durchsuchen"></div>
+    <div class="chips" id="chips-kat" aria-label="Kategorie"></div>
+    <div class="chips" id="chips-ug" aria-label="Anschluss"></div>
+  </div>
+
+  <main class="gruppen" id="inhalt"></main>
+  <div class="leer" id="leer" hidden>Kein Nachweis passt zu Suche und Filter.</div>
+
+  <noscript>
+    <ul>
+      <li><a href="rothoblaas/index.html">Rothoblaas Verbinder – Nachweis</a></li>
+      <li><a href="bsp/index.html">BSP-Schraubenverbindungen</a></li>
+      <li><a href="detailkatalog/index.html">Nachweise zum Detailkatalog</a></li>
+    </ul>
+  </noscript>
+
+  <footer class="fuss">
+    <p><strong>Ungeprüft, keine Gewähr.</strong> Kennwerte aus den Datentabellen der Werkzeuge (Rothoblaas-Katalog „Holzbauverbinder“ und ETA, Stand im Werkzeug). Angegeben ist jeweils der Höchstwert über Größen, Nagelbilder und Verbindungsmittel; im Einzelfall liegt er oft deutlich darunter.</p>
+    <p>Passende Anschlussskizzen: <a href="https://fabian-boettinger.github.io/detailkatalog/">Detailkatalog</a>.</p>
+  </footer>
+</div>
+
+<script>
+// ---------------------------------------------------------------- Skizzen
+// Winkel im Schnitt, maßstäblich aus H (vertikaler Schenkel) und P (horizontaler Schenkel) in mm.
+// links: Holz–Holz auf Holzdecke, rechts: Holz–Beton auf Bodenplatte (mit Anker). Wand in der Mitte.
+const M = 0.66;                     // px je mm, für alle Winkel gleich: Größen sind untereinander vergleichbar
+const BODEN = 140, WAND_L = 140, WAND_R = 180;
+
+function winkel(seite, H, P, opt = {}) {
+  // seite: -1 links der Wand, +1 rechts
+  const x0 = seite < 0 ? WAND_L - 1.5 : WAND_R + 1.5, h = H * M, p = P * M, y0 = BODEN - 1.5 - (opt.hb || 0);
+  let s = `<path class="s-blech" d="M${x0} ${y0 - h} V${y0} H${x0 + seite * p}"/>`;
+  // Verbindungsmittel im vertikalen Schenkel (in die Wand) und im horizontalen Schenkel
+  const nv = Math.max(2, Math.min(4, Math.round(h / 22)));
+  for (let i = 0; i < nv; i++) {
+    const y = y0 - h + 8 + i * ((h - 16) / Math.max(1, nv - 1));
+    const l = opt.gross ? 22 : 13;
+    s += `<line class="s-vm" x1="${x0}" y1="${y}" x2="${x0 - seite * l}" y2="${y}"${opt.gross ? ' stroke-width="2.6"' : ""}/>`;
+  }
+  if (opt.beton) {
+    const xa = x0 + seite * Math.min(p - 10, 40);
+    s += `<line class="s-anker" x1="${xa}" y1="${y0 - 6}" x2="${xa}" y2="${y0 + 44}"/>`;
+    if (opt.scheibe) s += `<rect class="s-stahl" x="${Math.min(xa, x0) + (seite < 0 ? -6 : 0)}" y="${y0 - 6}" width="${Math.abs(xa - x0) + 6}" height="5"/>`;
+  } else {
+    const n = Math.max(1, Math.min(3, Math.round(p / 30)));
+    for (let i = 0; i < n; i++) {
+      const x = x0 + seite * (10 + i * ((p - 18) / Math.max(1, n)));
+      s += `<line class="s-vm" x1="${x}" y1="${y0}" x2="${x}" y2="${y0 + (opt.gross ? 24 : 14)}"${opt.gross ? ' stroke-width="2.6"' : ""}/>`;
+    }
+    if (opt.vgs) for (let i = 0; i < 2; i++) {
+      const x = x0 + seite * (14 + i * 18);
+      s += `<line class="s-vm" x1="${x}" y1="${y0}" x2="${x}" y2="${y0 + 42}" stroke-width="2.6"/>`;
+    }
+  }
+  return s;
+}
+
+function skizzeWinkel(w) {
+  // w: { hh: {H,P,typ,...} | null, hb: {H,P,typ,...} | null, xylofon, hrb }
+  const beton = !!w.hb, holz = !!w.hh;
+  let s = "";
+  // Untergrund: links Holzdecke, rechts Beton (falls vorhanden)
+  if (holz) s += `<rect class="s-holz2" x="4" y="${BODEN}" width="${beton ? 156 : 312}" height="34"/>`
+               + `<path class="s-lage" d="M4 ${BODEN + 11} H${beton ? 160 : 316} M4 ${BODEN + 23} H${beton ? 160 : 316}"/>`;
+  if (beton) s += `<rect class="s-beton" x="${holz ? 160 : 4}" y="${BODEN}" width="${holz ? 156 : 312}" height="52"/>`;
+  if (w.hrb) s += `<rect class="s-holz" x="${WAND_L - 6}" y="${BODEN - 30}" width="${WAND_R - WAND_L + 12}" height="30"/>`;
+  // Wand bzw. Ständer mit Schwelle
+  const top = 4, unten = w.hrb ? BODEN - 30 : BODEN;
+  s += `<rect class="s-holz" x="${WAND_L}" y="${top}" width="${WAND_R - WAND_L}" height="${unten - top}"/>`;
+  if (!w.hrb) s += `<path class="s-lage" d="M${WAND_L + 16} ${top} V${unten} M${WAND_R - 16} ${top} V${unten}"/>`;
+  if (w.xylofon) {
+    s += `<rect class="s-dicht" x="4" y="${BODEN - 4}" width="312" height="4"/>`;
+  }
+  const hbx = w.xylofon ? 4 : 0;
+  if (holz) s += winkel(-1, w.hh.H, w.hh.P, { ...w.hh, hb: hbx });
+  if (beton) s += winkel(holz ? 1 : -1, w.hb.H, w.hb.P, { ...w.hb, beton: true, hb: hbx });
+  // Beschriftung der Typen unter dem Untergrund
+  // Beschriftung oben in den Ecken, damit sie nichts überdeckt
+  if (holz) s += `<text class="s-text" x="6" y="14">${w.hh.typ}</text><text class="s-text" x="6" y="${BODEN + 30}">${beton ? "Holz" : "Holz–Holz"}</text>`;
+  if (beton) s += `<text class="s-text" x="${holz ? 314 : 6}" y="14" text-anchor="${holz ? "end" : "start"}">${w.hb.typ}</text>`
+                + `<text class="s-text" x="314" y="${BODEN + 48}" text-anchor="end">Beton</text>`;
+  return `<svg viewBox="0 0 320 196" role="img" aria-label="Schnitt ${esc(w.titel || "")}">${s}</svg>`;
+}
+
+// Symbolskizzen für Zugplatten, Balkenträger und BSP (wie bisher, fest gezeichnet)
+const SYMBOLE = {
+  "zug-beton": `<rect class="s-beton" x="4" y="112" width="312" height="62"/>
+    <rect class="s-holz" x="118" y="6" width="84" height="106"/><path class="s-lage" d="M146 6 V112 M174 6 V112"/>
+    <rect class="s-stahl" x="138" y="22" width="44" height="122"/>
+    <line class="s-vm" x1="150" y1="36" x2="150" y2="36"/><circle cx="150" cy="38" r="2.2" fill="#1f4e79"/><circle cx="170" cy="38" r="2.2" fill="#1f4e79"/>
+    <circle cx="150" cy="56" r="2.2" fill="#1f4e79"/><circle cx="170" cy="56" r="2.2" fill="#1f4e79"/><circle cx="150" cy="74" r="2.2" fill="#1f4e79"/><circle cx="170" cy="74" r="2.2" fill="#1f4e79"/>
+    <line class="s-anker" x1="160" y1="126" x2="160" y2="168"/>
+    <path class="s-kraft" d="M240 90 V30"/><path class="s-spitze" d="M240 22 l-5 9 h10 z"/>
+    <text class="s-text" x="160" y="182" text-anchor="middle">BSP-Wand auf Beton</text>`,
+  "zug-holz": `<rect class="s-holz" x="118" y="4" width="84" height="64"/><path class="s-lage" d="M146 4 V68 M174 4 V68"/>
+    <rect class="s-holz2" x="4" y="68" width="312" height="40"/><path class="s-lage" d="M4 81 H316 M4 95 H316"/>
+    <rect class="s-holz" x="118" y="108" width="84" height="64"/><path class="s-lage" d="M146 108 V172 M174 108 V172"/>
+    <rect class="s-stahl" x="140" y="16" width="40" height="144"/>
+    <circle cx="152" cy="30" r="2.2" fill="#1f4e79"/><circle cx="168" cy="30" r="2.2" fill="#1f4e79"/><circle cx="152" cy="48" r="2.2" fill="#1f4e79"/><circle cx="168" cy="48" r="2.2" fill="#1f4e79"/>
+    <circle cx="152" cy="128" r="2.2" fill="#1f4e79"/><circle cx="168" cy="128" r="2.2" fill="#1f4e79"/><circle cx="152" cy="146" r="2.2" fill="#1f4e79"/><circle cx="168" cy="146" r="2.2" fill="#1f4e79"/>
+    <path class="s-kraft" d="M240 60 V20"/><path class="s-spitze" d="M240 12 l-5 9 h10 z"/>
+    <text class="s-text" x="270" y="92" text-anchor="middle">Decke</text>`,
+  "balken": `<rect class="s-holz2" x="20" y="8" width="62" height="166"/>
+    <rect class="s-holz" x="86" y="40" width="214" height="104"/>
+    <path class="s-blech" d="M82 48 H104 V136 H82"/><line class="s-vm" x1="96" y1="50" x2="96" y2="134" stroke-dasharray="4 4"/>
+    <line class="s-vm" x1="82" y1="66" x2="64" y2="66"/><line class="s-vm" x1="82" y1="92" x2="64" y2="92"/><line class="s-vm" x1="82" y1="118" x2="64" y2="118"/>
+    <circle cx="112" cy="70" r="3" class="s-stahl"/><circle cx="112" cy="114" r="3" class="s-stahl"/>
+    <path class="s-kraft" d="M200 6 V30"/><path class="s-spitze" d="M200 38 l-5 -9 h10 z"/>
+    <text class="s-text" x="51" y="182" text-anchor="middle">Hauptträger</text><text class="s-text" x="200" y="160" text-anchor="middle">Nebenträger</text>`,
+  // ALUMEGA nach megaSide() im Werkzeug: Verbinder verdeckt im Hirnholzende des Nebenträgers (Fuge 4 mm).
+  // HP: Rücken am Hauptträger + Schwert, horizontale HBS PLATE Ø10; JV: Rücken im Nebenträger + Schwert,
+  // Schrauben 45° nach unten; MEGABOLT M12 durch beide Schwerter.
+  "scharnier": `<rect class="s-holz2" x="20" y="8" width="62" height="166"/>
+    <rect class="s-holz" x="86" y="36" width="218" height="112"/>
+    <line class="s-vm" x1="82" y1="66" x2="40" y2="66"/><line class="s-vm" x1="82" y1="92" x2="40" y2="92"/><line class="s-vm" x1="82" y1="118" x2="40" y2="118"/>
+    <line class="s-vm" x1="127" y1="60" x2="165" y2="98"/><line class="s-vm" x1="127" y1="86" x2="165" y2="124"/>
+    <rect x="82" y="50" width="6" height="84" fill="#8e979f" stroke="#1f4e79" stroke-width="1"/>
+    <rect x="88" y="50" width="27" height="84" fill="#dfe6ee" stroke="#1f4e79" stroke-width="1"/>
+    <rect x="96" y="50" width="26" height="84" fill="#dfe6ee" fill-opacity=".6" stroke="#1f4e79" stroke-width="1"/>
+    <rect x="122" y="50" width="5" height="84" fill="#8e979f" stroke="#1f4e79" stroke-width="1"/>
+    <circle cx="106" cy="66" r="3.6" fill="#1f4e79"/><circle cx="106" cy="92" r="3.6" fill="#1f4e79"/><circle cx="106" cy="118" r="3.6" fill="#1f4e79"/>
+    <path class="s-kraft" d="M230 4 V24"/><path class="s-spitze" d="M230 32 l-5 -9 h10 z"/>
+    <text class="s-text" x="51" y="186" text-anchor="middle">Hauptträger</text>
+    <text class="s-text" x="85" y="162" text-anchor="middle">HP</text><text class="s-text" x="125" y="162" text-anchor="middle">JV</text>
+    <text class="s-text" x="230" y="96" text-anchor="middle">Nebenträger</text>`,
+  "bsp-wand": `<rect class="s-holz2" x="4" y="110" width="312" height="56"/><path class="s-lage" d="M4 128 H316 M4 148 H316"/>
+    <rect class="s-holz" x="136" y="6" width="48" height="104"/><path class="s-lage" d="M152 6 V110 M168 6 V110"/>
+    <line class="s-vm" x1="118" y1="40" x2="170" y2="158" stroke-width="2.6"/><line class="s-vm" x1="202" y1="40" x2="150" y2="158" stroke-width="2.6"/>
+    <path class="s-kraft" d="M270 60 H214"/><path class="s-spitze" d="M206 60 l9 -5 v10 z"/>
+    <text class="s-text" x="160" y="180" text-anchor="middle">Wand auf Decke</text>`,
+  "bsp-stoss": `<rect class="s-holz2" x="4" y="58" width="154" height="62"/><rect class="s-holz" x="162" y="58" width="154" height="62"/>
+    <path class="s-lage" d="M4 79 H158 M4 99 H158 M162 79 H316 M162 99 H316"/>
+    <line class="s-vm" x1="112" y1="40" x2="208" y2="138" stroke-width="2.6"/><line class="s-vm" x1="208" y1="40" x2="112" y2="138" stroke-width="2.6"/>
+    <path class="s-kraft" d="M40 30 H92"/><path class="s-spitze" d="M100 30 l-9 -5 v10 z"/>
+    <path class="s-kraft" d="M280 150 H228"/><path class="s-spitze" d="M220 150 l9 -5 v10 z"/>
+    <text class="s-text" x="160" y="178" text-anchor="middle">stumpfer Stoß</text>`,
+  "schraube": `<rect class="s-stahl" x="40" y="78" width="18" height="28"/><line class="s-blech" x1="58" y1="92" x2="268" y2="92"/>
+    ${Array.from({ length: 22 }, (_, i) => `<line class="s-vm" x1="${66 + i * 9}" y1="82" x2="${72 + i * 9}" y2="102"/>`).join("")}
+    <path class="s-blech" d="M268 84 L284 92 L268 100"/>
+    <text class="s-text" x="160" y="140" text-anchor="middle">Ø, M_y,k, f_ax,k, f_tens,k je ETA</text>`,
+  "stahl-anschluss": `<rect class="s-stahl" x="40" y="8" width="12" height="168"/><rect class="s-stahl" x="100" y="8" width="12" height="168"/><rect class="s-stahl" x="52" y="88" width="48" height="8"/>
+    <rect class="s-stahl" x="112" y="44" width="10" height="96"/><rect class="s-stahl" x="122" y="52" width="180" height="10"/><rect class="s-stahl" x="122" y="122" width="180" height="10"/><rect class="s-stahl" x="122" y="62" width="180" height="60" style="opacity:.35"/>
+    ${[64, 84, 104].map((y) => `<line class="s-blech" x1="96" y1="${y}" x2="130" y2="${y}"/>`).join("")}`,
+  "holz-anschluss": `<rect class="s-beton" x="4" y="40" width="200" height="40"/><rect class="s-holz2" x="4" y="80" width="200" height="56"/><path class="s-lage" d="M4 99 H204 M4 118 H204"/>
+    <rect class="s-holz" x="212" y="40" width="80" height="140"/>
+    <line class="s-blech" x1="150" y1="80" x2="250" y2="150"/><line class="s-blech" x1="160" y1="80" x2="260" y2="150"/>`,
+};
+const skizzeSymbol = id => `<svg viewBox="0 0 320 184" role="img" aria-hidden="true">${SYMBOLE[id]}</svg>`;
+
+// ---------------------------------------------------------------- Daten
+// Neuer Nachweis: Eintrag ergänzen. Link: rothoblaas/index.html#produkt=<id>&a=hh|hb bzw. bsp/index.html#<reiter>.
+// Werte (kN, charakteristisch, Holzseite, ρk = 350 kg/m³) aus den Datentabellen in rothoblaas/index.html und bsp/index.html.
+const RB = "rothoblaas/index.html", BSP = "bsp/index.html", DK = "detailkatalog/index.html";
+const dk = (id) => DK + "#" + id;
+const rb = (p, a) => RB + "#produkt=" + p + (a ? "&a=" + a : "");
+
+const GRUPPEN = [
+  { id: "winkel", titel: "Winkelverbinder", werkzeug: ["Rothoblaas Verbinder", RB],
+    hinweis: "R charakteristisch je Winkel, Holzseite, ρk = 350 kg/m³; Höchstwert über Größen, Nagelbilder und LBA/LBS. Betonseite (Anker) weist das Werkzeug getrennt nach.",
+    eintraege: [
+    { titel: "NINO", ug: ["holz", "beton"], norm: "ETA-22/0089",
+      text: "Winkel für BSP und Holzrahmenbau, drei Größen.",
+      skizze: { hh: { H: 100, P: 78, typ: "NINO100100" }, hb: { H: 197, P: 122, typ: "NINO100200" } },
+      werte: [["Größen", "100100 · 15080 · 100200 (H 77–197 mm)"],
+              ["Holz–Holz", "R<sub>1</sub> bis <b>41,2</b> · R<sub>2/3</sub> bis <b>38,1</b> kN"],
+              ["Holz–Beton", "R<sub>1</sub> bis <b>34,7</b> · R<sub>2/3</sub> bis <b>26,7</b> kN"],
+              ["Zwischenschicht", "H<sub>B</sub> bis 27 mm (Holz), bis 130 mm (Beton, NINO100200)"],
+              ["Holzrahmenbau", "Schwelle H<sub>SP</sub> ab 38 mm"]],
+      link: rb("nino"), varianten: [["Holz–Holz", rb("nino", "hh")], ["Holz–Beton", rb("nino", "hb")], ["+ XYLOFON", rb("ninox")]] },
+    { titel: "TITAN N", ug: ["holz", "beton"], norm: "ETA-11/0496",
+      text: "Schubwinkel für BSP-Wände; Zug F1 auf Beton nur mit Unterlegscheibe TCW.",
+      skizze: { hh: { H: 120, P: 93, typ: "TTN240" }, hb: { H: 120, P: 123, typ: "TCN240", scheibe: true } },
+      werte: [["Größen", "TTN240 · TCN200 · TCN240"],
+              ["Holz–Holz", "R<sub>1</sub> bis <b>16,2</b> · R<sub>2/3</sub> bis <b>58,0</b> kN"],
+              ["Holz–Beton", "R<sub>2/3</sub> bis <b>55,2</b> kN, mit TCW <b>82,6</b> kN; R<sub>1</sub> mit TCW bis <b>69,8</b> kN (Stahl)"],
+              ["Zwischenschicht", "H<sub>B</sub> bis 72 mm (Beton, Teilausnagelung)"],
+              ["Befestigung", "LBA Ø4 × 60 oder LBS Ø5 × 70; Anker M12/M16"]],
+      link: rb("titann"), varianten: [["Holz–Holz", rb("titann", "hh")], ["Holz–Beton", rb("titann", "hb")], ["+ XYLOFON", rb("titannx")]] },
+    { titel: "TITAN S", ug: ["holz", "beton"], norm: "ETA-11/0496",
+      text: "Schubwinkel mit HBS-PLATE-Schrauben Ø8 statt Nägeln.",
+      skizze: { hh: { H: 130, P: 130, typ: "TTS240", gross: true }, hb: { H: 130, P: 123, typ: "TCS240", gross: true, scheibe: true } },
+      werte: [["Größen", "TTS240 · TCS240"],
+              ["Holz–Holz", "R<sub>1</sub> <b>10,3</b> · R<sub>2/3</sub> <b>60,0</b> kN"],
+              ["Holz–Beton", "R<sub>2/3</sub> bis <b>70,3</b> kN, mit TCW <b>85,9</b> kN"],
+              ["Zwischenschicht", "H<sub>B</sub> bis 32 mm (Beton, Teilverschraubung)"],
+              ["Befestigung", "HBS PLATE Ø8 × 80; Anker M16"]],
+      link: rb("titans"), varianten: [["Holz–Holz", rb("titans", "hh")], ["Holz–Beton", rb("titans", "hb")], ["+ XYLOFON", rb("titansx")]] },
+    { titel: "TITAN F", ug: ["holz", "beton"], norm: "ETA-11/0496",
+      text: "Flacher Schubwinkel (H = 71 mm), auch für Holzrahmenbau auf Schwelle.",
+      skizze: { hrb: true, hh: { H: 71, P: 71, typ: "TTF200" }, hb: { H: 71, P: 103, typ: "TCF200" } },
+      werte: [["Größen", "TTF200 · TCF200"],
+              ["Holz–Holz", "R<sub>2/3</sub> bis <b>55,1</b> kN (kein Zug F1)"],
+              ["Holz–Beton", "R<sub>2/3</sub> bis <b>51,8</b> kN (kein Zug F1)"],
+              ["Zwischenschicht", "H<sub>B</sub> bis 14 mm, Pattern 1 auf Beton bis 28 mm"],
+              ["Holzrahmenbau", "Schwelle H<sub>SP</sub> ab 45 mm (Pattern 2) bis 80 mm (full)"]],
+      link: rb("titanf"), varianten: [["Holz–Holz", rb("titanf", "hh")], ["Holz–Beton", rb("titanf", "hb")], ["+ XYLOFON", rb("titanfx")]] },
+    { titel: "TITAN V", ug: ["holz"], norm: "ETA-11/0496",
+      text: "Winkel für Schub und Zug, mit VGS-Schrauben in die Decke; nur Holz–Holz.",
+      skizze: { hh: { H: 120, P: 83, typ: "TTV240", vgs: true }, hb: null },
+      werte: [["Größe", "TTV240 (240 × 120 × 83 mm, t = 4 mm)"],
+              ["Holz–Holz", "R<sub>1</sub> bis <b>101,0</b> · R<sub>2/3</sub> bis <b>73,1</b> kN"],
+              ["Zug R<sub>1</sub>", "51,3–101,0 kN je nach Anzahl VGS (2 oder 5) und Länge 150/200 mm"],
+              ["Befestigung", "LBA Ø4 × 60 oder LBS Ø5 × 70 + VGS"]],
+      link: rb("titanv"), varianten: [["Holz–Holz", rb("titanv", "hh")], ["+ XYLOFON", rb("titanvx")]] },
+  ]},
+  { id: "xylofon", titel: "Winkelverbinder mit Schalldämmprofil XYLOFON", werkzeug: ["Rothoblaas Verbinder", RB],
+    hinweis: "XYLOFON PLATE (s = 6 mm) unter dem Winkel mindert Tragfähigkeit und Steifigkeit; das Werkzeug setzt die abgeminderten Werte an.",
+    eintraege: [
+    { titel: "NINO + XYLOFON PLATE", ug: ["holz"], norm: "ETA-22/0089",
+      text: "NINO auf Schalldämmprofil, Holz–Holz.",
+      skizze: { xylofon: true, hh: { H: 100, P: 78, typ: "NINO100100" }, hb: null },
+      werte: [["R<sub>2/3</sub> mit XYLOFON", "bis <b>34,6</b> kN"],
+              ["ohne XYLOFON", "bis 38,1 kN"]],
+      link: rb("ninox") },
+    { titel: "TITAN + XYLOFON PLATE", ug: ["holz"], norm: "ETA-11/0496",
+      text: "TITAN N, S, F oder V auf Schalldämmprofil, Holz–Holz.",
+      skizze: { xylofon: true, hh: { H: 120, P: 93, typ: "TTN240 · TTS240 · TTF200 · TTV240" }, hb: null },
+      werte: [["R<sub>2/3</sub> mit XYLOFON", "N <b>43,8</b> · S <b>35,7</b> · F <b>45,1</b> · V <b>61,0</b> kN"],
+              ["ohne XYLOFON", "N 58,0 · S 60,0 · F 55,1 · V 73,1 kN"]],
+      link: rb("titannx"), varianten: [["TITAN N", rb("titannx")], ["S", rb("titansx")], ["F", rb("titanfx")], ["V", rb("titanvx")]] },
+  ]},
+  { id: "zug", titel: "Zugplatten", werkzeug: ["Rothoblaas Verbinder", RB],
+    hinweis: "R charakteristisch, Holzseite, ρk = 350 kg/m³; Stahlplatte und Betonseite im Werkzeug.",
+    eintraege: [
+    { titel: "WHT PLATE C", ug: ["beton"], norm: "EN 14545 · ETA-11/0030",
+      text: "Zuganker Holz–Beton, BSP-Wand oder Holzrahmenbau auf Bodenplatte.", symbol: "zug-beton",
+      werte: [["Größen", "WHTPLATE440 (60 × 440) · WHTPLATE540 (140 × 540)"],
+              ["Zug R<sub>1</sub>", "Holz bis <b>84,9</b> kN, Stahl bis <b>70,6</b> kN"],
+              ["Beton", "Bauteildicke ab 150 mm, Anker M16; R<sub>1,d</sub> bis 44,1 kN (ungerissen)"],
+              ["Holzrahmenbau", "Ständer ab 60 mm breit (WHTPLATE440)"]],
+      link: rb("whtc") },
+    { titel: "WHT PLATE T", ug: ["holz"], norm: "EN 14545 · ETA-11/0030",
+      text: "Zugstoß Holz–Holz, Wand über Decke oder Decke an Decke.", symbol: "zug-holz",
+      werte: [["Größen", "WHTPT300 bis WHTPT820 (H 300–826 mm)"],
+              ["Zug R<sub>1</sub>", "Holz <b>23,0</b> bis <b>202,7</b> kN, Stahl 34,0 bis 206,6 kN"],
+              ["Decke", "Abstand der Holzbauteile bis 252 mm (WHTPT820)"],
+              ["Befestigung", "HBS PLATE Ø8 × 80/100"]],
+      link: rb("whtt") },
+  ]},
+  { id: "balken", titel: "Balkenträger", werkzeug: ["Rothoblaas Verbinder", RB],
+    hinweis: "R<sub>v,k</sub> charakteristisch, Holzseite, ρk = 385 kg/m³ (GL24h); Höchstwert über Höhen, Dübel und Befestigung.",
+    eintraege: [
+    { titel: "ALUMINI", ug: ["holz", "beton"], norm: "ETA-09/0361", symbol: "balken",
+      text: "Verdeckter Balkenträger für kleine Nebenträger.",
+      werte: [["Höhe", "H 65–215 mm, Nebenträger b ≥ 60 mm"],
+              ["Querkraft", "R<sub>v,k</sub> bis <b>36,5</b> kN"],
+              ["Beton", "mit Schraubanker ab H = 125 mm"],
+              ["Material", "EN AW-6060, t = 6 mm"]],
+      link: rb("alumini") },
+    { titel: "ALUMIDI", ug: ["holz", "beton"], norm: "ETA-09/0361", symbol: "balken",
+      text: "Verdeckter Balkenträger für mittlere Nebenträger.",
+      werte: [["Höhe", "H 80–440 mm, Nebenträger b 120–160 mm"],
+              ["Querkraft", "R<sub>v,k</sub> bis <b>154,9</b> kN"],
+              ["Beton", "VIN-FIX mit Gewindestange M8"],
+              ["Material", "EN AW-6005A, t = 6 mm"]],
+      link: rb("alumidi") },
+    { titel: "ALUMAXI", ug: ["holz", "beton"], norm: "ETA-09/0361", symbol: "balken",
+      text: "Verdeckter Balkenträger für große Nebenträger.",
+      werte: [["Höhe", "H 384–960 mm, Nebenträger b 160–200 mm"],
+              ["Querkraft", "R<sub>v,k</sub> bis <b>389,7</b> kN"],
+              ["Beton", "VIN-FIX mit Gewindestange M16"],
+              ["Material", "EN AW-6082, t = 8 mm"]],
+      link: rb("alumaxi") },
+    { titel: "ALUMEGA", ug: ["holz", "beton"], norm: "ETA-23/0824", symbol: "scharnier",
+      text: "Scharnierverbinder: HP/HV am Hauptträger oder an der Stütze, JV/JS im Nebenträger.",
+      werte: [["Höhe", "H 240–840 mm"],
+              ["Querkraft", "Aluminium bis <b>679</b> kN; HP Holzseite bis 562 kN"],
+              ["Beton", "HP mit VIN-FIX Ø12, R<sub>v</sub> bis 541 kN"],
+              ["Bolzen", "MEGABOLT M12, 4–14 Stück"]],
+      link: rb("alumega") },
+  ]},
+  { id: "detail", titel: "Anschlüsse aus dem Detailkatalog", werkzeug: ["Nachweise zum Detailkatalog", DK],
+    hinweis: "Skizze, Geometrie und Bemessungswerte R<sub>d</sub> kommen aus dem <a href=\"https://fabian-boettinger.github.io/detailkatalog/\">Detailkatalog</a>; das Werkzeug ergänzt E<sub>d</sub>, Ausnutzung und Protokoll. Braucht Internet (bzw. den lokalen Katalog-Server).",
+    eintraege: [
+    { titel: "DK-HO-02 Deltabeam auf BauBuche-Stütze", ug: ["holz"], norm: "DIN EN 1995-1-1 · ETA-14/0354 · DIN EN 1993-1-8", symbol: "holz-anschluss",
+      text: "Schlitzblech mit Stabdübeln, Montagezustand mit einseitiger Last.",
+      werte: [["Nachweise", "T<sub>Rd</sub> Stabdübelgruppe, F<sub>Ed,max</sub>, Kopfplatte auf Hirnholz"], ["BauBuche", "f<sub>h</sub> × 0,8 in Schmalflächen (d ≥ 8)"]], link: dk("DK-HO-02") },
+    { titel: "DK-HO-03 Deltabeam-Randträger mit HBV-Decke", ug: ["holz", "beton"], norm: "DIN EN 1992-1-1 · DIN EN 1995-1-1 · ETA-14/0349 · ETA-13/0699 · ETA-19/0244", symbol: "holz-anschluss",
+      text: "Torsion über Anschlussbewehrung in Taschen, BSP auf dem Untergurt.",
+      werte: [["Nachweise", "Z<sub>Rd</sub>, m<sub>T,Rd</sub>, Querdruck, Rollschub im Restquerschnitt"], ["HBV", "SFS VB · Rothoblaas CTC: F<sub>v,Rd</sub>, K<sub>ser</sub> je Paar"]], link: dk("DK-HO-03") },
+    { titel: "DK-HO-04 HBV-Decke auf BSP-Außenwand", ug: ["holz"], norm: "DIN EN 1995-1-1 · ETA-11/0190 · ETA-11/0030 · ETA-14/0349 · ETA-13/0699 · ETA-19/0244", symbol: "bsp-wand",
+      text: "Plattformbauweise, Querdruck und VG-Schrauben Wand–Decke.",
+      werte: [["Nachweise", "Querdruck, Wandkrone, F<sub>ax,Rd</sub> je Schraube"], ["Schrauben", "allgemein · ASSY plus VG · VGZ · VGS"], ["HBV", "SFS VB · Rothoblaas CTC"]], link: dk("DK-HO-04") },
+    { titel: "DK-HO-05 HBV-Decke seitlich an BSH-Unterzug", ug: ["holz"], norm: "DIN EN 1995-1-1 · ETA-11/0190 · ETA-11/0030 · ETA-14/0349", symbol: "holz-anschluss",
+      text: "Schräge Vollgewindeschrauben von der BSP-Oberseite in den BSH bzw. die BauBuche.",
+      werte: [["Nachweise", "Herausziehen BSP / BSH, Stahlzug, je m Fuge"], ["Schrauben", "allgemein · ASSY plus VG · VGZ · VGS"]], link: dk("DK-HO-05") },
+    { titel: "DK-ST-01 Trägeranschluss mit Fahnenblech", ug: ["stahl"], norm: "DIN EN 1993-1-8", symbol: "stahl-anschluss",
+      text: "Gelenkiger Trägeranschluss mit Fahnenblech am Stützenflansch.",
+      werte: [["Nachweise", "Abscheren, Lochleibung, Blech, Kehlnähte"]], link: dk("DK-ST-01") },
+    { titel: "DK-ST-02 Trägeranschluss mit kurzer Stirnplatte", ug: ["stahl"], norm: "DIN EN 1993-1-8", symbol: "stahl-anschluss",
+      text: "Gelenkiger Stirnplattenanschluss an den Stützenflansch.",
+      werte: [["Nachweise", "Abscheren, Lochleibung, Steg- und Plattenschub, Nähte"]], link: dk("DK-ST-02") },
+    { titel: "DK-ST-03 Biegesteifer Stirnplattenstoß", ug: ["stahl"], norm: "DIN EN 1993-1-8", symbol: "stahl-anschluss",
+      text: "Überstehende Stirnplatte, vereinfachtes Komponentenmodell.",
+      werte: [["Nachweise", "F<sub>t,Rd</sub> je Reihe, F<sub>c,Rd</sub>, M<sub>j,Rd</sub>, V<sub>Rd</sub>"]], link: dk("DK-ST-03") },
+    { titel: "DK-ST-04 Laschenstoß eines Flachstahls", ug: ["stahl"], norm: "DIN EN 1993-1-8", symbol: "stahl-anschluss",
+      text: "Zweischnittiger Zugstoß mit Laschen.",
+      werte: [["Nachweise", "N<sub>Rd</sub>: Schrauben, Lochleibung, Nettoquerschnitt"]], link: dk("DK-ST-04") },
+    { titel: "DK-ST-05 HEB-Nebenträger an DELTABEAM", ug: ["stahl"], norm: "DIN EN 1993-1-8", symbol: "stahl-anschluss",
+      text: "Fahnenblech am Deltabeam-Randträger.",
+      werte: [["Nachweise", "Abscheren, Lochleibung, Fahnenblech, Nähte"]], link: dk("DK-ST-05") },
+  ]},
+  { id: "bsp", titel: "BSP-Schraubenverbindungen", werkzeug: ["BSP-Schraubenverbindungen (Würth / Rothoblaas)", BSP],
+    hinweis: "Vollgewindeschrauben Würth ASSY plus VG und Rothoblaas VGZ/VGS; BSP nach ETA-14/0349.",
+    eintraege: [
+    { titel: "Wand–Decke, Schubschrauben", ug: ["holz"], norm: "ETA-11/0190 · ETA-11/0030 · ETA-14/0349", symbol: "bsp-wand",
+      text: "Geneigte Vollgewindeschrauben von der Wand in die Decke.",
+      werte: [["Nachweise", "Herausziehen, Abscheren, Druckschrauben, Steifigkeit, Mindestabstände"],
+              ["Schrauben", "ASSY plus VG Ø6–14 · VGZ Ø7–13 · VGS Ø9–13"]],
+      link: BSP + "#wd" },
+    { titel: "Stumpfer Deckenstoß", ug: ["holz"], norm: "ETA-11/0190 · ETA-11/0030 · ETA-14/0349", symbol: "bsp-stoss",
+      text: "Gekreuzte Schraubenpaare in der stumpfen Fuge zweier Deckenplatten.",
+      werte: [["Nachweise", "Herausziehen lagenweise, Abscheren, Schraubenkräfte je Paar"],
+              ["Brandschutz", "Fuge mit diagonalen VG-Schrauben a ≤ 250 mm raumabschließend"]],
+      link: BSP + "#ds" },
+    { titel: "Verbindungsmittel-Bibliothek", ug: ["holz"], norm: "Würth ASSY · Rothoblaas VGZ/VGS", symbol: "schraube",
+      text: "Kennwerte der Schrauben nach ETA, im Werkzeug anpassbar.",
+      werte: [["Kennwerte", "M<sub>y,k</sub>, f<sub>tens,k</sub>, f<sub>ax,k</sub>, d<sub>1</sub>, Längen"]],
+      link: BSP + "#lib" },
+  ]},
+];
+
+// ---------------------------------------------------------------- Darstellung
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const ohneTags = s => String(s).replace(/<[^>]+>/g, "");
+const UG = { holz: "Holz–Holz", beton: "Holz–Beton", stahl: "Stahl–Stahl" };
+let kategorie = "alle", untergrund = "alle";
+
+// Texte in GRUPPEN sind eigene Daten (mit <sub>/<b>), keine Nutzereingaben
+function kachel(e) {
+  const bild = e.skizze ? skizzeWinkel({ ...e.skizze, titel: e.titel }) : skizzeSymbol(e.symbol);
+  const v = (e.varianten || []).map(([t, h]) => `<a href="${esc(h)}">${esc(t)}</a>`).join("");
+  return `<article class="kachel">
+    <span class="vorschau">${bild}</span>
+    <div class="kachel-text">
+      <div class="kachel-titel"><a href="${esc(e.link)}">${esc(e.titel)}</a></div>
+      <div class="badges">${e.ug.map(u => `<span class="badge ${u}">${UG[u]}</span>`).join("")}</div>
+      <p>${e.text}</p>
+      <dl class="werte">${e.werte.map(([k, w]) => `<dt>${k}</dt><dd>${w}</dd>`).join("")}</dl>
+      <span class="norm">${esc(e.norm)}</span>
+      ${v ? `<div class="varianten">${v}</div>` : ""}
+    </div>
+  </article>`;
+}
+
+function zeige() {
+  const q = $("suche").value.trim().toLowerCase();
+  let treffer = 0;
+  $("inhalt").innerHTML = GRUPPEN.filter(g => kategorie === "alle" || g.id === kategorie).map(g => {
+    const liste = g.eintraege.filter(e =>
+      (untergrund === "alle" || e.ug.includes(untergrund)) &&
+      (!q || ohneTags([g.titel, e.titel, e.text, e.norm, e.ug.map(u => UG[u]).join(" "), ...e.werte.flat()].join(" ")).toLowerCase().includes(q)));
+    treffer += liste.length;
+    if (!liste.length) return "";
+    return `<section class="gruppe" aria-labelledby="g-${g.id}">
+      <div class="gruppe-kopf"><h2 id="g-${g.id}">${esc(g.titel)}</h2>
+        <span class="werkzeug">Werkzeug: <a href="${esc(g.werkzeug[1])}">${esc(g.werkzeug[0])}</a></span></div>
+      ${g.hinweis ? `<p class="gruppe-hinweis">${g.hinweis}</p>` : ""}
+      <div class="liste">${liste.map(kachel).join("")}</div>
+    </section>`;
+  }).join("");
+  $("leer").hidden = treffer > 0;
+}
+
+function chips(el, eintraege, aktuell, setze) {
+  el.innerHTML = eintraege.map(([id, t]) => `<button type="button" class="chip" data-id="${id}" aria-pressed="${id === aktuell}">${esc(t)}</button>`).join("");
+  el.addEventListener("click", ev => {
+    const b = ev.target.closest(".chip"); if (!b) return;
+    setze(b.dataset.id);
+    el.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c === b));
+    zeige();
+  });
+}
+chips($("chips-kat"), [["alle", "Alle"], ...GRUPPEN.map(g => [g.id, g.titel.replace(" mit Schalldämmprofil XYLOFON", " + XYLOFON")])], kategorie, v => kategorie = v);
+chips($("chips-ug"), [["alle", "Jeder Anschluss"], ["holz", "Holz–Holz"], ["beton", "Holz–Beton"], ["stahl", "Stahl–Stahl"]], untergrund, v => untergrund = v);
+$("suche").addEventListener("input", zeige);
+zeige();
+</script>
+</body>
+</html>

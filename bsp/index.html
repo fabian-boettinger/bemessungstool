@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BSP-Schraubenverbindungen – Würth / Rothoblaas</title>
+<style>
+:root{--ink:#1d2329;--mut:#66707a;--line:#d5dade;--bg:#f4f5f6;--card:#fff;--acc:#1f5f8b;--ok:#2e7d32;--bad:#c62828;--warn:#b26a00;--soft:#eef3f7}
+*{box-sizing:border-box}
+body{margin:0;font:13.5px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+header{background:#22303c;color:#fff;padding:10px 18px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+header h1{font-size:16px;margin:0 12px 0 0;font-weight:600}
+header label{font-size:11px;color:#b9c4cc;display:flex;flex-direction:column}
+header input{background:#2f3f4c;border:1px solid #3f5161;color:#fff;padding:4px 6px;border-radius:3px;width:140px}
+header .btns{margin-left:auto;display:flex;gap:6px}
+button{font:inherit;border:1px solid var(--line);background:#fff;padding:5px 11px;border-radius:4px;cursor:pointer}
+button:hover{background:var(--soft)}
+header button{background:#2f3f4c;border-color:#3f5161;color:#fff}
+header button:hover{background:#3b4e5e}
+nav{display:flex;gap:2px;padding:0 18px;background:#e6e9ec;border-bottom:1px solid var(--line)}
+nav button{border:none;border-radius:0;background:transparent;padding:9px 14px;color:var(--mut);border-bottom:3px solid transparent}
+nav button.on{color:var(--ink);border-bottom-color:var(--acc);font-weight:600}
+main{padding:14px 18px;max-width:1500px}
+.grid{display:grid;grid-template-columns:minmax(360px,440px) 1fr;gap:14px;align-items:start}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:12px}
+.card h2{font-size:13px;margin:0 0 8px;text-transform:uppercase;letter-spacing:.04em;color:var(--acc)}
+.f{display:grid;grid-template-columns:1fr 150px;gap:4px 8px;align-items:center;margin:3px 0}
+.f label{color:#38424b}
+.f small{color:var(--mut)}
+input,select{font:inherit;padding:3px 5px;border:1px solid #c3cad0;border-radius:3px;width:100%;background:#fff}
+input[type=checkbox]{width:auto}
+table{border-collapse:collapse;width:100%}
+th,td{border-bottom:1px solid #e3e6e9;padding:3px 5px;text-align:right;white-space:nowrap}
+th{font-weight:600;color:#38424b;background:#f7f8f9;font-size:12px}
+td:first-child,th:first-child{text-align:left}
+.lc input,.lc select{padding:2px 3px}
+.lc td{padding:2px 2px}
+.tag{display:inline-block;padding:0 6px;border-radius:9px;font-size:11px;font-weight:600}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.wrn{color:var(--warn)}
+.big{font-size:22px;font-weight:700}
+.flag{color:var(--warn);font-weight:700;cursor:help}
+.vok{color:var(--ok);cursor:help}
+.note{background:#fff8e6;border:1px solid #f0d9a6;border-radius:4px;padding:6px 9px;margin:6px 0;font-size:12.5px}
+.err{background:#fdecec;border-color:#f3b9b9}
+.mut{color:var(--mut)}
+svg text{font-family:inherit}
+.sum{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.hide{display:none}
+/* Protokoll */
+.prot{font-family:"Segoe UI",Arial,sans-serif;font-size:12.5px}
+.prot h3{font-size:13px;margin:14px 0 4px;border-bottom:1px solid #888;padding-bottom:2px}
+.prot .row{display:grid;grid-template-columns:1fr 150px;gap:10px}
+.prot .ref{color:#555;font-size:10.5px;border-left:1px solid #bbb;padding-left:6px}
+.prot .eq{margin:2px 0 2px 10px}
+.prot table th,.prot table td{font-size:11.5px}
+.prot .res{border:1.5px solid #333;padding:5px 8px;margin:8px 0;font-weight:600}
+.phead{display:none}
+@media print{
+ @page{size:A4;margin:15mm 14mm}
+ body{background:#fff}
+ header,nav,.noprint,.grid>div:first-child{display:none!important}
+ main{padding:0}
+ .grid{display:block}
+ .card{border:none;padding:0;margin:0}
+ .screen-only{display:none!important}
+ .phead{display:flex;justify-content:space-between;border-bottom:1.5px solid #000;margin-bottom:8px;padding-bottom:3px;font-size:11.5px}
+ .tab:not(.active){display:none!important}
+ .prot h3{break-after:avoid}
+ .prot table,.prot .row{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<header>
+ <h1>BSP-Schraubenverbindungen</h1>
+ <label>Projekt<input id="m_proj"></label>
+ <label>Position<input id="m_pos" placeholder="z. B. 108.101"></label>
+ <label>Bezeichnung<input id="m_bez" style="width:220px"></label>
+ <label>Bearbeiter<input id="m_bea" style="width:110px"></label>
+ <div class="btns">
+  <button id="bSave" title="Stand als JSON speichern (Dateiname = Position)">Speichern</button>
+  <button id="bLoad">Laden</button><input type="file" id="fLoad" accept=".json" class="hide">
+  <button onclick="window.print()">Drucken / PDF</button>
+ </div>
+</header>
+<nav>
+ <button data-tab="wd" class="on">Wand–Decke · Schubschrauben</button>
+ <button data-tab="ds">Stumpfer Deckenstoß · gekreuzte Schrauben</button>
+ <button data-tab="lib">Verbindungsmittel</button>
+ <button data-tab="info">Hinweise</button>
+</nav>
+<main>
+
+<!-- ================= Modul 1 ================= -->
+<section class="tab active" id="t_wd">
+<div class="grid">
+<div>
+ <div class="card"><h2>Geometrie</h2>
+  <div class="f"><label>Anschluss</label><select id="wd_geo"><option value="WaD">Wand auf Decke (schräg)</option><option value="DaW">Decke auf Wand</option></select></div>
+  <div class="f"><label>Wanddicke t<sub>Wa</sub> [mm]</label><input id="wd_tWa" type="number"></div>
+  <div class="f"><label>Deckendicke h<sub>De</sub> [mm]</label><input id="wd_hDe" type="number"></div>
+  <div class="f"><label>Wandlänge l [mm]</label><input id="wd_lWand" type="number"></div>
+  <div class="f gWaD"><label>Achsabstand Einschraubpunkt über Fuge a<sub>v</sub> [mm]</label><input id="wd_av" type="number"></div>
+  <div class="f gDaW"><label>verfügbare Tiefe in Wand (Schmalseite) [mm]</label><input id="wd_hWaTief" type="number"></div>
+  <div class="f"><label>Neigung φ zur Wandachse (vertikal) [°]</label><input id="wd_phi" type="number"></div>
+  <div class="f"><label>Anzahl Schrauben n</label><input id="wd_n" type="number"></div>
+  <div class="f"><label>Nutzungsklasse</label><select id="wd_nkl"><option>1</option><option>2</option><option>3</option></select></div>
+ </div>
+ <div class="card"><h2>Verbindungsmittel</h2>
+  <div class="f"><label>Produkt</label><select id="wd_prod"></select></div>
+  <div class="f"><label>Durchmesser d [mm]</label><select id="wd_d"></select></div>
+  <div class="f"><label>Länge L [mm]</label><input id="wd_L" type="number" list="wd_Ls"><datalist id="wd_Ls"></datalist></div>
+  <div class="f"><label>M<sub>y,k</sub> [Nm] <span id="wd_fMy"></span></label><input id="wd_My" type="number" step="0.1"></div>
+  <div class="f"><label>f<sub>tens,k</sub> [kN] <span id="wd_fft"></span></label><input id="wd_ft" type="number" step="0.1"></div>
+  <div class="f"><label>f<sub>ax,k</sub> [N/mm²] <span id="wd_ffax"></span></label><input id="wd_fax" type="number" step="0.1"></div>
+  <div class="f"><label>Kerndurchmesser d<sub>1</sub> [mm] <span id="wd_fd1"></span></label><input id="wd_d1" type="number" step="0.1"></div>
+  <div class="mut" style="font-size:11.5px">Werte aus der Bibliothek (gültige ETA); hier überschreibbar je Position. Abzug Kopfseite = gewindefreie Länge unter dem Kopf.</div>
+ </div>
+ <div class="card"><h2>Material / Parameter</h2>
+  <div class="f"><label>ρ<sub>k</sub> Bauteil 1 (Kopfseite) [kg/m³]</label><input id="wd_rho1" type="number"></div>
+  <div class="f"><label>ρ<sub>k</sub> Bauteil 2 (Spitze) [kg/m³]</label><input id="wd_rho2" type="number"></div>
+  <div class="f"><label>ρ<sub>m</sub> für K<sub>ser</sub> [kg/m³]</label><input id="wd_rhom" type="number"></div>
+  <div class="f"><label>Winkel Achse–Faser α<sub>1</sub> / α<sub>2</sub> [°]</label><div style="display:flex;gap:4px"><input id="wd_alpha1" type="number"><input id="wd_alpha2" type="number"></div></div>
+  <div class="f"><label>Lochleibung Bauteil 1</label><select id="wd_fhM1" class="fhsel"></select></div>
+  <div class="f wd_fh1m"><label>f<sub>h,1,k</sub> manuell [N/mm²]</label><input id="wd_fh1m" type="number" step="0.01"></div>
+  <div class="f"><label>Lochleibung Bauteil 2</label><select id="wd_fhM2" class="fhsel"></select></div>
+  <div class="f wd_fh2m"><label>f<sub>h,2,k</sub> manuell [N/mm²]</label><input id="wd_fh2m" type="number" step="0.01"></div>
+  <div class="f"><label>Abzug ℓ<sub>ef</sub> Kopf / Spitze [mm]</label><div style="display:flex;gap:4px"><input id="wd_abzK" type="number"><input id="wd_abzS" type="number"></div></div>
+  <div class="f"><label>wirksame Anzahl n<sub>ef</sub> axial</label><select id="wd_nefM"><option value="eta">nach Hersteller-ETA</option><option value="n">n<sub>ef</sub> = n (Scheibe/Diaphragma)</option></select></div>
+  <div class="f"><label>γ<sub>M</sub> Holz / γ<sub>M1</sub> Stahl</label><div style="display:flex;gap:4px"><input id="wd_gM" type="number" step="0.05"><input id="wd_gM1" type="number" step="0.05"></div></div>
+ </div>
+</div>
+<div>
+ <div class="card"><div class="phead"><span id="wd_ph1"></span><span id="wd_ph2"></span></div><div class="sum">
+  <svg id="wd_svg" width="420" height="300" viewBox="0 0 420 300"></svg>
+  <div class="screen-only"><div class="mut">max. Ausnutzung</div><div class="big" id="wd_eta">–</div><div id="wd_warn"></div></div>
+ </div></div>
+ <div class="card noprint"><h2>Bemessungslasten je Kombination (Summe über Wandlänge)</h2>
+  <table class="lc"><thead><tr><th>Ek / Bez.</th><th>KLED</th><th>F<sub>s,y,d</sub> [kN]<br><span class="mut">Schub in Wandebene</span></th><th>F<sub>p,z,d</sub> [kN]<br><span class="mut">⟂ Wandebene</span></th><th>F<sub>t,d</sub> [kN]<br><span class="mut">Abheben</span></th><th></th></tr></thead><tbody id="wd_lc"></tbody></table>
+  <button id="wd_add" style="margin-top:6px">+ Kombination</button>
+ </div>
+ <div class="card"><div class="prot" id="wd_prot"></div></div>
+</div>
+</div>
+</section>
+
+<!-- ================= Modul 2 ================= -->
+<section class="tab" id="t_ds">
+<div class="grid">
+<div>
+ <div class="card"><h2>BSP-Aufbau (von oben)</h2>
+  <div class="f"><label>Vorlage</label><select id="ds_preset"></select></div>
+  <table class="lc"><thead><tr><th>Lage</th><th>t [mm]</th><th>Faser</th><th></th></tr></thead><tbody id="ds_layers"></tbody></table>
+  <button id="ds_addL" style="margin-top:6px">+ Lage</button>
+  <div class="mut" style="font-size:11.5px;margin-top:4px">∥ = Faser parallel zur Fuge (α = 90°) · ⟂ = Faser quer zur Fuge (α = φ)</div>
+ </div>
+ <div class="card"><h2>Schraubenanordnung</h2>
+  <div class="f"><label>Einschraubwinkel φ zur Plattenebene [°]</label><input id="ds_phi" type="number"></div>
+  <div class="f"><label>Abstand Schraubenkopf – Fuge e [mm]</label><input id="ds_e" type="number"></div>
+  <div class="f"><label>Abstand der Schraubenpaare längs Fuge a<sub>x</sub> [mm]</label><input id="ds_ax" type="number"></div>
+  <div class="f"><label>a<sub>1,erf</sub> = Faktor · d</label><input id="ds_fa1" type="number"></div>
+  <div class="f"><label>Nutzungsklasse</label><select id="ds_nkl"><option>1</option><option>2</option><option>3</option></select></div>
+ </div>
+ <div class="card"><h2>Verbindungsmittel</h2>
+  <div class="f"><label>Produkt</label><select id="ds_prod"></select></div>
+  <div class="f"><label>Durchmesser d [mm]</label><select id="ds_d"></select></div>
+  <div class="f"><label>Länge L [mm]</label><input id="ds_L" type="number" list="ds_Ls"><datalist id="ds_Ls"></datalist></div>
+  <div class="f"><label>M<sub>y,k</sub> [Nm] <span id="ds_fMy"></span></label><input id="ds_My" type="number" step="0.1"></div>
+  <div class="f"><label>f<sub>tens,k</sub> [kN] <span id="ds_fft"></span></label><input id="ds_ft" type="number" step="0.1"></div>
+  <div class="f"><label>f<sub>ax,k</sub> [N/mm²] <span id="ds_ffax"></span></label><input id="ds_fax" type="number" step="0.1"></div>
+  <div class="f"><label>Kerndurchmesser d<sub>1</sub> [mm] <span id="ds_fd1"></span></label><input id="ds_d1" type="number" step="0.1"></div>
+ </div>
+ <div class="card"><h2>Material / Parameter</h2>
+  <div class="f"><label>ρ<sub>k</sub> [kg/m³]</label><input id="ds_rho" type="number"></div>
+  <div class="f"><label>Lochleibung</label><select id="ds_fhM" class="fhsel"></select></div>
+  <div class="f ds_fhm"><label>f<sub>h,k</sub> manuell [N/mm²]</label><input id="ds_fhm" type="number" step="0.01"></div>
+  <div class="f"><label>Abzug ℓ<sub>ef</sub> Kopf / Spitze [mm]</label><div style="display:flex;gap:4px"><input id="ds_abzK" type="number"><input id="ds_abzS" type="number"></div></div>
+  <div class="f"><label>γ<sub>M</sub> Holz / γ<sub>M1</sub> Stahl</label><div style="display:flex;gap:4px"><input id="ds_gM" type="number" step="0.05"><input id="ds_gM1" type="number" step="0.05"></div></div>
+ </div>
+</div>
+<div>
+ <div class="card"><div class="phead"><span id="ds_ph1"></span><span id="ds_ph2"></span></div><div class="sum">
+  <svg id="ds_svg" width="460" height="260" viewBox="0 0 460 260"></svg>
+  <div class="screen-only"><div class="mut">max. Ausnutzung</div><div class="big" id="ds_eta">–</div><div id="ds_warn"></div></div>
+ </div></div>
+ <div class="card noprint"><h2>Bemessungs-Fugenschnittgrößen je Kombination</h2>
+  <table class="lc"><thead><tr><th>Ek / Bez.</th><th>KLED</th><th>v<sub>x,d</sub> [kN/m]<br><span class="mut">Schub längs Fuge</span></th><th>n<sub>y,d</sub> [kN/m]<br><span class="mut">quer, Zug +</span></th><th>v<sub>z,d</sub> [kN/m]<br><span class="mut">Plattenquerkraft</span></th><th></th></tr></thead><tbody id="ds_lc"></tbody></table>
+  <button id="ds_add" style="margin-top:6px">+ Kombination</button>
+ </div>
+ <div class="card"><div class="prot" id="ds_prot"></div></div>
+</div>
+</div>
+</section>
+
+<!-- ================= Bibliothek ================= -->
+<section class="tab" id="t_lib">
+ <div class="card"><h2>Verbindungsmittel-Bibliothek</h2>
+  <p class="mut" style="margin-top:0">Änderungen werden im Browser gespeichert und gelten für neue Eingaben. <span class="vok">✓</span> = mit mb-BauStatik-Ausgabe bzw. ETA-Notiz abgeglichen, <span class="flag">⚠</span> = Vorbelegung, mit gültiger ETA prüfen.</p>
+  <div id="libtab"></div>
+  <button id="libReset" style="margin-top:8px">Bibliothek zurücksetzen</button>
+ </div>
+</section>
+
+<section class="tab" id="t_info">
+ <div class="card prot" style="max-width:900px"><h2>Rechengrundlagen und Grenzen</h2>
+ <h3>Zulassungen (Stand)</h3>
+ <p>Würth ETA-11/0190 vom 22.01.2026 · Rothoblaas ETA-11/0030 vom 20.08.2025 · Stora Enso CLT ETA-14/0349 vom 13.04.2026. mb BauStatik (Schule Hof) rechnete noch mit den älteren Würth-Kennwerten (z. B. M<sub>y,k</sub> = 36 Nm für d = 10 statt jetzt 40 Nm).</p>
+ <p><b>Würth f<sub>ax,k</sub>:</b> Tab. A.2.4 nennt Werte für „ASSY 4 VG“ (d 8: 12,0 / d 10: 11,5 / d 12: 11,0 N/mm²). Ob das die ASSY plus VG ist, geht aus der ETA nicht eindeutig hervor; vorbelegt sind daher die Werte „Andere Schrauben“ (d 6: 11,5 / d 8–10: 11,0 / d 12–14: 10,0). Bei Bestätigung durch Würth in der Bibliothek anpassen.</p>
+ <h3>Wand–Decke (entspricht mb S492)</h3>
+ <p>F<sub>p,z</sub> senkrecht zur Wand wird als Fachwerk abgetragen: F<sub>ax</sub> = F<sub>p,z</sub>/(n·sin φ), Vertikalkomponente über Kontakt. F<sub>s,y</sub> → Abscheren F<sub>v</sub> = F<sub>s,y</sub>/n. Bei φ = 0 beide Horizontalkräfte als Abscheren. Optional F<sub>t</sub> (Abheben) zusätzlich axial.</p>
+ <p>Herausziehen je Bauteil: k<sub>ax</sub>·f<sub>ax,k</sub>·d·ℓ<sub>ef</sub>·(ρ<sub>k</sub>/350)<sup>0,8</sup>; k<sub>ax</sub> = 1 ab 30° (Würth) bzw. 45° (Rothoblaas). ℓ<sub>ef</sub> Kopfseite abzüglich gewindefreier Länge a unter dem Senkkopf. Wirksame Anzahl: Würth n<sub>ef</sub> = n für n ≤ 10, sonst 0,9·n; Rothoblaas max(n<sup>0,9</sup>; 0,9·n), bei Schubverbindungen von Wandscheiben/Diaphragmen n<sub>ef</sub> = n (wählbar).</p>
+ <p>Druckschrauben: min(Eindrücken = Herausziehwiderstand; κ<sub>c</sub>·N<sub>pl,k</sub>/γ<sub>M1</sub>) mit elastischer Bettung c<sub>h</sub> = (0,19 + 0,012·d)·ρ<sub>k</sub>·(90° + α)/180°; f<sub>y,k</sub> = 900 (Würth) bzw. 1000 N/mm² (Rothoblaas).</p>
+ <p>Abscheren nach DIN EN 1995-1-1, Gl. (8.6) a–f, Einhängeeffekt ≤ 100 % Johansen. Lochleibung BSP: Schmalfläche f<sub>h</sub> = 20·d<sup>−0,5</sup> (beide ETAs); Seitenfläche wie Vollholz 0,082·ρ<sub>k</sub>·d<sup>−0,3</sup>/(2,5cos²α+sin²α) – Würth mit ρ<sub>k</sub> der Decklage, Rothoblaas mit 110 % der kleinsten Lagenrohdichte.</p>
+ <p>Steifigkeit lateral K<sub>ser</sub> = ρ<sub>m</sub><sup>1,5</sup>·d/23; axial je Schnittufer Würth 1250·d<sup>0,2</sup>·ℓ<sub>ef</sub><sup>0,4</sup>·ρ<sub>m</sub><sup>0,2</sup>, Rothoblaas 25·d·ℓ<sub>ef</sub>; beide Ufer in Reihe.</p>
+ <h3>Deckenstoß (entspricht mb S280)</h3>
+ <p>Je Paar im Abstand a<sub>x</sub>: F<sub>la</sub> = V<sub>x</sub>/2; T<sub>1,2</sub> = ½·(N/cos φ ± V/sin φ). Herausziehen lagenweise anteilig, maßgebend schwächere Plattenseite; n<sub>ef</sub> = n (kontinuierliche Verbindung). Mindestabstand Seitenfläche a<sub>1</sub> = 4·d (mb setzte 10·d an). Brandschutz: stumpfe Fuge mit diagonalen VG-Schrauben a ≤ 250 mm gilt nach ETA-14/0349 als raumabschließend ohne Dichtband.</p>
+ <h3>Nicht enthalten</h3>
+ <p>Kontaktpressung/Druckzone, Rand- und Endabstände am konkreten Bauteil (Öffnungen, Wandenden), Kopfdurchziehen bei Stahlblechen, Brandbemessung der Verbindung, Gebrauchstauglichkeit.</p>
+ </div>
+</section>
+</main>
+
+<script>
+// Rechenkern Schraubenverbindungen BSP – DIN EN 1995-1-1 + NA, Hersteller-ETA
+// Stand Kennwerte: ETA-11/0190 (Würth) vom 22.01.2026, ETA-11/0030 (Rothoblaas) vom 20.08.2025,
+//                  ETA-14/0349 (Stora Enso CLT) vom 13.04.2026
+// Einheiten intern: N, mm; Ausgabe kN
+const KMOD = {
+  "ständig": [0.6, 0.6, 0.5], "lang": [0.7, 0.7, 0.55], "mittel": [0.8, 0.8, 0.65],
+  "kurz": [0.9, 0.9, 0.7], "sehr kurz": [1.1, 1.1, 0.9], "kurz/sehr kurz": [1.0, 1.0, 0.8]
+};
+function kmodOf(kled, nkl) { return KMOD[kled][nkl - 1]; }
+
+// v = Wert aus gültiger ETA übernommen; a = gewindefreie Länge unter Senkkopf (max) [mm]
+const V3 = { My: 1, ft: 1, fax: 1, d1: 1, a: 1 };
+const LIB = {
+  assy: {
+    name: "Würth ASSY plus VG (Vollgewinde, Senkkopf)", eta: "ETA-11/0190 v. 22.01.2026", model: "W", fy: 900,
+    d: {
+      6:  { My: 9.0,  ft: 11.5, fax: 11.5, d1: 3.8, a: 12, v: V3 },
+      8:  { My: 23.0, ft: 22.0, fax: 11.0, d1: 5.0, a: 14, v: V3 },
+      10: { My: 40.0, ft: 33.0, fax: 11.0, d1: 6.2, a: 18, v: V3 },
+      12: { My: 62.0, ft: 47.0, fax: 10.0, d1: 7.1, a: 21, v: V3 },
+      14: { My: 86.0, ft: 62.0, fax: 10.0, d1: 8.5, a: 27, v: V3 }
+    },
+    L: { 6: [100,120,140,160,180,200,220,240,260,280,300], 8: [160,180,200,220,240,260,280,300,330,360,380,400,430,480,520,600], 10: [200,220,240,260,280,300,330,360,400,450,500,550,600,700,800], 12: [200,240,280,300,340,380,400,480,500,600,800,1000], 14: [200,300,400,500,600,800,1000,1200,1500] }
+  },
+  vgz: {
+    name: "Rothoblaas VGZ (Vollgewinde, Zylinderkopf)", eta: "ETA-11/0030 v. 20.08.2025", model: "R", fy: 1000,
+    d: {
+      7:  { My: 14.2, ft: 15.4, fax: 11.7, d1: 4.6, a: 10, v: V3 },
+      9:  { My: 27.2, ft: 25.4, fax: 11.7, d1: 5.9, a: 10, v: V3 },
+      11: { My: 45.9, ft: 38.0, fax: 11.7, d1: 6.6, a: 10, v: V3 },
+      13: { My: 70.9, ft: 53.0, fax: 11.7, d1: 8.0, a: 15, v: V3 }
+    },
+    L: { 7: [80,100,120,140,160,180,200,220,240,260,280,300,340,380,400], 9: [160,180,200,220,240,260,280,300,320,340,360,380,400,440,480,520,560,600], 11: [150,200,250,275,300,325,350,375,400,450,500,550,600,800,1000], 13: [200,300,400,500,600,700,800,1000,1200,1500] }
+  },
+  vgs: {
+    name: "Rothoblaas VGS (Vollgewinde, Senkkopf)", eta: "ETA-11/0030 v. 20.08.2025", model: "R", fy: 1000,
+    d: {
+      9:  { My: 27.2, ft: 25.4, fax: 11.7, d1: 5.9, a: 10, v: V3 },
+      11: { My: 45.9, ft: 38.0, fax: 11.7, d1: 6.6, a: 10, v: V3 },
+      13: { My: 70.9, ft: 53.0, fax: 11.7, d1: 8.0, a: 15, v: V3 }
+    },
+    L: { 9: [160,180,200,220,240,260,280,300,320,340,360,380,400,440,480,520,560,600], 11: [150,200,250,275,300,325,350,375,400,450,500,550,600,800,1000], 13: [200,300,400,500,600,700,800,1000,1200,1500] }
+  }
+};
+
+// k_ax: Würth 2026 → 1,0 ab 30°, darunter 0,3 + 0,7·α/30; Rothoblaas 2025 → 1,0 ab 45°, darunter 0,3 + 0,7·α/45
+function kaxOf(model, alphaDeg) {
+  const lim = model === "R" ? 45 : 30;
+  return alphaDeg >= lim ? 1 : 0.3 + 0.7 * alphaDeg / lim;
+}
+function axSeg(prod, d, fax, lef, alphaDeg, rho) {
+  const k = kaxOf(prod.model, alphaDeg);
+  return { R: k * fax * d * lef * Math.pow(rho / 350, 0.8), k };
+}
+
+// Lochleibung: blass = Schmalfläche BSP 20·d^-0,5 (beide ETAs); eta = Seitenfläche wie Vollholz
+// 0,082·ρ·d^-0,3/(2,5cos²α+sin²α); Rothoblaas: ρ = 1,1·ρ_Lage
+function fhOf(method, d, rho, manual, alphaDeg, model) {
+  if (method === "blass") return 20 * Math.pow(d, -0.5);
+  if (method === "eta") {
+    const a = (alphaDeg ?? 90) * Math.PI / 180, r = model === "R" ? 1.1 * rho : rho;
+    return 0.082 * r * Math.pow(d, -0.3) / (2.5 * Math.cos(a) ** 2 + Math.sin(a) ** 2);
+  }
+  return manual;
+}
+
+// Johansen einschnittig Holz-Holz, Gl. (8.6) a–f, Seileffekt ≤ 100 % (Schrauben)
+function johansen(fh1, fh2, t1, t2, d, My, FaxRk) {
+  const b = fh2 / fh1, r = t2 / t1, rope = FaxRk / 4;
+  const J = {
+    a: fh1 * t1 * d,
+    b: fh2 * t2 * d,
+    c: fh1 * t1 * d / (1 + b) * (Math.sqrt(b + 2 * b * b * (1 + r + r * r) + b ** 3 * r * r) - b * (1 + r)),
+    d: 1.05 * fh1 * t1 * d / (2 + b) * (Math.sqrt(2 * b * (1 + b) + 4 * b * (2 + b) * My / (fh1 * d * t1 * t1)) - b),
+    e: 1.05 * fh1 * t2 * d / (1 + 2 * b) * (Math.sqrt(2 * b * b * (1 + b) + 4 * b * (1 + 2 * b) * My / (fh1 * d * t2 * t2)) - b),
+    f: 1.15 * Math.sqrt(2 * b / (1 + b)) * Math.sqrt(2 * My * fh1 * d)
+  };
+  const R = {};
+  for (const m of "abcdef") R[m] = "ab".includes(m) ? J[m] : J[m] + Math.min(rope, J[m]);
+  let mode = "a";
+  for (const m of "abcdef") if (R[m] < R[mode]) mode = m;
+  return { R: R[mode], mode, J, Rall: R, rope, beta: b };
+}
+
+// Knicken Druckschraube (beide ETAs gleicher Ansatz, f_y,k je Hersteller)
+function buckling(prod, sp, rho, alphaDeg) {
+  const d = sp.d, d1 = sp.d1, fy = prod.fy;
+  const Npl = Math.PI / 4 * d1 * d1 * fy;
+  const ch = (0.19 + 0.012 * d) * rho * (90 + alphaDeg) / 180;
+  const Is = Math.PI * d1 ** 4 / 64;
+  const Nki = Math.sqrt(ch * 210000 * Is);
+  const lam = Math.sqrt(Npl / Nki);
+  const k = 0.5 * (1 + 0.49 * (lam - 0.2) + lam * lam);
+  const kc = lam <= 0.2 ? 1 : 1 / (k + Math.sqrt(k * k - lam * lam));
+  return { Npl, ch, Is, Nki, lam, kc, NRk: kc * Npl };
+}
+// axiale Steifigkeit je Schnittufer
+function kserAx(prod, d, lef, rhom) {
+  return prod.model === "R" ? 25 * d * lef : 1250 * Math.pow(d, 0.2) * Math.pow(lef, 0.4) * Math.pow(rhom, 0.2);
+}
+function nefOf(prod, n, mode) {
+  if (mode === "n") return n;
+  if (prod.model === "R") return Math.max(Math.pow(n, 0.9), 0.9 * n);
+  return n <= 10 ? n : 0.9 * n;  // Würth Tab. A.8.1 (8.1c/d)
+}
+
+// ---------------------------------------------------------------- Modul 1: Wand–Decke
+function calcWD(p) {
+  const prod = LIB[p.prod], sp = { ...p.sp, d: p.d };
+  const d = p.d, L = p.L, phi = p.phi * Math.PI / 180;
+  const c = Math.cos(phi), s = Math.sin(phi);
+  const l1 = p.geo === "WaD" ? p.av / c : p.hDe / c;
+  const l2 = L - l1;
+  const depth2 = l2 * c;
+  const warn = [], chk = [];
+  if (l2 <= 0) warn.push("Schraube erreicht Bauteil 2 nicht.");
+  if (p.geo === "WaD" && depth2 > p.hDe - 0.0001) warn.push(`Spitze tritt unten aus der Decke aus (Tiefe ${depth2.toFixed(0)} mm > ${p.hDe} mm).`);
+  if (p.geo === "DaW" && depth2 > p.hWaTief) warn.push(`Spitze tiefer als verfügbare Wandtiefe (${depth2.toFixed(0)} > ${p.hWaTief} mm).`);
+  if (p.geo === "WaD" && p.av * Math.tan(phi) > p.tWa) warn.push("Schraube verlässt die Wand seitlich vor Erreichen der Fuge.");
+  const lef1 = Math.max(l1 - p.abzK, 0), lef2 = Math.max(l2 - p.abzS, 0);
+  const A1 = axSeg(prod, d, sp.fax, lef1, p.alpha1, p.rho1), A2 = axSeg(prod, d, sp.fax, lef2, p.alpha2, p.rho2);
+  const ft = sp.ft * 1000;
+  const RaxRk = Math.min(A1.R, A2.R, ft);
+  const axGov = RaxRk === ft ? "Zugtragfähigkeit Schraube" : (A1.R <= A2.R ? "Herausziehen Bauteil 1 (Kopfseite)" : "Herausziehen Bauteil 2 (Spitze)");
+  const fh1 = fhOf(p.fhM1, d, p.rho1, p.fh1m, p.alpha1, prod.model), fh2 = fhOf(p.fhM2, d, p.rho2, p.fh2m, p.alpha2, prod.model);
+  const Jo = johansen(fh1, fh2, l1, l2, d, sp.My * 1000, RaxRk);
+  const nef = nefOf(prod, p.n, p.nefM);
+  const bk = buckling(prod, sp, Math.min(p.rho1, p.rho2), Math.min(p.alpha1, p.alpha2));
+  // Steifigkeiten
+  const kserLat = Math.pow(p.rhom, 1.5) * d / 23;
+  const Kax1 = kserAx(prod, d, lef1, p.rhom), Kax2 = kserAx(prod, d, lef2, p.rhom);
+  const KaxS = 1 / (1 / Kax1 + 1 / Kax2);
+  // Mindestwerte (ETA-11/0190 Tab. A.2.17/18 = ETA-11/0030 BSP)
+  const sp_ = p.lWand / p.n;
+  if (p.geo === "WaD") {
+    chk.push(["BSP-Dicke Wand ≥ 10·d", p.tWa, 10 * d]);
+    chk.push(["BSP-Dicke Decke ≥ 10·d", p.hDe, 10 * d]);
+    chk.push(["Abstand untereinander a₁ ≥ 4·d (Seitenfläche)", sp_, 4 * d]);
+    chk.push(["Abstand zum Wandende a₃,c ≥ 6·d (Annahme l/(2n))", sp_ / 2, 6 * d]);
+  } else {
+    chk.push(["BSP-Dicke Decke ≥ 10·d", p.hDe, 10 * d]);
+    chk.push(["Wanddicke ≥ 10·d (Schmalfläche)", p.tWa, 10 * d]);
+    chk.push(["Einbindetiefe Schmalfläche ≥ 10·d", depth2, 10 * d]);
+    chk.push(["Abstand untereinander a₁ ≥ 10·d (Schmalfläche)", sp_, 10 * d]);
+    chk.push(["Randabstand zur Wandseite a₄,c ≥ 3·d (Wandmitte)", p.tWa / 2, 3 * d]);
+  }
+  const rows = p.lc.map(lc => {
+    const km = kmodOf(lc.kled, p.nkl);
+    const Rv = km * Jo.R / p.gM / 1000;
+    const RaxT = km * RaxRk / p.gM / 1000 * nef / p.n;
+    const RaxC = Math.min(km * Math.min(A1.R, A2.R) / p.gM / 1000 * nef / p.n, bk.NRk / p.gM1 / 1000);
+    let Fv, Fax;
+    if (p.phi > 0.1) { Fv = Math.abs(lc.Fy) / p.n; Fax = lc.Fz / (p.n * s) + (lc.Ft || 0) / (p.n * c); }
+    else { Fv = Math.hypot(lc.Fy, lc.Fz) / p.n; Fax = (lc.Ft || 0) / p.n; }
+    const Rax = Fax >= 0 ? RaxT : RaxC;
+    const eta = Math.sqrt((Fv / Rv) ** 2 + (Fax / Rax) ** 2);
+    return { ...lc, kmod: km, Fv, Rv, Fax, Rax, comp: Fax < 0, eta };
+  });
+  return { l1, l2, lef1, lef2, depth2, A1, A2, ft, RaxRk, axGov, fh1, fh2, Jo, nef, bk, kserLat, Kax1, Kax2, KaxS,
+    chk, rows, warn, etaMax: Math.max(0, ...rows.map(r => r.eta)) };
+}
+
+// ---------------------------------------------------------------- Modul 2: stumpfer Deckenstoß
+function segments(layers, z0, z1, phiDeg) {
+  const s = Math.sin(phiDeg * Math.PI / 180), out = [];
+  let top = 0;
+  layers.forEach((ly, i) => {
+    const bot = top + ly.t, a = Math.max(top, z0), b = Math.min(bot, z1);
+    if (b > a + 1e-9) out.push({ i: i + 1, o: ly.o, alpha: ly.o === "par" ? 90 : phiDeg, lef: (b - a) / s });
+    top = bot;
+  });
+  return out;
+}
+function calcDS(p) {
+  const prod = LIB[p.prod], sp = { ...p.sp, d: p.d }, d = p.d, L = p.L;
+  const phi = p.phi * Math.PI / 180, c = Math.cos(phi), s = Math.sin(phi);
+  const h = p.layers.reduce((a, l) => a + l.t, 0);
+  const zj = p.e * Math.tan(phi);
+  const l1 = p.e / c, l2 = L - l1, ztip = L * s;
+  const warn = [], chk = [];
+  if (zj >= h) warn.push("Schraube erreicht die Fuge nicht innerhalb der Plattendicke.");
+  if (ztip > h) warn.push(`Spitze tritt unten aus (Tiefe ${ztip.toFixed(0)} mm > h = ${h} mm).`);
+  if (l2 <= 0) warn.push("Schraube erreicht die zweite Platte nicht.");
+  const zh = p.abzK * s;
+  const seg1 = segments(p.layers, zh, zj, p.phi), seg2 = segments(p.layers, zj, Math.min(ztip, h) - p.abzS * s, p.phi);
+  const sum = seg => seg.reduce((a, g) => { const A = axSeg(prod, d, sp.fax, g.lef, g.alpha, p.rho); g.R = A.R; g.k = A.k; return a + A.R; }, 0);
+  const R1 = sum(seg1), R2 = sum(seg2), ft = sp.ft * 1000;
+  const RaxRk = Math.min(R1, R2, ft);
+  const axGov = RaxRk === ft ? "Zugtragfähigkeit Schraube" : (R1 <= R2 ? "Herausziehen Platte Kopfseite" : "Herausziehen Platte Spitzenseite");
+  const outer = p.layers[0] ? p.layers[0].o : "par";
+  const fh = fhOf(p.fhM, d, p.rho, p.fhm, outer === "par" ? 90 : p.phi, prod.model);
+  const Jo = johansen(fh, fh, l1, l2, d, sp.My * 1000, RaxRk);
+  const minAlpha = Math.min(...[...seg1, ...seg2].map(g => g.alpha), 90);
+  const bk = buckling(prod, sp, p.rho, minAlpha);
+  const ax = p.ax / 1000;
+  chk.push(["BSP-Dicke ≥ 10·d", h, 10 * d]);
+  chk.push(["Abstand der Paare a₁ = aₓ ≥ " + p.fa1 + "·d", p.ax, p.fa1 * d]);
+  const rows = p.lc.map(lc => {
+    const km = kmodOf(lc.kled, p.nkl);
+    const Rla = km * Jo.R / p.gM / 1000, RaxT = km * RaxRk / p.gM / 1000;
+    const RaxC = Math.min(km * Math.min(R1, R2) / p.gM / 1000, bk.NRk / p.gM1 / 1000);
+    const Vx = lc.vx * ax, N = lc.ny * ax, V = lc.vz * ax;
+    const Fla = Math.abs(Vx) / 2;
+    const T1 = (N / c + V / s) / 2, T2 = (N / c - V / s) / 2;
+    const R1d = T1 >= 0 ? RaxT : RaxC, R2d = T2 >= 0 ? RaxT : RaxC;
+    const e1 = Math.sqrt((Fla / Rla) ** 2 + (T1 / R1d) ** 2), e2 = Math.sqrt((Fla / Rla) ** 2 + (T2 / R2d) ** 2);
+    return { ...lc, kmod: km, Fla, Rla, T1, T2, RaxT, RaxC, eta1: e1, eta2: e2, eta: Math.max(e1, e2) };
+  });
+  return { h, zj, l1, l2, ztip, seg1, seg2, R1, R2, ft, RaxRk, axGov, fh, Jo, bk, rows, warn, chk,
+    etaMax: Math.max(0, ...rows.map(r => r.eta)) };
+}
+
+if (typeof module !== "undefined") module.exports = { LIB, KMOD, kmodOf, calcWD, calcDS, johansen, axSeg, fhOf, buckling, kaxOf };
+
+</script>
+<script>
+// ===================================================================== App
+const $ = id => document.getElementById(id);
+const fmt = (x, n = 2) => (x == null || !isFinite(x)) ? "–" : x.toLocaleString("de-DE", { minimumFractionDigits: n, maximumFractionDigits: n });
+const LIB0 = JSON.parse(JSON.stringify(LIB));
+const KLEDS = Object.keys(KMOD);
+const LS = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
+(function loadLib() { const s = LS("bspvbm_lib_v2"); if (s) { try { const o = JSON.parse(s); for (const k in o) if (LIB[k]) LIB[k].d = o[k]; } catch (e) {} } })();
+const saveLib = () => { const o = {}; for (const k in LIB) o[k] = LIB[k].d; LS("bspvbm_lib_v2", JSON.stringify(o)); };
+
+const FH = { blass: "Schmalseite BSP: 20·d^-0,5", eta: "Seitenfläche ETA: 0,082·ρk·d^-0,3", man: "manuell" };
+const PRESETS = {
+  "L8s-2 300 (40/40/30/40/40/30/40/40)": [[40,"par"],[40,"par"],[30,"quer"],[40,"par"],[40,"par"],[30,"quer"],[40,"par"],[40,"par"]],
+  "L7s-2 200 (20/40/20/40/20/40/20, wie mb 108.606)": [[20,"par"],[40,"quer"],[20,"par"],[40,"quer"],[20,"par"],[40,"quer"],[20,"par"]],
+  "5s 200 (5 × 40)": [[40,"par"],[40,"quer"],[40,"par"],[40,"quer"],[40,"par"]],
+  "5s 160 (40/20/40/20/40)": [[40,"par"],[20,"quer"],[40,"par"],[20,"quer"],[40,"par"]],
+  "3s 120 (3 × 40)": [[40,"par"],[40,"quer"],[40,"par"]],
+  "3s 100 (30/40/30)": [[30,"par"],[40,"quer"],[30,"par"]]
+};
+
+let st = {
+  meta: { proj: "", pos: "", bez: "", bea: "" },
+  wd: { geo: "WaD", tWa: 200, hDe: 80, lWand: 1000, av: 120, hWaTief: 120, phi: 35, n: 6, nkl: "1", prod: "assy", d: 8, L: 240,
+        My: 23, ft: 22, fax: 11, d1: 5, rho1: 350, rho2: 350, rhom: 420, alpha1: 90, alpha2: 90, fhM1: "blass", fhM2: "eta", fh1m: 7, fh2m: 15,
+        abzK: 14, abzS: 0, nefM: "eta", gM: 1.3, gM1: 1.1,
+        lc: [{ name: "1", kled: "kurz", Fy: 12, Fz: 9, Ft: 0 }, { name: "2", kled: "kurz", Fy: 16, Fz: 2, Ft: 0 }] },
+  ds: { layers: PRESETS["L8s-2 300 (40/40/30/40/40/30/40/40)"].map(([t, o]) => ({ t, o })), preset: "L8s-2 300 (40/40/30/40/40/30/40/40)",
+        phi: 45, e: 93, ax: 250, fa1: 4, nkl: "1", prod: "assy", d: 10, L: 240, My: 40, ft: 33, fax: 11, d1: 6.2, rho: 350, fhM: "blass", fhm: 6.32,
+        abzK: 18, abzS: 0, gM: 1.3, gM1: 1.1, lc: [{ name: "2", kled: "kurz/sehr kurz", vx: 12, ny: 3, vz: 12 }] }
+};
+
+// ------------------------------------------------------------- Bindings
+const NUM = new Set(["d1","gM1","tWa","hDe","lWand","av","hWaTief","phi","n","d","L","My","ft","fax","rho1","rho2","rhom","alpha1","alpha2","fh1m","fh2m","abzK","abzS","gM","e","ax","fa1","rho","fhm"]);
+function fillSelects() {
+  document.querySelectorAll(".fhsel").forEach(s => s.innerHTML = Object.entries(FH).map(([k, v]) => `<option value="${k}">${v}</option>`).join(""));
+  for (const m of ["wd", "ds"]) $(m + "_prod").innerHTML = Object.entries(LIB).map(([k, v]) => `<option value="${k}">${v.name}</option>`).join("");
+  $("ds_preset").innerHTML = `<option value="">– benutzerdefiniert –</option>` + Object.keys(PRESETS).map(k => `<option>${k}</option>`).join("");
+}
+function prodDefaults(m) {
+  const s = st[m], P = LIB[s.prod];
+  const ds = Object.keys(P.d).map(Number);
+  if (!ds.includes(+s.d)) s.d = ds.includes(8) ? 8 : ds[0];
+  const v = P.d[s.d]; s.My = v.My; s.ft = v.ft; s.fax = v.fax; s.d1 = v.d1; s.abzK = v.a;
+}
+function flagsFor(m) {
+  const s = st[m], v = (LIB[s.prod].d[s.d] || {}).v || {}, P = LIB[s.prod].d[s.d] || {};
+  for (const k of ["My", "ft", "fax", "d1"]) {
+    const own = Math.abs(+s[k] - +P[k]) > 1e-9;
+    $(`${m}_f${k}`).innerHTML = own ? `<span class="mut" title="manuell überschrieben">✎</span>` : (v[k] ? `<span class="vok" title="abgeglichen">✓</span>` : `<span class="flag" title="nicht aus ETA belegt">⚠</span>`);
+  }
+}
+function syncToForm() {
+  for (const k of ["proj", "pos", "bez", "bea"]) $("m_" + k).value = st.meta[k] || "";
+  for (const m of ["wd", "ds"]) {
+    const s = st[m];
+    $(m + "_d").innerHTML = Object.keys(LIB[s.prod].d).map(d => `<option>${d}</option>`).join("");
+    $(m + "_Ls").innerHTML = (LIB[s.prod].L?.[s.d] || []).map(l => `<option value="${l}">`).join("");
+    for (const k in s) { const el = $(`${m}_${k}`); if (!el || k === "lc" || k === "layers") continue;
+      if (el.type === "checkbox") el.checked = !!s[k]; else el.value = s[k]; }
+  }
+  renderLC(); renderLayers();
+}
+function bindForm() {
+  for (const k of ["proj", "pos", "bez", "bea"]) $("m_" + k).addEventListener("input", e => { st.meta[k] = e.target.value; calc(); });
+  for (const m of ["wd", "ds"]) {
+    for (const k in st[m]) { const el = $(`${m}_${k}`); if (!el || k === "lc" || k === "layers") continue;
+      el.addEventListener(el.tagName === "SELECT" || el.type === "checkbox" ? "change" : "input", e => {
+        const v = el.type === "checkbox" ? el.checked : (NUM.has(k) ? parseFloat(el.value) : el.value);
+        st[m][k] = v;
+        if (k === "prod" || k === "d") { prodDefaults(m); syncToForm(); }
+        if (k === "preset" && v) { st.ds.layers = PRESETS[v].map(([t, o]) => ({ t, o })); renderLayers(); }
+        calc();
+      });
+    }
+  }
+  $("wd_add").onclick = () => { const l = st.wd.lc; l.push({ name: String(l.length + 1), kled: "kurz", Fy: 0, Fz: 0, Ft: 0 }); renderLC(); calc(); };
+  $("ds_add").onclick = () => { const l = st.ds.lc; l.push({ name: String(l.length + 1), kled: "kurz", vx: 0, ny: 0, vz: 0 }); renderLC(); calc(); };
+  $("ds_addL").onclick = () => { st.ds.layers.push({ t: 40, o: "par" }); st.ds.preset = ""; $("ds_preset").value = ""; renderLayers(); calc(); };
+}
+function renderLC() {
+  const cols = { wd: ["Fy", "Fz", "Ft"], ds: ["vx", "ny", "vz"] };
+  for (const m of ["wd", "ds"]) {
+    $(m + "_lc").innerHTML = st[m].lc.map((r, i) => `<tr>
+      <td><input data-m="${m}" data-i="${i}" data-k="name" value="${r.name}" style="width:70px"></td>
+      <td><select data-m="${m}" data-i="${i}" data-k="kled">${KLEDS.map(k => `<option ${k === r.kled ? "selected" : ""}>${k}</option>`).join("")}</select></td>
+      ${cols[m].map(k => `<td><input type="number" step="0.01" data-m="${m}" data-i="${i}" data-k="${k}" value="${r[k]}" style="width:80px"></td>`).join("")}
+      <td><button data-del="${m}:${i}" title="löschen">×</button></td></tr>`).join("");
+  }
+  document.querySelectorAll(".lc [data-k]").forEach(el => el.addEventListener("input", () => {
+    const r = st[el.dataset.m].lc[+el.dataset.i]; const k = el.dataset.k;
+    r[k] = (k === "name" || k === "kled") ? el.value : (parseFloat(el.value) || 0); calc();
+  }));
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { const [m, i] = b.dataset.del.split(":"); st[m].lc.splice(+i, 1); renderLC(); calc(); });
+}
+function renderLayers() {
+  $("ds_preset").value = st.ds.preset || "";
+  $("ds_layers").innerHTML = st.ds.layers.map((l, i) => `<tr><td>${i + 1}</td>
+    <td><input type="number" data-l="${i}" data-k="t" value="${l.t}" style="width:70px"></td>
+    <td><select data-l="${i}" data-k="o"><option value="par" ${l.o === "par" ? "selected" : ""}>∥ Fuge</option><option value="quer" ${l.o === "quer" ? "selected" : ""}>⟂ Fuge</option></select></td>
+    <td><button data-dl="${i}">×</button></td></tr>`).join("");
+  document.querySelectorAll("[data-l]").forEach(el => el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => {
+    const l = st.ds.layers[+el.dataset.l]; l[el.dataset.k] = el.dataset.k === "t" ? (parseFloat(el.value) || 0) : el.value;
+    st.ds.preset = ""; $("ds_preset").value = ""; calc();
+  }));
+  document.querySelectorAll("[data-dl]").forEach(b => b.onclick = () => { st.ds.layers.splice(+b.dataset.dl, 1); st.ds.preset = ""; renderLayers(); calc(); });
+}
+
+// ------------------------------------------------------------- Rechnen
+const etaTag = e => `<span class="${e <= 1 ? "ok" : "bad"}">${fmt(e, 2)}</span>`;
+const prodTxt = s => `${LIB[s.prod].name} ${s.d} × ${s.L}`;
+function calc() {
+  const w = st.wd;
+  document.querySelectorAll(".gWaD").forEach(e => e.classList.toggle("hide", w.geo !== "WaD"));
+  document.querySelectorAll(".gDaW").forEach(e => e.classList.toggle("hide", w.geo !== "DaW"));
+  document.querySelector(".wd_fh1m").classList.toggle("hide", w.fhM1 !== "man");
+  document.querySelector(".wd_fh2m").classList.toggle("hide", w.fhM2 !== "man");
+  document.querySelector(".ds_fhm").classList.toggle("hide", st.ds.fhM !== "man");
+  flagsFor("wd"); flagsFor("ds");
+  const head = `${st.meta.proj ? "Projekt " + st.meta.proj + " · " : ""}Pos. ${st.meta.pos || "–"} ${st.meta.bez || ""}`;
+  const head2 = `${st.meta.bea || ""} · ${new Date().toLocaleDateString("de-DE")}`;
+  for (const m of ["wd", "ds"]) { $(m + "_ph1").textContent = head; $(m + "_ph2").textContent = head2; }
+  try { const r = calcWD({ ...w, nkl: +w.nkl, sp: { My: w.My, ft: w.ft, fax: w.fax, d1: w.d1 } }); drawWD(w, r); protWD(w, r); }
+  catch (e) { $("wd_prot").innerHTML = `<div class="note err">Fehler: ${e.message}</div>`; }
+  const d = st.ds;
+  try { const r = calcDS({ ...d, nkl: +d.nkl, sp: { My: d.My, ft: d.ft, fax: d.fax, d1: d.d1 } }); drawDS(d, r); protDS(d, r); }
+  catch (e) { $("ds_prot").innerHTML = `<div class="note err">Fehler: ${e.message}</div>`; }
+  LS("bspvbm_state_v2", JSON.stringify(st));
+}
+function warnBox(id, r, chk = []) {
+  const bad = chk.filter(([, v, e]) => v < e - 1e-9).map(([t]) => t);
+  $(id).innerHTML = r.warn.map(w => `<div class="note err">${w}</div>`).join("") +
+    (bad.length ? `<div class="note">Mindestwerte nicht eingehalten: ${bad.join("; ")}</div>` : "") +
+    (r.etaMax > 1 ? `<div class="note err">Nachweis nicht erfüllt.</div>` : "");
+}
+const ref = t => `<div class="ref">${t}</div>`;
+const line = (body, r = "") => `<div class="row"><div>${body}</div>${ref(r)}</div>`;
+const flagNote = (s) => { const v = (LIB[s.prod].d[s.d] || {}).v || {}; const miss = ["My", "ft", "fax", "d1"].filter(k => !v[k]);
+  return miss.length ? `<div class="note screen-only">⚠ ${miss.map(k => ({ My: "M<sub>y,k</sub>", ft: "f<sub>tens,k</sub>", fax: "f<sub>ax,k</sub>", d1: "d<sub>1</sub>" })[k]).join(", ")} für d = ${s.d} mm nicht abgeglichen – Wert mit ${LIB[s.prod].eta} prüfen.</div>` : ""; };
+function johTable(Jo) {
+  const nm = { a: "(a)", b: "(b)", c: "(c)", d: "(d)", e: "(e)", f: "(f)" };
+  return `<table><tr><th>Versagensart</th>${"abcdef".split("").map(m => `<th>${nm[m]}</th>`).join("")}</tr>
+   <tr><td>F<sub>v,Rk</sub> [kN]</td>${"abcdef".split("").map(m => `<td${m === Jo.mode ? ' style="font-weight:700"' : ""}>${fmt(Jo.Rall[m] / 1000, 2)}</td>`).join("")}</tr></table>`;
+}
+
+// ------------------------------------------------------------- gemeinsame Bausteine
+const kaxTxt = P => P.model === "R" ? "k<sub>ax</sub> = 1,0 für α ≥ 45°, sonst 0,3 + 0,7·α/45°" : "k<sub>ax</sub> = 1,0 für α ≥ 30°, sonst 0,3 + 0,7·α/30°";
+const fhRef = (M, P) => M === "blass" ? "Schmalfläche BSP, Gl. (2.9) ETA-11/0190" : M === "eta" ? (P.model === "R" ? "Seitenfläche, ρ = 1,1·ρ<sub>Lage</sub>" : "Seitenfläche, ρ der Decklage") : "manuell";
+const fhTxt = (M, fh, i0, s, P, alpha) => { const i = i0 === "" ? "" : "," + i0; return M === "blass" ? `f<sub>h${i},k</sub> = 20·d<sup>−0,5</sup> = ${fmt(fh, 2)} N/mm²`
+  : M === "eta" ? `f<sub>h${i},k</sub> = 0,082·${P.model === "R" ? "1,1·" : ""}ρ<sub>k</sub>·d<sup>−0,3</sup>/(2,5cos²α+sin²α), α = ${alpha}° → ${fmt(fh, 2)} N/mm²`
+  : `f<sub>h${i},k</sub> = ${fmt(fh, 2)} N/mm² (manuell)`; };
+function chkTable(chk) {
+  return `<table><tr><th>Anforderung</th><th>vorh. [mm]</th><th>erf. [mm]</th><th></th></tr>${chk.map(([t, v, e]) =>
+    `<tr><td>${t}</td><td>${fmt(v, 0)}</td><td>${fmt(e, 0)}</td><td class="${v >= e - 1e-9 ? "ok" : "bad"}">${v >= e - 1e-9 ? "✓" : "✗"}</td></tr>`).join("")}</table>`;
+}
+function bkLines(s, bk, P, rho, alpha) {
+  return line(`N<sub>pl,k</sub> = π/4·d<sub>1</sub>²·f<sub>y,k</sub> = π/4·${fmt(s.d1, 1)}²·${P.fy} = ${fmt(bk.Npl / 1000, 2)} kN · c<sub>h</sub> = (0,19+0,012·d)·ρ<sub>k</sub>·(90°+α)/180° = ${fmt(bk.ch, 1)} N/mm² (α = ${fmt(alpha, 0)}°)`, P.eta + "<br>Druck/Knicken")
+   + line(`N<sub>ki,k</sub> = √(c<sub>h</sub>·E<sub>s</sub>·I<sub>s</sub>) = ${fmt(bk.Nki / 1000, 2)} kN · λ̄<sub>k</sub> = ${fmt(bk.lam, 3)} · κ<sub>c</sub> = ${fmt(bk.kc, 3)} → κ<sub>c</sub>·N<sub>pl,k</sub> = <b>${fmt(bk.NRk / 1000, 2)} kN</b>, /γ<sub>M1</sub> = ${fmt(s.gM1, 2)}`, "");
+}
+
+// ------------------------------------------------------------- Protokoll Wand–Decke
+function protWD(s, r) {
+  $("wd_eta").innerHTML = etaTag(r.etaMax); warnBox("wd_warn", r, r.chk);
+  const P = LIB[s.prod], geoTxt = s.geo === "WaD" ? "Wand auf Decke – Schubschrauben schräg von der Wandseite in die Decke" : "Decke auf Wand – Schrauben von der Deckenoberseite in die Wand-Schmalseite";
+  const b1 = s.geo === "WaD" ? "Wand" : "Decke", b2 = s.geo === "WaD" ? "Decke" : "Wand";
+  const c = Math.cos(s.phi * Math.PI / 180), sn = Math.sin(s.phi * Math.PI / 180);
+  const axTxt = (A, i, l) => `F<sub>ax,Rk,${i}</sub> = k<sub>ax</sub>·f<sub>ax,k</sub>·d·ℓ<sub>ef,${i}</sub>·(ρ<sub>k</sub>/350)<sup>0,8</sup> = ${fmt(A.k, 2)}·${fmt(s.fax, 1)}·${s.d}·${fmt(l, 1)}·${fmt(Math.pow(s["rho" + i] / 350, 0.8), 3)} = <b>${fmt(A.R / 1000, 2)} kN</b>`;
+  const kserM = r.kserLat * s.n / (s.lWand / 1000);
+  const nefTxt = s.nefM === "n" ? "n<sub>ef</sub> = n (Schubverbindung Wandscheibe/Diaphragma)" : (P.model === "R" ? "n<sub>ef</sub> = max(n<sup>0,9</sup>; 0,9·n)" : "n<sub>ef</sub> = n für n ≤ 10, sonst 0,9·n");
+  const anyC = r.rows.some(x => x.comp);
+  $("wd_prot").innerHTML = `<h3>System</h3>
+   ${line(`${geoTxt}<br>Wand t<sub>Wa</sub> = ${s.tWa} mm, Decke h<sub>De</sub> = ${s.hDe} mm, Wandlänge l = ${fmt(s.lWand / 1000, 2)} m, NKL ${s.nkl}`, "Eingabe")}
+   ${line(`<b>${s.n} × ${prodTxt(s)}</b>, φ = ${s.phi}° zur Wandachse${s.geo === "WaD" ? `, a<sub>v</sub> = ${s.av} mm` : ""}`, P.eta)}
+   ${line(`M<sub>y,k</sub> = ${fmt(s.My, 1)} Nm · f<sub>tens,k</sub> = ${fmt(s.ft, 1)} kN · f<sub>ax,k</sub> = ${fmt(s.fax, 1)} N/mm² (ρ<sub>a</sub> = 350 kg/m³) · d<sub>1</sub> = ${fmt(s.d1, 1)} mm`, P.eta + ", Kennwerte")}
+   ${flagNote(s)}
+   <h3>Einbindelängen</h3>
+   ${line(`ℓ<sub>1</sub> (${b1}, Kopfseite) = ${s.geo === "WaD" ? "a<sub>v</sub>" : "h<sub>De</sub>"}/cos φ = ${s.geo === "WaD" ? s.av : s.hDe}/${fmt(c, 3)} = ${fmt(r.l1, 1)} mm → ℓ<sub>ef,1</sub> = ${fmt(r.lef1, 1)} mm (Abzug ${s.abzK} mm gewindefrei unter Kopf)`, "Geometrie")}
+   ${line(`ℓ<sub>2</sub> (${b2}, Spitze) = L − ℓ<sub>1</sub> = ${s.L} − ${fmt(r.l1, 1)} = ${fmt(r.l2, 1)} mm → ℓ<sub>ef,2</sub> = ${fmt(r.lef2, 1)} mm (Tiefe ${fmt(r.depth2, 0)} mm)`, "")}
+   <h3>Tragfähigkeit Herausziehen je Schraube</h3>
+   ${line(axTxt(r.A1, 1, r.lef1), `${P.eta}<br>α<sub>1</sub> = ${s.alpha1}°`)}
+   ${line(axTxt(r.A2, 2, r.lef2), `α<sub>2</sub> = ${s.alpha2}°`)}
+   ${line(`<span class="mut">${kaxTxt(P)}</span>`, "")}
+   ${line(`F<sub>ax,Rk</sub> = min(F<sub>ax,Rk,1</sub>; F<sub>ax,Rk,2</sub>; f<sub>tens,k</sub> = ${fmt(s.ft, 2)}) = <b>${fmt(r.RaxRk / 1000, 2)} kN</b> → ${r.axGov}`, "")}
+   ${line(`${nefTxt}: n = ${s.n} → n<sub>ef</sub> = ${fmt(r.nef, 2)} (Faktor ${fmt(r.nef / s.n, 3)} je Schraube)`, P.model === "R" ? "ETA-11/0030, 3.4" : "ETA-11/0190, Tab. A.8.1")}
+   ${anyC ? bkLines(s, r.bk, P, Math.min(s.rho1, s.rho2), Math.min(s.alpha1, s.alpha2)) : ""}
+   <h3>Tragfähigkeit Abscheren je Schraube</h3>
+   ${line(`${fhTxt(s.fhM1, r.fh1, 1, s, P, s.alpha1)} (${b1})`, fhRef(s.fhM1, P))}
+   ${line(`${fhTxt(s.fhM2, r.fh2, 2, s, P, s.alpha2)} (${b2}) · β = ${fmt(r.Jo.beta, 3)}`, fhRef(s.fhM2, P))}
+   ${line(`t<sub>1</sub> = ${fmt(r.l1, 0)} mm, t<sub>2</sub> = ${fmt(r.l2, 0)} mm · Einhängeeffekt F<sub>ax,Rk</sub>/4 = ${fmt(r.Jo.rope / 1000, 2)} kN (≤ 100 % Johansen)`, "DIN EN 1995-1-1, 8.2.2(2)")}
+   ${line(johTable(r.Jo), "Gl. (8.6)")}
+   ${line(`F<sub>v,Rk</sub> = <b>${fmt(r.Jo.R / 1000, 2)} kN</b> (Versagensart ${r.Jo.mode})`, "")}
+   <h3>Federsteifigkeit</h3>
+   ${line(`lateral: K<sub>ser</sub> = ρ<sub>m</sub><sup>1,5</sup>·d/23 = ${fmt(r.kserLat, 0)} N/mm je Schraube → k<sub>ser,y</sub> = ${fmt(kserM, 0)} kN/m²; GZT k<sub>u,y</sub> = 2/3·k<sub>ser,y</sub>/γ<sub>M</sub> = ${fmt(kserM * 2 / 3 / s.gM, 0)} kN/m²`, "DIN EN 1995-1-1, Tab. 7.1")}
+   ${line(`axial je Schnittufer: ${P.model === "R" ? "K<sub>ser</sub> = 25·d·ℓ<sub>ef</sub>" : "K<sub>ser</sub> = 1250·d<sup>0,2</sup>·ℓ<sub>ef</sub><sup>0,4</sup>·ρ<sub>m</sub><sup>0,2</sup>"} → K<sub>1</sub> = ${fmt(r.Kax1, 0)}, K<sub>2</sub> = ${fmt(r.Kax2, 0)} N/mm; in Reihe K<sub>ax</sub> = ${fmt(r.KaxS, 0)} N/mm je Schraube`, P.model === "R" ? "ETA-11/0030, 3.4" : "ETA-11/0190, Gl. (2.10)")}
+   <h3>Schraubenkräfte</h3>
+   ${s.phi > 0.1
+     ? line(`F<sub>v,Ed</sub> = F<sub>s,y,d</sub>/n · F<sub>ax,Ed</sub> = F<sub>p,z,d</sub>/(n·sin φ) + F<sub>t,d</sub>/(n·cos φ), sin φ = ${fmt(sn, 3)}`, "Fachwerkwirkung")
+     : line(`F<sub>v,Ed</sub> = √(F<sub>s,y,d</sub>² + F<sub>p,z,d</sub>²)/n · F<sub>ax,Ed</sub> = F<sub>t,d</sub>/n`, "")}
+   <h3>Nachweise GZT</h3>
+   ${line(`(F<sub>ax,Ed</sub>/F<sub>ax,Rd</sub>)² + (F<sub>v,Ed</sub>/F<sub>v,Rd</sub>)² ≤ 1 → η = √(…); F<sub>ax,Rd</sub> Zug = k<sub>mod</sub>·F<sub>ax,Rk</sub>·n<sub>ef</sub>/n/γ<sub>M</sub>, Druck = min(Eindrücken; κ<sub>c</sub>·N<sub>pl,k</sub>/γ<sub>M1</sub>)`, "DIN EN 1995-1-1, Gl. (8.28)")}
+   <table><tr><th>Ek</th><th>KLED</th><th>k<sub>mod</sub></th><th>F<sub>s,y,d</sub></th><th>F<sub>p,z,d</sub></th><th>F<sub>v,Ed</sub></th><th>F<sub>v,Rd</sub></th><th>F<sub>ax,Ed</sub></th><th>F<sub>ax,Rd</sub></th><th>η</th></tr>
+   <tr class="mut"><td></td><td></td><td>[-]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[-]</td></tr>
+   ${r.rows.map(x => `<tr><td>${x.name}</td><td>${x.kled}</td><td>${fmt(x.kmod, 2)}</td><td>${fmt(x.Fy, 2)}</td><td>${fmt(x.Fz, 2)}</td><td>${fmt(x.Fv, 2)}</td><td>${fmt(x.Rv, 2)}</td><td>${fmt(x.Fax, 2)}</td><td>${fmt(x.Rax, 2)}${x.comp ? " (D)" : ""}</td><td>${etaTag(x.eta)}</td></tr>`).join("")}
+   </table>
+   <h3>Mindestabstände und -dicken BSP</h3>
+   ${line(chkTable(r.chk), "ETA-11/0190 Tab. A.2.17/A.2.18<br>= ETA-11/0030, 3.4 BSP")}
+   <div class="res">Schubschrauben ${s.n} × ${prodTxt(s)}: η<sub>max</sub> = ${fmt(r.etaMax, 2)} ${r.etaMax <= 1 ? "≤ 1,0 ✓" : "> 1,0 ✗"}</div>
+   ${r.warn.map(w => `<div class="note err">${w}</div>`).join("")}
+   <div class="mut" style="font-size:11px">(D) = Druck. Kontaktpressung in der Fuge nicht nachgewiesen. Randabstände zu Wandenden/Öffnungen am Bauteil prüfen.</div>`;
+}
+
+// ------------------------------------------------------------- Protokoll Deckenstoß
+function protDS(s, r) {
+  $("ds_eta").innerHTML = etaTag(r.etaMax); warnBox("ds_warn", r, r.chk);
+  const P = LIB[s.prod];
+  const segT = (seg, nm) => seg.map((g, j) => `<tr><td>${j ? "" : nm}</td><td>${g.i}</td><td>${g.o === "par" ? "∥" : "⟂"}</td><td>${fmt(g.alpha, 1)}</td><td>${fmt(g.lef, 1)}</td><td>${fmt(g.k, 3)}</td><td>${fmt(g.R / 1000, 2)}</td></tr>`).join("");
+  const anyC = r.rows.some(x => x.T1 < 0 || x.T2 < 0);
+  const outerA = (s.layers[0] || {}).o === "par" ? 90 : s.phi;
+  $("ds_prot").innerHTML = `<h3>System</h3>
+   ${line(`Stumpfer Deckenstoß BSP, h = ${r.h} mm (${s.layers.map(l => l.t + (l.o === "par" ? "∥" : "⟂")).join(" / ")}), NKL ${s.nkl}`, "Eingabe")}
+   ${line(`Gekreuzte Schraubenpaare <b>${prodTxt(s)}</b>, φ = ${s.phi}° zur Plattenebene, e = ${s.e} mm, a<sub>x</sub> = ${s.ax} mm`, P.eta)}
+   ${line(`M<sub>y,k</sub> = ${fmt(s.My, 1)} Nm · f<sub>tens,k</sub> = ${fmt(s.ft, 1)} kN · f<sub>ax,k</sub> = ${fmt(s.fax, 1)} N/mm² · d<sub>1</sub> = ${fmt(s.d1, 1)} mm · ρ<sub>k</sub> = ${s.rho} kg/m³`, P.eta + ", Kennwerte")}
+   ${flagNote(s)}
+   <h3>Geometrie</h3>
+   ${line(`Fugendurchgang in Tiefe z<sub>F</sub> = e·tan φ = ${fmt(r.zj, 1)} mm · Spitze in Tiefe L·sin φ = ${fmt(r.ztip, 1)} mm`, "")}
+   ${line(`t<sub>1</sub> = e/cos φ = ${fmt(r.l1, 1)} mm (Kopfseite, davon ${s.abzK} mm gewindefrei), t<sub>2</sub> = L − t<sub>1</sub> = ${fmt(r.l2, 1)} mm (Spitzenseite)`, "")}
+   <h3>Herausziehen lagenweise</h3>
+   <table><tr><th>Platte</th><th>Lage</th><th>Faser</th><th>α [°]</th><th>ℓ<sub>ef,i</sub> [mm]</th><th>k<sub>ax</sub></th><th>F<sub>ax,Rk,i</sub> [kN]</th></tr>
+   ${segT(r.seg1, "Kopfseite")}${segT(r.seg2, "Spitzenseite")}</table>
+   ${line(`Σ Kopfseite = ${fmt(r.R1 / 1000, 2)} kN · Σ Spitzenseite = ${fmt(r.R2 / 1000, 2)} kN · f<sub>tens,k</sub> = ${fmt(s.ft, 2)} kN · <span class="mut">${kaxTxt(P)}</span>`, P.eta + "<br>Lagen anteilig")}
+   ${line(`F<sub>ax,Rk</sub> = <b>${fmt(r.RaxRk / 1000, 2)} kN</b> → ${r.axGov} · n<sub>ef</sub> = n (kontinuierliche Verbindung)`, P.model === "R" ? "ETA-11/0030, 3.4" : "ETA-11/0190, Tab. A.8.1 (8.1b)")}
+   ${anyC ? bkLines(s, r.bk, P, s.rho, Math.min(...[...r.seg1, ...r.seg2].map(g => g.alpha), 90)) : ""}
+   <h3>Abscheren je Schraube</h3>
+   ${line(`${fhTxt(s.fhM, r.fh, "", s, P, outerA)}, β = 1 · Einhängeeffekt F<sub>ax,Rk</sub>/4 = ${fmt(r.Jo.rope / 1000, 2)} kN`, fhRef(s.fhM, P))}
+   ${line(johTable(r.Jo), "DIN EN 1995-1-1, Gl. (8.6)")}
+   ${line(`F<sub>la,Rk</sub> = <b>${fmt(r.Jo.R / 1000, 2)} kN</b> (Versagensart ${r.Jo.mode})`, "")}
+   <h3>Schraubenkräfte je Paar</h3>
+   ${line(`V<sub>x</sub> = v<sub>x,d</sub>·a<sub>x</sub>, N = n<sub>y,d</sub>·a<sub>x</sub>, V = v<sub>z,d</sub>·a<sub>x</sub> · F<sub>la</sub> = V<sub>x</sub>/2 · T<sub>1,2</sub> = ½·(N/cos φ ± V/sin φ)`, "Gleichgewicht")}
+   <h3>Nachweise GZT</h3>
+   ${line(`(F<sub>ax,Ed</sub>/F<sub>ax,Rd</sub>)² + (F<sub>la,Ed</sub>/F<sub>la,Rd</sub>)² ≤ 1 → η = √(…); Druck: F<sub>ax,Rd</sub> = min(Eindrücken; κ<sub>c</sub>·N<sub>pl,k</sub>/γ<sub>M1</sub>)`, "DIN EN 1995-1-1, Gl. (8.28)")}
+   <table><tr><th>Ek</th><th>KLED</th><th>k<sub>mod</sub></th><th>F<sub>la,Ed</sub></th><th>F<sub>la,Rd</sub></th><th>T<sub>1,Ed</sub></th><th>T<sub>2,Ed</sub></th><th>F<sub>ax,Rd</sub> Z / D</th><th>η<sub>1</sub></th><th>η<sub>2</sub></th></tr>
+   <tr class="mut"><td></td><td></td><td>[-]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[kN]</td><td>[-]</td><td>[-]</td></tr>
+   ${r.rows.map(x => `<tr><td>${x.name}</td><td>${x.kled}</td><td>${fmt(x.kmod, 2)}</td><td>${fmt(x.Fla, 2)}</td><td>${fmt(x.Rla, 2)}</td><td>${fmt(x.T1, 2)}</td><td>${fmt(x.T2, 2)}</td><td>${fmt(x.RaxT, 2)} / ${fmt(x.RaxC, 2)}</td><td>${etaTag(x.eta1)}</td><td>${etaTag(x.eta2)}</td></tr>`).join("")}
+   </table>
+   <h3>Mindestabstände und Brandschutz</h3>
+   ${line(chkTable(r.chk), "ETA-11/0190 Tab. A.2.18<br>Seitenfläche a<sub>1</sub> = 4·d")}
+   ${line(s.ax <= 250 ? `Schraubenabstand a<sub>x</sub> = ${s.ax} mm ≤ 250 mm: stumpfe Elementfuge mit diagonalen VG-Schrauben erfüllt E/I ohne Dichtband <span class="ok">✓</span>` : `<span class="wrn">a<sub>x</sub> = ${s.ax} mm > 250 mm: Raumabschluss E/I der stumpfen Fuge nach ETA-14/0349 nicht abgedeckt (Dichtband oder a<sub>x</sub> ≤ 250 mm)</span>`, "ETA-14/0349, Anhang 4")}
+   <div class="res">Deckenstoß ${prodTxt(s)}, a<sub>x</sub> = ${s.ax} mm: η<sub>max</sub> = ${fmt(r.etaMax, 2)} ${r.etaMax <= 1 && r.chk.every(([, v, e]) => v >= e - 1e-9) ? "≤ 1,0 ✓" : "✗"}</div>
+   ${r.warn.map(w => `<div class="note err">${w}</div>`).join("")}
+   <div class="mut" style="font-size:11px">T &gt; 0 = Zug, T &lt; 0 = Druck. Weitere Rand-/Achsabstände nach ETA am Bauteil prüfen.</div>`;
+}
+
+// ------------------------------------------------------------- Skizzen
+function svgDim(x1, y1, x2, y2, t, off = 0, vert = false) {
+  return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#888" stroke-width=".8" marker-start="url(#ar)" marker-end="url(#ar)"/>
+  <text x="${(x1 + x2) / 2 + (vert ? 4 : 0)}" y="${(y1 + y2) / 2 + (vert ? 3 : -3) + off}" font-size="10.5" fill="#555" ${vert ? "" : 'text-anchor="middle"'}>${t}</text>`;
+}
+const DEFS = `<defs><marker id="ar" viewBox="0 0 8 8" refX="4" refY="4" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,1 L7,4 L0,7 z" fill="#888"/></marker>
+ <pattern id="hq" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="5" stroke="#c9b48a" stroke-width="1"/></pattern></defs>`;
+function drawWD(s, r) {
+  const W = 420, H = 300, phi = s.phi * Math.PI / 180;
+  let g = DEFS;
+  if (s.geo === "WaD") {
+    const wallH = Math.max(s.av * 1.6, 120), tot = wallH + s.hDe;
+    const sc = Math.min(230 / tot, 160 / s.tWa, 1.2);
+    const jx = 150, jy = 30 + wallH * sc;               // Fuge links unten Wand
+    const wx = jx, ww = s.tWa * sc;
+    g += `<rect x="${wx - 90}" y="${jy}" width="${ww + 180}" height="${s.hDe * sc}" fill="#f1e6cf" stroke="#8a7550"/>
+      <rect x="${wx}" y="30" width="${ww}" height="${wallH * sc}" fill="#f6edd9" stroke="#8a7550"/>
+      <text x="${wx + ww / 2}" y="24" font-size="11" text-anchor="middle" fill="#555">Wand ${s.tWa}</text>
+      <text x="${wx + ww + 95}" y="${jy + s.hDe * sc / 2 + 4}" font-size="11" text-anchor="end" fill="#555">Decke ${s.hDe}</text>`;
+    const x0 = wx, y0 = jy - s.av * sc, x1 = x0 + s.L * Math.sin(phi) * sc, y1 = y0 + s.L * Math.cos(phi) * sc;
+    g += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#c62828" stroke-width="3"/>
+      <circle cx="${x0}" cy="${y0}" r="4" fill="#c62828"/>`;
+    g += `<line x1="${x0 - 22}" y1="${y0}" x2="${x0 - 22}" y2="${jy}" stroke="#888" stroke-width=".8" marker-start="url(#ar)" marker-end="url(#ar)"/>
+      <text x="${x0 - 27}" y="${(y0 + jy) / 2 + 4}" font-size="10.5" text-anchor="end" fill="#555">a<tspan dy="2" font-size="8">v</tspan><tspan dy="-2"> = ${s.av}</tspan></text>`;
+    g += `<path d="M ${x0} ${y0 + 30} A 30 30 0 0 0 ${x0 + 30 * Math.sin(phi)} ${y0 + 30 * Math.cos(phi)}" fill="none" stroke="#666"/>
+      <line x1="${x0}" y1="${y0}" x2="${x0}" y2="${y0 + 38}" stroke="#666" stroke-dasharray="3 2"/>
+      <text x="${x0 + 6}" y="${y0 + 50}" font-size="10.5" fill="#444">φ = ${s.phi}°</text>
+      <text x="${x0 - 8}" y="${y0 - 8}" font-size="10.5" text-anchor="end" fill="#444">ℓ₁ = ${fmt(r.l1, 0)}</text>
+      <text x="${x1 + 6}" y="${y1}" font-size="10.5" fill="#444">ℓ₂ = ${fmt(r.l2, 0)}</text>`;
+    g += `<text x="10" y="${H - 8}" font-size="11" fill="#333">${s.n} × ${prodTxt(s)}</text>`;
+  } else {
+    const wallH = 160, tot = s.hDe + wallH, sc = Math.min(250 / tot, 140 / s.tWa, 1.2);
+    const wx = 170, ww = s.tWa * sc, jy = 30 + s.hDe * sc;
+    g += `<rect x="${wx - 100}" y="30" width="${ww + 200}" height="${s.hDe * sc}" fill="#f1e6cf" stroke="#8a7550"/>
+      <rect x="${wx}" y="${jy}" width="${ww}" height="${wallH * sc}" fill="#f6edd9" stroke="#8a7550"/>
+      <text x="${wx + ww + 105}" y="${30 + s.hDe * sc / 2 + 4}" font-size="11" text-anchor="end" fill="#555">Decke ${s.hDe}</text>
+      <text x="${wx + ww + 6}" y="${jy + 40}" font-size="11" fill="#555">Wand ${s.tWa}</text>`;
+    const x0 = wx + ww / 2 - s.hDe * Math.tan(phi) * sc, y0 = 30, x1 = x0 + s.L * Math.sin(phi) * sc, y1 = y0 + s.L * Math.cos(phi) * sc;
+    g += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#c62828" stroke-width="3"/><circle cx="${x0}" cy="${y0}" r="4" fill="#c62828"/>
+      <text x="${x1 + 6}" y="${y1}" font-size="10.5" fill="#444">ℓ₂ = ${fmt(r.l2, 0)}</text>
+      <text x="10" y="${H - 8}" font-size="11" fill="#333">${s.n} × ${prodTxt(s)}${s.phi ? ", φ = " + s.phi + "°" : ""}</text>`;
+  }
+  $("wd_svg").innerHTML = g;
+}
+function drawDS(s, r) {
+  const phi = s.phi * Math.PI / 180, h = r.h;
+  const span = s.e + s.L * Math.cos(phi);
+  const sc = Math.min(190 / h, 200 / Math.max(span, s.e * 2), 1.4);
+  const jx = 230, y0 = 30;
+  let g = DEFS, top = 0;
+  const wHalf = Math.max(span, s.e) * sc + 30;
+  s.layers.forEach(l => {
+    const y = y0 + top * sc, hh = l.t * sc;
+    g += `<rect x="${jx - wHalf}" y="${y}" width="${wHalf - 2}" height="${hh}" fill="${l.o === "quer" ? "#e2cfa3" : "#f6edd9"}" stroke="#8a7550" stroke-width=".7"/>
+          <rect x="${jx + 2}" y="${y}" width="${wHalf - 2}" height="${hh}" fill="${l.o === "quer" ? "#e2cfa3" : "#f6edd9"}" stroke="#8a7550" stroke-width=".7"/>`;
+    top += l.t;
+  });
+  const scr = (dir, col) => { const xh = jx - dir * s.e * sc, xt = xh + dir * s.L * Math.cos(phi) * sc, yt = y0 + s.L * Math.sin(phi) * sc;
+    return `<line x1="${xh}" y1="${y0}" x2="${xt}" y2="${yt}" stroke="${col}" stroke-width="2.6"/><circle cx="${xh}" cy="${y0}" r="3.5" fill="${col}"/>`; };
+  g += scr(1, "#c62828") + scr(-1, "#1f5f8b");
+  g += `<line x1="${jx}" y1="${y0 - 12}" x2="${jx}" y2="${y0 + h * sc + 12}" stroke="#333" stroke-dasharray="4 3"/>
+    <text x="${jx - s.e * sc}" y="${y0 - 6}" font-size="10.5" text-anchor="middle" fill="#c62828">S1</text>
+    <text x="${jx + s.e * sc}" y="${y0 - 6}" font-size="10.5" text-anchor="middle" fill="#1f5f8b">S2</text>
+    <text x="${jx - wHalf}" y="${y0 + h * sc + 18}" font-size="10.5" fill="#555">h = ${h} mm · φ = ${s.phi}° · e = ${s.e} mm</text>
+    <text x="${jx - wHalf}" y="${y0 + h * sc + 32}" font-size="11" fill="#333">${prodTxt(s)}, a<tspan dy="2" font-size="8">x</tspan><tspan dy="-2"> = ${s.ax} mm</tspan></text>`;
+  $("ds_svg").innerHTML = g;
+}
+
+// ------------------------------------------------------------- Bibliothek
+function renderLib() {
+  let h = "";
+  for (const [k, P] of Object.entries(LIB)) {
+    h += `<h3 style="margin:12px 0 4px">${P.name} <span class="mut">(${P.eta}, f<sub>y,k</sub> = ${P.fy} N/mm²)</span></h3>
+     <table style="max-width:620px"><tr><th>d [mm]</th><th>M<sub>y,k</sub> [Nm]</th><th>f<sub>tens,k</sub> [kN]</th><th>f<sub>ax,k</sub> [N/mm²]</th><th>d<sub>1</sub> [mm]</th><th>a [mm]</th></tr>
+     ${Object.entries(P.d).map(([d, v]) => `<tr><td>${d}</td>${["My", "ft", "fax", "d1", "a"].map(q => `<td><input type="number" step="0.1" style="width:70px" data-lib="${k}|${d}|${q}" value="${v[q]}"> ${v.v && v.v[q] ? '<span class="vok">✓</span>' : '<span class="flag">⚠</span>'}</td>`).join("")}</tr>`).join("")}</table>`;
+  }
+  $("libtab").innerHTML = h;
+  document.querySelectorAll("[data-lib]").forEach(el => el.addEventListener("change", () => {
+    const [k, d, q] = el.dataset.lib.split("|"); const v = LIB[k].d[d]; v[q] = parseFloat(el.value); v.v = { ...(v.v || {}) }; v.v[q] = 0; saveLib(); renderLib(); calc();
+  }));
+}
+$("libReset").onclick = () => { for (const k in LIB0) LIB[k].d = JSON.parse(JSON.stringify(LIB0[k].d)); saveLib(); renderLib(); calc(); };
+
+// ------------------------------------------------------------- Tabs, Speichern
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "t_" + b.dataset.tab));
+  document.querySelectorAll(".tab").forEach(t => t.style.display = t.classList.contains("active") ? "" : "none");
+});
+// Direktaufruf aus der Übersicht: …/bsp/#ds öffnet den Reiter Deckenstoß
+{ const h = location.hash.slice(1); if (/^[a-z]+$/.test(h)) { const b = document.querySelector('nav button[data-tab="' + h + '"]'); if (b) b.click(); } }
+$("bSave").onclick = () => {
+  const name = (st.meta.pos || "Verbindung").replace(/[\\/:*?"<>|]/g, "_") + ".json";
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(st, null, 1)], { type: "application/json" }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("bLoad").onclick = () => $("fLoad").click();
+$("fLoad").onchange = e => { const f = e.target.files[0]; if (!f) return; f.text().then(t => { try { const o = JSON.parse(t); st = { ...st, ...o, wd: { ...st.wd, ...o.wd }, ds: { ...st.ds, ...o.ds } }; syncToForm(); calc(); } catch (err) { alert("Datei nicht lesbar"); } }); e.target.value = ""; };
+
+// ------------------------------------------------------------- Start
+(function init() {
+  const s = LS("bspvbm_state_v2"); if (s) { try { const o = JSON.parse(s); st = { ...st, ...o, wd: { ...st.wd, ...o.wd }, ds: { ...st.ds, ...o.ds } }; } catch (e) {} }
+  fillSelects(); syncToForm(); bindForm(); renderLib();
+  document.querySelectorAll(".tab").forEach(t => t.style.display = t.classList.contains("active") ? "" : "none");
+  calc();
+})();
+
+</script>
+</body>
+</html>
